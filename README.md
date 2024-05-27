@@ -1,6 +1,12 @@
 # rumtk
 Rust's Medical Toolkit is a toolkit being developed to put together a set of tools and libraries to facilitate communication and automation in medicine. 
 
+# Goal
+To create a simple toolkit with the necessary libraries, dependencies, and utilities for managing standard tasks in Medical IT. 
+Also, I would like the project to make it more accessible for hospital to enable interoperability between systems. 
+The toolkit will focus on increasing security and simplicity with the first step taken by starting the project using Rust.
+The toolkit shall foster reliability and will make attempts to be standards compliant.
+
 # Milestones
 - [ ] Network Core library
 - [ ] Crypto Adapters
