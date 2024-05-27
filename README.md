@@ -12,13 +12,20 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
 - [ ] Crypto Adapters
 - [ ] Commandline Standard Argument Interface
 - [ ] Toolkit Core Library
+- [ ] Toolkit Core Tests
 - [ ] HL7 v2 Interface Protocol
 - [ ] HL7 v2 Custom Message Configuration
 - [ ] HL7 v2 Interface utility
+- [ ] HL7 v2 Tests
 - [ ] HL7 v2 to FHIR Basic Mapping.
 - [ ] HL7 v2 to FHIR Custom Mappings
 - [ ] HL7 v2 to FHIR Conversion utility
+- [ ] HL7 v2 to FHIR Conversion Tests
 - [ ] HL7 FHIR CRUD
 - [ ] HL7 FHIR Client
 - [ ] HL7 FHIR Client utility
+- [ ] HL7 FHIR Tests
 - [ ] HIFLAMES utility => HL7 Interface - FHIR Loader And Message Exporter System
+
+# Contributing
+In its initial stages, I will be pushing code directly to the main branch. Once basic functionality has been stablished, everyone including myself is required to open an issue for discussions, fork the project, and open a PR under your own feature or main branch. I kindly ask you include a battery of unit tests with your PR to help protect the project against regressions. Any contributions are very appreciated.
