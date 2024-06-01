@@ -1,7 +1,10 @@
 mod net;
 mod log;
-mod hl7_v2;
+mod hl7_v2_parser;
 mod hl7_fhir;
+mod hl7_v2_interpreter;
+mod mllp;
+mod hl7_v2_constants;
 
 
 #[cfg(test)]
@@ -40,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message() {
-        let message = hl7_v2::new(tests::DEFAULT_HL7_V2_MESSAGE);
+        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
         let message_segment = String::from("MSH");
         let test_str = String::from("");
         assert_eq!(message.get(message_segment), test_str);
@@ -48,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_segment() {
-        let message = hl7_v2::new(tests::DEFAULT_HL7_V2_MESSAGE);
+        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
         let message_segment = String::from("MSH");
         let test_str = String::from("");
         assert_eq!(message.get(message_segment), test_str);
@@ -56,7 +59,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_segment_field() {
-        let message = hl7_v2::new(tests::DEFAULT_HL7_V2_MESSAGE);
+        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
         let message_segment = String::from("MSH-1");
         let test_str = String::from("");
         assert_eq!(message.get(message_segment), test_str);
@@ -64,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_segment_field_node() {
-        let message = hl7_v2::new(tests::DEFAULT_HL7_V2_MESSAGE);
+        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
         let message_segment = String::from("PID-3.2");
         let test_str = String::from("");
         assert_eq!(message.get(message_segment), test_str);
