@@ -1,14 +1,10 @@
 mod net;
 mod log;
-mod hl7_v2_parser;
-mod hl7_fhir;
-mod hl7_v2_interpreter;
-mod mllp;
-mod hl7_v2_constants;
 
 
 #[cfg(test)]
 mod tests {
+    use rumtk_hl7_v2::hl7_v2_parser;
     use super::*;
 
     #[test]

@@ -1,6 +1,7 @@
 [package]
-name = "rumtk-core"
+name = "rumtk-hl7-fhir"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+fhir-sdk = "0.12.0"
