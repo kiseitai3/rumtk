@@ -1,5 +1,6 @@
 mod net;
 mod log;
+mod strings;
 
 
 #[cfg(test)]
