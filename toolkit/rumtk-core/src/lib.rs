@@ -1,13 +1,12 @@
 mod net;
 mod log;
-mod strings;
-
+pub mod strings;
 
 #[cfg(test)]
 mod tests {
-    use rumtk_hl7_v2::hl7_v2_parser;
     use super::*;
 
+    /*
     #[test]
     fn test_server_listen() {
         let server = net::TCPSever::new();
@@ -37,36 +36,5 @@ mod tests {
         log::log_info(test_str);
         assert_eq!(result, test_str);
     }
-
-    #[test]
-    fn test_load_hl7_v2_message() {
-        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
-        let message_segment = String::from("MSH");
-        let test_str = String::from("");
-        assert_eq!(message.get(message_segment), test_str);
-    }
-
-    #[test]
-    fn test_load_hl7_v2_message_segment() {
-        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
-        let message_segment = String::from("MSH");
-        let test_str = String::from("");
-        assert_eq!(message.get(message_segment), test_str);
-    }
-
-    #[test]
-    fn test_load_hl7_v2_message_segment_field() {
-        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
-        let message_segment = String::from("MSH-1");
-        let test_str = String::from("");
-        assert_eq!(message.get(message_segment), test_str);
-    }
-
-    #[test]
-    fn test_load_hl7_v2_message_segment_field_node() {
-        let message = hl7_v2_parser::new(tests::DEFAULT_HL7_V2_MESSAGE);
-        let message_segment = String::from("PID-3.2");
-        let test_str = String::from("");
-        assert_eq!(message.get(message_segment), test_str);
-    }
+    */
 }

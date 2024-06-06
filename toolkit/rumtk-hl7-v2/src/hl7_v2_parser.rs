@@ -3,10 +3,11 @@
 
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
+    use crate::hl7_v2_types::hl7_v2_types;
 
     const V2_DELETE_FIELD: &str = "\"\"";
     struct V2Component {
-        component: String,
+        component: hl7_v2_types::V2String,
         delete_data: bool
     }
 
@@ -24,8 +25,6 @@ mod v2_parser {
         }
 
         fn as_datetime(self) -> DateTime<Utc> {
-            let dt = self.component.split('+)
-            let date_time: NaiveDateTime = NaiveDateTime::from_ymd(2017, 11, 12).and_hms(17, 33, 44)
             self.component.parse().unwrap()
         }
 
@@ -56,7 +55,7 @@ mod v2_parser {
             self.components.len()
         }
 
-        fn find_component(self, component_name: &String) ->
+        //fn find_component(self, component_name: &String) ->
     }
 
     type V2Segment = Vec<V2Field>;

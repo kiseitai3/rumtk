@@ -1,12 +1,12 @@
 
-mod hl7_v2_types {
+pub mod hl7_v2_types {
     use chrono::prelude::*;
     use unicode_segmentation::UnicodeSegmentation;
-    use rumtk_core::count_tokens_ignoring_pattern;
+    use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str};
 
-    type V2String = String;
+    pub type V2String = String;
 
-    const V2DATETIME_THOUSAND_TICK: u32 = 1000;
+    const V2DATETIME_THOUSAND_TICK: u16 = 1000;
     const V2DATETIME_MIRCRO_LENGTH: u8 = 6;
     struct V2DateTime {
         year: u16,
@@ -41,19 +41,26 @@ mod hl7_v2_types {
                 hour: utc_dt.hour() as u8,
                 minute: utc_dt.minute() as u8,
                 second: utc_dt.second() as u8,
-                microsecond: utc_dt.nanosecond() / V2DATETIME_THOUSAND_TICK,
+                microsecond: utc_dt.nanosecond() / (V2DATETIME_THOUSAND_TICK as u32),
                 offset: utc_dt.offset().to_string(),
             }
         }
 
         fn from_v2_string(self, item: V2String) -> V2DateTime {
-            let grapheme_vector: Vec<&str> = item.graphemes(true).collect();
+            // Needed fields
+            let mut microsecond: u32;
+            let mut offset: String;
+
+            // Begin decomposing string into discrete components per HL7 DateTime format specs.
+            // See https://hl7-definition.caristix.com/v2/HL7v2.8/DataTypes/DTM
             let dt_vec: Vec<&str> = item.split('.').collect();
             let mut ms_vec: Vec<&str> = dt_vec[-1].split('+').collect();
             if count_tokens_ignoring_pattern(&ms_vec, &String::from(" ")) < 2 {
                 ms_vec = dt_vec[-1].split('-').collect();
             }
 
+            let (year, month, day, hour, minute, second) =
+                decompose_dt_str(&String::from(dt_vec[0]));
 
 
             V2DateTime{ year, month, day, hour, minute, second, microsecond, offset}
