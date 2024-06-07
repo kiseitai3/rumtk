@@ -3,59 +3,66 @@
 
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
-    use crate::hl7_v2_types::hl7_v2_types;
+    use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
 
     const V2_DELETE_FIELD: &str = "\"\"";
     struct V2Component {
-        component: hl7_v2_types::V2String,
+        component: V2String,
         delete_data: bool
     }
 
     impl V2Component {
-        fn new(self) -> V2Component {
-            V2Component{component: String::new(), delete_data: false}
+        fn new() -> V2Component {
+            V2Component{component: V2String::new(), delete_data: false}
         }
 
-        fn from(self, item: &String) -> V2Component {
-            V2Component{component: String::from(item), delete_data: item == V2_DELETE_FIELD}
+        fn from(item: &String) -> V2Component {
+            V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
         }
 
         fn is_empty(self) -> bool {
             self.component == ""
         }
 
-        fn as_datetime(self) -> DateTime<Utc> {
-            self.component.parse().unwrap()
+        fn as_datetime(self) -> V2DateTime {
+            V2DateTime::from_v2_string(self.component)
         }
 
         fn as_bool(self) -> bool {
-
+            self.component.parse::<bool>().unwrap()
         }
 
         fn as_integer(self) -> i64 {
-
+            self.component.parse::<i64>().unwrap()
         }
 
         fn as_float(self) -> f64 {
-
+            self.component.parse::<f64>().unwrap()
         }
     }
 
-    type FieldList = Vec<String>;
+    type FieldList = Vec<V2Component>;
     struct V2Field {
         components: FieldList
     }
 
     impl V2Field {
-        fn new(self, val: String) -> V2Field {
+        fn new() -> V2Field {
             V2Field{components: FieldList::new()}
+        }
+
+        fn from_string(val: &String, divider: &String) -> V2Field {
+            let comp_vec: Vec<&String> = val.split(divider).collect();
+            let mut component_list: FieldList = FieldList::new();
+            for c in comp_vec {
+                component_list.push(V2Component::from(c));
+            }
+            V2Field{components: component_list}
         }
 
         fn len(self) -> usize {
             self.components.len()
         }
-
-        //fn find_component(self, component_name: &String) ->
     }
 
     type V2Segment = Vec<V2Field>;
@@ -68,7 +75,7 @@ mod v2_parser {
     }
 
     impl V2Message {
-        fn new(self) -> V2Message {
+        fn new() -> V2Message {
             V2Message{default_segment: V2SegmentGroup::new(), segment_groups: SegmentMap::new()}
         }
 

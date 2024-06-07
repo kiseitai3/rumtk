@@ -50,6 +50,9 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
             minute = dt_str[10..12].parse::<u8>().unwrap();
             second = dt_str[12..].parse::<u8>().unwrap();
         }
+        _ => {
+
+        }
     }
     (year, month, day, hour, minute, second)
 }

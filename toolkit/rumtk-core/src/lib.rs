@@ -1,6 +1,7 @@
 mod net;
 mod log;
 pub mod strings;
+pub mod maths;
 
 #[cfg(test)]
 mod tests {
