@@ -61,10 +61,10 @@ mod v2_parser {
         }
 
         fn from_string(val: &String, divider: &String) -> V2Field {
-            let comp_vec: Vec<&String> = val.split(divider).collect();
+            let comp_vec: Vec<&str> = val.split(divider).collect();
             let mut component_list: FieldList = FieldList::new();
             for c in comp_vec {
-                component_list.push(V2Component::from(c));
+                component_list.push(V2Component::from(&String::from(c)));
             }
             V2Field{components: component_list}
         }
