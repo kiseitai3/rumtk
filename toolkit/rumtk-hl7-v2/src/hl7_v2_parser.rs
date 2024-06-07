@@ -1,3 +1,12 @@
+/*
+    The V2 Parser module will contain a simple and lightweight message parser that will generate a
+    structure following the message structure in the HL7 Specifications.
+    The V2Message type here will provide a basic interface for navigating through the mapped
+    segments and fields.
+    From here, we will then write a schema driven interpreter module (see other source files in
+    crate). That interpreter will try to generate a message structure using the specified HL7
+    types. That structure will be exportable to JSON and (maybe) XML.
+ */
 //https://v2.hl7.org/conformance/HL7v2_Conformance_Methodology_R1_O1_Ballot_Revised_D9_-_September_2019_Introduction.html#:~:text=The%20base%20HL7%20v2%20standard,message%20definition%20is%20called%20profiling.
 //https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
 
