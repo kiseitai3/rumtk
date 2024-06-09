@@ -1,6 +1,7 @@
 use ::phf::Map;
 use ::phf_macros::phf_map;
 
+pub const MSHEADER_PATTERN: &str = "MSH";
 
 type ElementType = Map<&'static str, &'static str>;
 static V2_SEGMENT_TYPES: ElementType = phf_map! {

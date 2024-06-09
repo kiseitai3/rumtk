@@ -12,7 +12,9 @@
 
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
+    use unicode_segmentation::UnicodeSegmentation;
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
+    use crate::hl7_v2_constants::MSHEADER_PATTERN;
 
     const V2_DELETE_FIELD: &str = "\"\"";
     struct V2Component {
@@ -78,13 +80,58 @@ mod v2_parser {
     type V2SegmentGroup = Vec<V2Segment>;
     type SegmentMap = HashMap<String, V2SegmentGroup>;
 
+    struct V2ParseCharacters {
+        segment_terminator: char,
+        field_separator: char,
+        component_separator: char,
+        repetition_separator: char,
+        escape_character: char,
+        subcomponent_separator: char,
+        truncation_character: char
+    }
+
+    const SEGMENT_TERMINATOR: char = '\r';
+
+    impl V2ParseCharacters {
+        fn from(msg_key_chars: &str) -> V2ParseCharacters {
+            let mut parse_chars = msg_key_chars.chars();
+
+            match parse_chars.count() {
+                6 => V2ParseCharacters {
+                    segment_terminator: SEGMENT_TERMINATOR,
+                    field_separator: parse_chars.next().unwrap(),
+                    component_separator: parse_chars.next().unwrap(),
+                    repetition_separator: parse_chars.next().unwrap(),
+                    escape_character: parse_chars.next().unwrap(),
+                    subcomponent_separator: parse_chars.next().unwrap(),
+                    truncation_character: parse_chars.next().unwrap(),
+                },
+                _ => V2ParseCharacters {
+                    segment_terminator: SEGMENT_TERMINATOR,
+                    field_separator: parse_chars.next().unwrap(),
+                    component_separator: parse_chars.next().unwrap(),
+                    repetition_separator: parse_chars.next().unwrap(),
+                    escape_character: parse_chars.next().unwrap(),
+                    subcomponent_separator: parse_chars.next().unwrap(),
+                    truncation_character: '#'
+                }
+            }
+        }
+    }
+
     struct V2Message {
+        separators: V2ParseCharacters,
         default_segment: V2SegmentGroup,
         segment_groups: SegmentMap
     }
 
     impl V2Message {
-        fn new() -> V2Message {
+        fn from(raw_msg: &String) -> Result<V2Message, Err> {
+            let segments = Self::tokenize_segments(&raw_msg);
+            let parse_characters = Self::extract_parse_chars(&segments[0]);
+
+
+
             V2Message{default_segment: V2SegmentGroup::new(), segment_groups: SegmentMap::new()}
         }
 
@@ -95,6 +142,13 @@ mod v2_parser {
         fn is_repeat_segment(self, segment_name: &String) -> bool {
             let _segment_group: &V2SegmentGroup = self.find_segment(segment_name);
             _segment_group.len() > 1
+        }
+
+        fn is_msh(msh_segment_token: &str) -> bool {
+            match msh_segment_token[0..4] {
+                MSHEADER_PATTERN => true,
+                _ => false
+            }
         }
 
         fn segment_exists(self, segment_name: &String) -> bool {
@@ -108,9 +162,38 @@ mod v2_parser {
                 None => &self.default_segment
             }
         }
+
+        // Message parsing operations
+
+        fn tokenize_segments(raw_message: &String) -> Vec<&str> {
+            //Per Figure 2-1. Delimiter values of the HL7 v2 2.9 standard, each segment is separated
+            // by a carriage return <cr>. The value cannot be changed by implementers.
+            raw_message.split(SEGMENT_TERMINATOR).collect()
+        }
+
+        fn extract_parse_chars(msh_segment: &str) -> V2ParseCharacters {
+            assert!(Self::is_msh(msh_segment), "The first segment is not an MSH segment! This message is malformed!");
+            V2ParseCharacters::from(&msh_segment[4..])
+        }
+
+        fn extract_segment(segment: &str, parse_chars: &V2ParseCharacters) -> V2Segment {
+
+        }
     }
 
     struct V2Parser {
 
+    }
+
+    impl V2Parser {
+        fn parse(raw_message: &String) -> V2Message {
+            let msg_lines: Vec<&str> = raw_message.split().collect();
+        }
+
+        fn tokenize_segments(raw_message: &String) -> Vec<&str> {
+            //Per Figure 2-1. Delimiter values of the HL7 v2 2.9 standard, each segment is separated
+            // by a carriage return <cr>. The value cannot be changed by implementers.
+            raw_message.split('\r').collect()
+        }
     }
 }
