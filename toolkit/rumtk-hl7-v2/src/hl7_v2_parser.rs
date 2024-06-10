@@ -12,11 +12,11 @@
 
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
+    use std::collections::VecDeque;
     use unicode_segmentation::UnicodeSegmentation;
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
-    use crate::hl7_v2_constants::MSHEADER_PATTERN;
+    use crate::hl7_v2_constants::{MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD};
 
-    const V2_DELETE_FIELD: &str = "\"\"";
     struct V2Component {
         component: V2String,
         delete_data: bool
@@ -27,7 +27,11 @@ mod v2_parser {
             V2Component{component: V2String::new(), delete_data: false}
         }
 
-        fn from(item: &String) -> V2Component {
+        fn from(item: &str) -> V2Component {
+            V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
+        }
+
+        fn from_string(item: &str, parse_chars: &V2ParseCharacters) -> V2Component {
             V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
         }
 
@@ -62,11 +66,11 @@ mod v2_parser {
             V2Field{components: FieldList::new()}
         }
 
-        fn from_string(val: &String, divider: &String) -> V2Field {
-            let comp_vec: Vec<&str> = val.split(divider).collect();
+        fn from_string(val: &str, parse_chars: &V2ParseCharacters) -> V2Field {
+            let comp_vec: Vec<&str> = val.split(parse_chars.component_separator).collect();
             let mut component_list: FieldList = FieldList::new();
             for c in comp_vec {
-                component_list.push(V2Component::from(&String::from(c)));
+                component_list.push(V2Component::from_string(c, parse_chars));
             }
             V2Field{components: component_list}
         }
@@ -76,7 +80,29 @@ mod v2_parser {
         }
     }
 
-    type V2Segment = Vec<V2Field>;
+    type V2Fields = Vec<V2Field>;
+    struct V2Segment {
+        name: String,
+        description: String,
+        fields: V2Fields
+    }
+
+    impl V2Segment {
+        fn from_string(raw_segment: &str, parse_chars: &V2ParseCharacters) -> V2Segment {
+            let raw_fields: Vec<&str> = raw_segment.split(parse_chars.field_separator).collect();
+            let mut field_list: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
+
+            for raw_field in raw_fields {
+                field_list.push(V2Field::from_string(raw_field, parse_chars))
+            }
+
+            let field_name = field_list.pop_front().unwrap().components.get(0).unwrap().component.to_uppercase();
+            let field_description = String::from(V2_SEGMENT_TYPES.get(&field_name).unwrap());
+
+            V2Segment { name: field_name, description: field_description, fields: field_list }
+        }
+    }
+
     type V2SegmentGroup = Vec<V2Segment>;
     type SegmentMap = HashMap<String, V2SegmentGroup>;
 
@@ -176,24 +202,15 @@ mod v2_parser {
             V2ParseCharacters::from(&msh_segment[4..])
         }
 
-        fn extract_segment(segment: &str, parse_chars: &V2ParseCharacters) -> V2Segment {
+        fn extract_segments(raw_segments: &Vec<&str>, parse_chars: &V2ParseCharacters) -> SegmentMap {
+            let mut segments: SegmentMap = SegmentMap::new();
 
-        }
-    }
+            for segment_str in raw_segments {
+                let segment: V2Segment = V2Segment::from_string(segment_str, parse_chars);
+                segments[&segment.name].push(segment);
+            }
 
-    struct V2Parser {
-
-    }
-
-    impl V2Parser {
-        fn parse(raw_message: &String) -> V2Message {
-            let msg_lines: Vec<&str> = raw_message.split().collect();
-        }
-
-        fn tokenize_segments(raw_message: &String) -> Vec<&str> {
-            //Per Figure 2-1. Delimiter values of the HL7 v2 2.9 standard, each segment is separated
-            // by a carriage return <cr>. The value cannot be changed by implementers.
-            raw_message.split('\r').collect()
+            segments
         }
     }
 }

@@ -2,9 +2,10 @@ use ::phf::Map;
 use ::phf_macros::phf_map;
 
 pub const MSHEADER_PATTERN: &str = "MSH";
+pub const V2_DELETE_FIELD: &str = "\"\"";
 
 type ElementType = Map<&'static str, &'static str>;
-static V2_SEGMENT_TYPES: ElementType = phf_map! {
+pub static V2_SEGMENT_TYPES: ElementType = phf_map! {
     "ABS" => "Abstract",
     "ACC" => "Accident",
     "ADD" => "Addendum",
@@ -199,7 +200,7 @@ static V2_SEGMENT_TYPES: ElementType = phf_map! {
     "Z**" => "Non-Standard/Private Segment"
 };
 
-static V2_MESSAGE_TYPES: ElementType = phf_map! {
+pub static V2_MESSAGE_TYPES: ElementType = phf_map! {
     "ACK" => "Acknowledge",
     "ADT" => "Patient Administration",
     "BAR" => "",
