@@ -3,6 +3,8 @@ use ::phf_macros::phf_map;
 
 pub const MSHEADER_PATTERN: &str = "MSH";
 pub const V2_DELETE_FIELD: &str = "\"\"";
+pub const V2_SEGMENT_TERMINATOR: char = '\r';
+pub const V2_TRUNCATION_CHARACTER: char = '#';
 
 type ElementType = Map<&'static str, &'static str>;
 pub static V2_SEGMENT_TYPES: ElementType = phf_map! {
