@@ -9,13 +9,15 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
 
 # Milestones
 - [ ] Network Core library
-- [ ] Crypto Adapters
+- [ ] Cryptologic Adapters
 - [ ] Commandline Standard Argument Interface
 - [ ] Toolkit Core Library
 - [ ] Toolkit Core Tests
 - [ ] HL7 v2 Interface Protocol
+- [ ] HL7 v2 UTF-8/Unicode Support
 - [ ] HL7 v2 Custom Message Configuration
-- [ ] HL7 v2 Interface utility
+- [ ] HL7 v2 Endpoint Interface utility
+- [ ] HL7 v2 Client Interface utility
 - [ ] HL7 v2 Tests
 - [ ] HL7 v2 to FHIR Basic Mapping.
 - [ ] HL7 v2 to FHIR Custom Mappings

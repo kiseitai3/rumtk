@@ -1,3 +1,55 @@
+use std::ops::Index;
+use std::slice::SliceIndex;
+use unicode_segmentation::UnicodeSegmentation;
+
+
+/*
+* Implemented indexing trait for String and str which uses the UnicodeSegmentation facilities to
+* enable grapheme iteration by default. There could be some performance penalty, but it will allow
+* for native Unicode support to the best extent possible.
+*/
+trait UTFStringExtensions {
+    fn count_graphemes(self) -> usize;
+}
+
+impl Index<usize> for String
+{
+    type Output = str;
+
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Self::Output {
+        self.graphemes(true).nth(index).unwrap()
+    }
+}
+
+impl UTFStringExtensions for String {
+    #[inline(always)]
+    fn count_graphemes(self) -> usize {
+        self.graphemes(true).count()
+    }
+}
+
+impl<T, Idx> Index<Idx> for str
+where
+    Idx: SliceIndex<[T], Output = T>,
+{
+    type Output = T;
+
+    #[inline(always)]
+    fn index(&self, index: Idx) -> &Self::Output {
+        self.graphemes(true).nth(index).unwrap()
+    }
+}
+
+impl UTFStringExtensions for str {
+    #[inline(always)]
+    fn count_graphemes(self) -> usize {
+        self.graphemes(true).count()
+    }
+}
+
+// Other string helpers.
+
 pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &String) -> usize {
     let mut count: usize = 0;
     for tok in vector.iter() {

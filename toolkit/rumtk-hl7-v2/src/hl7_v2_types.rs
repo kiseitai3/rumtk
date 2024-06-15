@@ -47,7 +47,7 @@ pub mod v2_types {
             }
         }
 
-        pub fn from_v2_string(item: V2String) -> V2DateTime {
+        pub fn from_v2_string(item: &V2String) -> V2DateTime {
             // Begin decomposing string into discrete components per HL7 DateTime format specs.
             // See https://hl7-definition.caristix.com/v2/HL7v2.8/DataTypes/DTM
             let dt_vec: Vec<&str> = item.split('.').collect();
@@ -75,7 +75,7 @@ pub mod v2_types {
             V2DateTime{ year, month, day, hour, minute, second, microsecond, offset}
         }
 
-        fn as_utc_string(self) -> String {
+        fn as_utc_string(&self) -> String {
             format!(
                 "{year}-{month}-{day}T{hour}:{minute}:{second}.{microsecond}{offset}",
                 year = self.year,
@@ -89,7 +89,7 @@ pub mod v2_types {
             )
         }
 
-        fn as_utc_datetime(self) -> DateTime<Utc> {
+        fn as_utc_datetime(&self) -> DateTime<Utc> {
             self.as_utc_string().parse().unwrap()
         }
     }

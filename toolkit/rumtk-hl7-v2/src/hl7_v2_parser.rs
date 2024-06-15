@@ -13,7 +13,7 @@
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
-    use unicode_segmentation::UnicodeSegmentation;
+    use rumtk_core::strings;
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER};
@@ -106,7 +106,7 @@ mod v2_parser {
             let mut field_list: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
 
             for raw_field in raw_fields {
-                field_list.push(V2Field::from_string(raw_field, parser_chars))
+                field_list.push(V2Field::from_string(&raw_field, &parser_chars))
             }
 
             let field_name = match field_list.pop_front() {
@@ -118,7 +118,7 @@ mod v2_parser {
             };
             let field_description = String::from(
                 match V2_SEGMENT_TYPES.get(&field_name){
-                    Some(description) => description,
+                    Some(description) => &description,
                     None => return Err(format!("Field description not found! Field name: {}", &field_name))
                 });
 
@@ -130,41 +130,42 @@ mod v2_parser {
     type SegmentMap = HashMap<String, V2SegmentGroup>;
 
     struct V2ParserCharacters {
-        segment_terminator: char,
-        field_separator: char,
-        component_separator: char,
-        repetition_separator: char,
-        escape_character: char,
-        subcomponent_separator: char,
-        truncation_character: char
+        segment_terminator: String,
+        field_separator: String,
+        component_separator: String,
+        repetition_separator: String,
+        escape_character: String,
+        subcomponent_separator: String,
+        truncation_character: String
     }
 
     impl V2ParserCharacters {
         fn from(msg_key_chars: &str) -> V2Result<V2ParserCharacters, String> {
-            let encoding_field: Vec<&str> = msg_key_chars.split(&msg_key_chars[0..1]).collect();
-            let parser_chars: Vec<char> = encoding_field[0].chars().collect();
+            let field_separator: &str = msg_key_chars[0];
+            let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
+            let parser_chars: &str = encoding_field[1];
 
 
-            match parser_chars.count() {
-                6 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR,
-                    field_separator: parser_chars.next().unwrap(),
-                    component_separator: parser_chars.next().unwrap(),
-                    repetition_separator: parser_chars.next().unwrap(),
-                    escape_character: parser_chars.next().unwrap(),
-                    subcomponent_separator: parser_chars.next().unwrap(),
-                    truncation_character: parser_chars.next().unwrap(),
-                }),
+            match parser_chars.count_graphemes() {
                 5 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR,
-                    field_separator: parser_chars.next().unwrap(),
-                    component_separator: parser_chars.next().unwrap(),
-                    repetition_separator: parser_chars.next().unwrap(),
-                    escape_character: parser_chars.next().unwrap(),
-                    subcomponent_separator: parser_chars.next().unwrap(),
-                    truncation_character: V2_TRUNCATION_CHARACTER
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
+                    field_separator: field_separator.to_string(),
+                    component_separator: parser_chars[0].to_string(),
+                    repetition_separator: parser_chars[1].to_string(),
+                    escape_character: parser_chars[2].to_string(),
+                    subcomponent_separator: parser_chars[3].to_string(),
+                    truncation_character: parser_chars[4].to_string(),
                 }),
-                _ => Err(String::from("Wrong count of parsing characters in message header!"))
+                4 => Ok(V2ParserCharacters {
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
+                    field_separator: field_separator.to_string(),
+                    component_separator: parser_chars[0].to_string(),
+                    repetition_separator: parser_chars[1].to_string(),
+                    escape_character: parser_chars[2].to_string(),
+                    subcomponent_separator: parser_chars[3].to_string(),
+                    truncation_character: V2_TRUNCATION_CHARACTER.to_string()
+                }),
+                _ => Err("Wrong count of parsing characters in message header!".to_string())
             }
         }
 
@@ -172,7 +173,7 @@ mod v2_parser {
             if V2ParserCharacters::is_msh(msh_segment) {
                 Ok(V2ParserCharacters::from(&msh_segment[4..]).unwrap())
             } else {
-                Err(String::from("The segment is not an MSH segment! This message is malformed!"))
+                Err("The segment is not an MSH segment! This message is malformed!".to_string())
             }
         }
 
@@ -191,7 +192,7 @@ mod v2_parser {
     }
 
     impl V2Message {
-        fn from(raw_msg: &String) -> V2Result<V2Message, String> {
+        fn from(raw_msg: &String) -> V2Result<Ok, Err> {
             let segment_tokens = V2Message::tokenize_segments(&raw_msg);
             let parse_characters = match V2ParserCharacters::extract_parser_chars(&segment_tokens[0]){
                 Ok(parser_chars) => parser_chars,
