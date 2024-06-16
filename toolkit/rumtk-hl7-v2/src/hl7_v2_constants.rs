@@ -1,10 +1,14 @@
 use ::phf::Map;
 use ::phf_macros::phf_map;
 
-pub const MSHEADER_PATTERN: &str = "MSH";
+pub const V2_MSHEADER_PATTERN: &str = "MSH";
 pub const V2_DELETE_FIELD: &str = "\"\"";
 pub const V2_SEGMENT_TERMINATOR: char = '\r';
 pub const V2_TRUNCATION_CHARACTER: char = '#';
+
+pub const V2_DATETIME_THOUSAND_TICK: u16 = 1000;
+pub const V2_DATETIME_MIRCRO_LENGTH: u8 = 6;
+pub const V2_EMPTY_STRING: &str = "";
 
 type ElementType = Map<&'static str, &'static str>;
 pub static V2_SEGMENT_TYPES: ElementType = phf_map! {

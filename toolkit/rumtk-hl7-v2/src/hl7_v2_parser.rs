@@ -13,12 +13,12 @@
 mod v2_parser {
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
-    use rumtk_core::strings;
+    use rumtk_core::strings::{UTFStringExtensions};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
-    use crate::hl7_v2_constants::{MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
-                                  V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER};
+    use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
+                                  V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING};
 
-    type V2Result<T, E> = Result<T, E>;
+    type V2Result<T> = Result<T, String>;
 
     struct V2Component {
         component: V2String,
@@ -43,7 +43,7 @@ mod v2_parser {
         }
 
         fn as_datetime(&self) -> V2DateTime {
-            V2DateTime::from_v2_string(self.component)
+            V2DateTime::from_v2_string(&self.component)
         }
 
         fn as_bool(&self) -> bool {
@@ -63,19 +63,19 @@ mod v2_parser {
         }
     }
 
-    type FieldList = Vec<V2Component>;
+    type ComponentList = Vec<V2Component>;
     struct V2Field {
-        components: FieldList
+        components: ComponentList
     }
 
     impl V2Field {
         fn new() -> V2Field {
-            V2Field{components: FieldList::new()}
+            V2Field{components: ComponentList::new()}
         }
 
         fn from_string(val: &str, parser_chars: &V2ParserCharacters) -> V2Field {
-            let comp_vec: Vec<&str> = val.split(parser_chars.component_separator).collect();
-            let mut component_list: FieldList = FieldList::new();
+            let comp_vec: Vec<&str> = val.split(parser_chars.component_separator.as_str()).collect();
+            let mut component_list: ComponentList = ComponentList::new();
             for c in comp_vec {
                 component_list.push(V2Component::from_string(c, parser_chars));
             }
@@ -87,29 +87,30 @@ mod v2_parser {
         }
     }
 
-    type V2Fields = Vec<V2Field>;
+    type V2FieldList = Vec<V2Field>;
     struct V2Segment {
         name: String,
         description: String,
-        fields: V2Fields
+        fields: V2FieldList
     }
 
     impl V2Segment {
-        fn from_string(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<V2Segment, String> {
-            let raw_fields: Vec<&str> = raw_segment.split(parser_chars.field_separator).collect();
+        fn from_string(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<Self> {
+            let raw_fields: Vec<&str> = raw_segment.split(parser_chars.field_separator.as_str()).collect();
             let raw_field_count = raw_fields.len();
 
             if raw_field_count <= 0 {
                 return Err(format!("Error splitting segments into fields!\nRaw segment: {}\nField separator: {}", &raw_segment, &parser_chars.field_separator))
             }
 
-            let mut field_list: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
+            let mut fields: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
+            let mut field_list = V2FieldList::with_capacity(raw_fields.len() - 1);
 
             for raw_field in raw_fields {
-                field_list.push(V2Field::from_string(&raw_field, &parser_chars))
+                fields.push_back(V2Field::from_string(&raw_field, &parser_chars))
             }
 
-            let field_name = match field_list.pop_front() {
+            let field_name = match fields.pop_front() {
                 Some(field) => match field.components.get(0) {
                     Some(name) => name.component.to_uppercase(),
                     None => return Err(format!("Expected at least one component in field but got None!\nRaw segment: {}", &raw_segment))
@@ -119,8 +120,12 @@ mod v2_parser {
             let field_description = String::from(
                 match V2_SEGMENT_TYPES.get(&field_name){
                     Some(description) => &description,
-                    None => return Err(format!("Field description not found! Field name: {}", &field_name))
+                    None => V2_EMPTY_STRING
                 });
+
+            for field in fields {
+                field_list.push(field);
+            }
 
             Ok(V2Segment { name: field_name, description: field_description, fields: field_list })
         }
@@ -140,8 +145,8 @@ mod v2_parser {
     }
 
     impl V2ParserCharacters {
-        fn from(msg_key_chars: &str) -> V2Result<V2ParserCharacters, String> {
-            let field_separator: &str = msg_key_chars[0];
+        fn from(msg_key_chars: &str) -> V2Result<Self> {
+            let field_separator: &str = msg_key_chars.get_grapheme(0);
             let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
             let parser_chars: &str = encoding_field[1];
 
@@ -150,26 +155,26 @@ mod v2_parser {
                 5 => Ok(V2ParserCharacters {
                     segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
                     field_separator: field_separator.to_string(),
-                    component_separator: parser_chars[0].to_string(),
-                    repetition_separator: parser_chars[1].to_string(),
-                    escape_character: parser_chars[2].to_string(),
-                    subcomponent_separator: parser_chars[3].to_string(),
-                    truncation_character: parser_chars[4].to_string(),
+                    component_separator: parser_chars.get_grapheme(0).to_string(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_string(),
+                    escape_character: parser_chars.get_grapheme(2).to_string(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_string(),
+                    truncation_character: parser_chars.get_grapheme(4).to_string(),
                 }),
                 4 => Ok(V2ParserCharacters {
                     segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
                     field_separator: field_separator.to_string(),
-                    component_separator: parser_chars[0].to_string(),
-                    repetition_separator: parser_chars[1].to_string(),
-                    escape_character: parser_chars[2].to_string(),
-                    subcomponent_separator: parser_chars[3].to_string(),
+                    component_separator: parser_chars.get_grapheme(0).to_string(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_string(),
+                    escape_character: parser_chars.get_grapheme(2).to_string(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_string(),
                     truncation_character: V2_TRUNCATION_CHARACTER.to_string()
                 }),
                 _ => Err("Wrong count of parsing characters in message header!".to_string())
             }
         }
 
-        fn from_msh(msh_segment: &str) -> V2Result<V2ParserCharacters, String> {
+        fn from_msh(msh_segment: &str) -> V2Result<Self> {
             if V2ParserCharacters::is_msh(msh_segment) {
                 Ok(V2ParserCharacters::from(&msh_segment[4..]).unwrap())
             } else {
@@ -178,8 +183,8 @@ mod v2_parser {
         }
 
         fn is_msh(msh_segment_token: &str) -> bool {
-            match msh_segment_token[0..4] {
-                MSHEADER_PATTERN => true,
+            match &msh_segment_token[0..4] {
+                V2_MSHEADER_PATTERN => true,
                 _ => false
             }
         }
@@ -192,15 +197,15 @@ mod v2_parser {
     }
 
     impl V2Message {
-        fn from(raw_msg: &String) -> V2Result<Ok, Err> {
+        fn from(raw_msg: &String) -> V2Result<Self> {
             let segment_tokens = V2Message::tokenize_segments(&raw_msg);
-            let parse_characters = match V2ParserCharacters::extract_parser_chars(&segment_tokens[0]){
+            let parse_characters = match V2ParserCharacters::from(&segment_tokens[0]){
                 Ok(parser_chars) => parser_chars,
-                Err(why) => Err(why)
+                Err(why) => return Err(why)
             };
             let segments = match V2Message::extract_segments(&segment_tokens, &parse_characters){
                 Ok(segments) => segments,
-                Err(e) => return e
+                Err(e) => return Err(e)
             };
 
 
@@ -240,7 +245,7 @@ mod v2_parser {
             raw_message.split(V2_SEGMENT_TERMINATOR).collect()
         }
 
-        fn extract_segments(raw_segments: &Vec<&str>, parser_chars: &V2ParserCharacters) -> V2Result<SegmentMap, String> {
+        fn extract_segments(raw_segments: &Vec<&str>, parser_chars: &V2ParserCharacters) -> V2Result<SegmentMap> {
             let mut segments: SegmentMap = SegmentMap::new();
 
             for segment_str in raw_segments {
@@ -248,7 +253,12 @@ mod v2_parser {
                     Ok(segment_value) => segment_value,
                     Err(why) => return Err(why)
                 };
-                segments[&segment.name].push(segment);
+
+                let key = String::from(&segment.name);
+                if segments.contains_key(&segment.name) == false {
+                    segments.insert(key, V2SegmentGroup::new());
+                }
+                segments.get_mut(&segment.name).unwrap().push(segment);
             }
 
             Ok(segments)

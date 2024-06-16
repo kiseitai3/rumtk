@@ -1,14 +1,11 @@
 
 pub mod v2_types {
     use chrono::prelude::*;
-    use unicode_segmentation::UnicodeSegmentation;
     use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str};
     use rumtk_core::maths::generate_tenth_factor;
+    use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK};
 
     pub type V2String = String;
-
-    const V2DATETIME_THOUSAND_TICK: u16 = 1000;
-    const V2DATETIME_MIRCRO_LENGTH: u8 = 6;
     pub struct V2DateTime {
         year: u16,
         month: u8,
@@ -42,7 +39,7 @@ pub mod v2_types {
                 hour: utc_dt.hour() as u8,
                 minute: utc_dt.minute() as u8,
                 second: utc_dt.second() as u8,
-                microsecond: utc_dt.nanosecond() / (V2DATETIME_THOUSAND_TICK as u32),
+                microsecond: utc_dt.nanosecond() / (V2_DATETIME_THOUSAND_TICK as u32),
                 offset: utc_dt.offset().to_string(),
             }
         }
@@ -51,9 +48,9 @@ pub mod v2_types {
             // Begin decomposing string into discrete components per HL7 DateTime format specs.
             // See https://hl7-definition.caristix.com/v2/HL7v2.8/DataTypes/DTM
             let dt_vec: Vec<&str> = item.split('.').collect();
-            let mut ms_vec: Vec<&str> = dt_vec[-1].split('+').collect();
+            let mut ms_vec: Vec<&str> = dt_vec.last().unwrap().split('+').collect();
             if count_tokens_ignoring_pattern(&ms_vec, &String::from(" ")) < 2 {
-                ms_vec = dt_vec[-1].split('-').collect();
+                ms_vec = dt_vec.last().unwrap().split('-').collect();
             }
 
             let (year, month, day, hour, minute, second) =
@@ -66,7 +63,7 @@ pub mod v2_types {
                 0 => 0,
                 _ => ms_string.parse::<u32>().unwrap() *
                     generate_tenth_factor(
-                        (V2DATETIME_MIRCRO_LENGTH - (ms_string_len as u8)) as u32)
+                        (V2_DATETIME_MIRCRO_LENGTH - (ms_string_len as u8)) as u32)
             };
 
             let offset: String = String::from(ms_vec[1]);
