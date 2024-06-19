@@ -11,6 +11,7 @@
 //https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
 
 pub mod v2_parser {
+    use std::ops::{Index, IndexMut};
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
     use rumtk_core::strings::{UTFStringExtensions};
@@ -20,7 +21,8 @@ pub mod v2_parser {
 
     pub type V2Result<T> = Result<T, String>;
 
-    struct V2Component {
+    #[derive(Debug)]
+    pub struct V2Component {
         component: V2String,
         delete_data: bool
     }
@@ -30,11 +32,7 @@ pub mod v2_parser {
             V2Component{component: V2String::new(), delete_data: false}
         }
 
-        fn from(item: &str) -> V2Component {
-            V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
-        }
-
-        fn from_string(item: &str, parser_chars: &V2ParserCharacters) -> V2Component {
+        pub fn from_string(item: &str) -> V2Component {
             V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
         }
 
@@ -63,39 +61,68 @@ pub mod v2_parser {
         }
     }
 
-    type ComponentList = Vec<V2Component>;
-    struct V2Field {
+    pub type ComponentList = Vec<V2Component>;
+    #[derive(Debug)]
+    pub struct V2Field {
         components: ComponentList
     }
 
     impl V2Field {
-        fn new() -> V2Field {
+        pub fn new() -> V2Field {
             V2Field{components: ComponentList::new()}
         }
 
-        fn from_string(val: &str, parser_chars: &V2ParserCharacters) -> V2Field {
+        pub fn from_string(val: &str, parser_chars: &V2ParserCharacters) -> V2Field {
             let comp_vec: Vec<&str> = val.split(parser_chars.component_separator.as_str()).collect();
             let mut component_list: ComponentList = ComponentList::new();
             for c in comp_vec {
-                component_list.push(V2Component::from_string(c, parser_chars));
+                component_list.push(V2Component::from_string(c));
             }
             V2Field{components: component_list}
         }
 
-        fn len(&self) -> usize {
+        pub fn len(&self) -> usize {
             self.components.len()
+        }
+
+        pub fn get(&self, indx: usize) -> V2Result<&V2Component> {
+            match self.components.get(indx) {
+                Some(component) => Ok(component),
+                None => Err(format!("Component at index {} not found!", indx))
+            }
+        }
+
+        pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
+            match self.components.get_mut(indx) {
+                Some(component) => Ok(component),
+                None => Err(format!("Component at index {} not found!", indx))
+            }
         }
     }
 
-    type V2FieldList = Vec<V2Field>;
-    struct V2Segment {
+    impl Index<&'_ str> for V2Field {
+        type Output = V2Component;
+        fn index(&self, indx: usize) -> V2Result<&Self::Output> {
+            self.get(indx)
+        }
+    }
+
+    impl IndexMut<&'_ str> for V2Field {
+        fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
+            self.get_mut(indx)
+        }
+    }
+
+    pub type V2FieldList = Vec<V2Field>;
+    #[derive(Debug)]
+    pub struct V2Segment {
         name: String,
         description: String,
         fields: V2FieldList
     }
 
     impl V2Segment {
-        fn from_string(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<Self> {
+        pub fn from_string(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<Self> {
             let raw_fields: Vec<&str> = raw_segment.split(parser_chars.field_separator.as_str()).collect();
             let raw_field_count = raw_fields.len();
 
@@ -129,10 +156,37 @@ pub mod v2_parser {
 
             Ok(V2Segment { name: field_name, description: field_description, fields: field_list })
         }
+
+        pub fn get(&self, indx: usize) -> V2Result<&V2Field> {
+            match self.fields.get(indx) {
+                Some(field) => Ok(field),
+                None => Err(format!("Field number {} not found!", indx))
+            }
+        }
+
+        pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
+            match self.fields.get_mut(indx) {
+                Some(field) => Ok(field),
+                None => Err(format!("Field number {} not found!", indx))
+            }
+        }
     }
 
-    type V2SegmentGroup = Vec<V2Segment>;
-    type SegmentMap = HashMap<String, V2SegmentGroup>;
+    impl Index<&'_ str> for V2Segment {
+        type Output = V2Field;
+        fn index(&self, indx: usize) -> V2Result<&Self::Output> {
+            self.get(indx)
+        }
+    }
+
+    impl IndexMut<&'_ str> for V2Segment {
+        fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
+            self.get_mut(indx)
+        }
+    }
+
+    pub type V2SegmentGroup = Vec<V2Segment>;
+    pub type SegmentMap = HashMap<String, V2SegmentGroup>;
 
     #[derive(Debug)]
     pub struct V2ParserCharacters {
@@ -146,6 +200,17 @@ pub mod v2_parser {
     }
 
     impl V2ParserCharacters {
+        pub fn new() -> V2ParserCharacters {
+            V2ParserCharacters {
+                segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
+                field_separator: String::from("|"),
+                component_separator: String::from("^"),
+                repetition_separator: String::from("~"),
+                escape_character: String::from("\\"),
+                subcomponent_separator: String::from("&"),
+                truncation_character: String::from("#"),
+            }
+        }
         pub fn from(msg_key_chars: &str) -> V2Result<Self> {
             let field_separator: &str = msg_key_chars.get_grapheme(0);
             let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
@@ -189,7 +254,6 @@ pub mod v2_parser {
 
     pub struct V2Message {
         separators: V2ParserCharacters,
-        default_segment: V2SegmentGroup,
         segment_groups: SegmentMap
     }
 
@@ -209,30 +273,52 @@ pub mod v2_parser {
 
             Ok(V2Message {
                 separators: parse_characters,
-                default_segment: V2SegmentGroup::new(),
                 segment_groups: segments
             })
         }
 
-        fn len(&self) -> usize {
+        pub fn len(&self) -> usize {
             self.segment_groups.len()
         }
 
-        fn is_repeat_segment(&self, segment_name: &String) -> bool {
+        pub fn get(&self, segment_name: &str, sub_segment: usize) -> V2Result<&V2Segment> {
+            let segment_group = self.get_group(segment_name).unwrap();
+            match segment_group.get(sub_segment) {
+                Some(segment) => Ok(segment),
+                None => Err(format!("Subsegment {} was not found in segment group {}!", sub_segment, segment_name))
+            }
+        }
+
+        pub fn get_mut(&mut self, segment_name: &str, sub_segment: usize) -> V2Result<&mut V2Segment> {
+            let mut segment_group = self.get_mut_group(segment_name).unwrap();
+            match segment_group.get_mut(sub_segment) {
+                Some(segment) => Ok(segment),
+                None => Err(format!("Subsegment {} was not found in segment group {}!", sub_segment, segment_name))
+            }
+        }
+
+        pub fn get_group(&self, segment_name: &str) -> V2Result<&V2SegmentGroup> {
+            match self.segment_groups.get(segment_name) {
+                Some(segment_group) => Ok(segment_group),
+                None => Err(format!("Segment {} not found inm message!", segment_name))
+            }
+        }
+
+        pub fn get_mut_group(&mut self, segment_name: &str) -> V2Result<&mut V2SegmentGroup> {
+            match self.segment_groups.get_mut(segment_name) {
+                Some(segment_group) => Ok(segment_group),
+                None => Err(format!("Segment {} not found inm message!", segment_name))
+            }
+        }
+
+        pub fn is_repeat_segment(&self, segment_name: &String) -> bool {
             let _segment_group: &V2SegmentGroup = self.find_segment(segment_name);
             _segment_group.len() > 1
         }
 
-        fn segment_exists(&self, segment_name: &String) -> bool {
+        pub fn segment_exists(&self, segment_name: &String) -> bool {
             let _segment_group: &V2SegmentGroup = self.find_segment(segment_name);
             _segment_group.len() > 0
-        }
-
-        fn find_segment(&self, segment_name: &String) -> &V2SegmentGroup {
-            match self.segment_groups.get(segment_name) {
-                Some(segment_groups) => &segment_groups,
-                None => &self.default_segment
-            }
         }
 
         // Message parsing operations
@@ -269,6 +355,19 @@ pub mod v2_parser {
             }
 
             Ok(segments)
+        }
+    }
+
+    impl Index<&'_ str> for V2Message {
+        type Output = V2SegmentGroup;
+        fn index(&self, segment_name: &str) -> V2Result<&Self::Output> {
+            self.get_group(segment_name)
+        }
+    }
+
+    impl IndexMut<&'_ str> for V2Message {
+        fn index_mut(&mut self, segment_name: &str) -> V2Result<&mut V2SegmentGroup> {
+            self.get_mut_group(segment_name)
         }
     }
 }

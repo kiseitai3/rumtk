@@ -18,8 +18,18 @@ mod tests {
          PID|1||PATID1234^5^M11^ADT1^MR^GOOD HEALTH HOSPITAL~123456789^^^USSSA^SS||EVERYMAN^ADAM^A^III||19610615|M||C|2222 HOME STREET^^GREENSBORO^NC^27401-1020|GL|(555) 555-2004|(555)555-2004||S||PATID12345001^2^M10^ADT1^AN^A|444333333|987654^NC|\r\
          NK1|1|NUCLEAR^NELDA^W|SPO^SPOUSE||||NK^NEXT OF KIN\n\r\
          PV1|1|I|2000^2012^01||||004777^ATTEND^AARON^A|||SUR||||ADM|A0|";
+    const DEFAULT_HL7_V2_FIELD_STRING: &str = "2000^2012^01";
 
     /*********************************Test Cases**************************************/
+    #[test]
+    fn test_hl7_v2_field_parsing() {
+        let field_str = tests::DEFAULT_HL7_V2_FIELD_STRING;
+        let encode_chars = V2ParserCharacters::new();
+        let field = V2Field::from_string(&field_str, &encode_chars);
+        println!("{:#?}", &field);
+        assert_eq!(field.len(), 3, "Wrong number of components in field");
+    }
+
     #[test]
     fn test_sanitize_hl7_v2_message() {
         let message = tests::DEFAULT_HL7_V2_MESSAGE;
@@ -54,6 +64,19 @@ mod tests {
         assert!(encode_chars.escape_character.contains('\\'), "Wrong escape character!");
         assert!(encode_chars.subcomponent_separator.contains('&'), "Wrong subcomponent character!");
         assert!(encode_chars.truncation_character.contains('#'), "Wrong truncation character!");
+    }
+
+    #[test]
+    fn test_extract_hl7_v2_message_segments() {
+        let message = tests::DEFAULT_HL7_V2_MESSAGE;
+        let sanitized_message = V2Message::sanitize(message);
+        let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
+        let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
+        let parsed_segments = V2Message::extract_segments(&tokens, &encode_chars).unwrap();
+        print!("Keys: ");
+        for k in parsed_segments.keys() {
+            print!("{} ", k);
+        }
     }
 
     #[test]
