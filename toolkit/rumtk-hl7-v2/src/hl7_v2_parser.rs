@@ -134,22 +134,22 @@ pub mod v2_parser {
     type V2SegmentGroup = Vec<V2Segment>;
     type SegmentMap = HashMap<String, V2SegmentGroup>;
 
-    struct V2ParserCharacters {
-        segment_terminator: String,
-        field_separator: String,
-        component_separator: String,
-        repetition_separator: String,
-        escape_character: String,
-        subcomponent_separator: String,
-        truncation_character: String
+    #[derive(Debug)]
+    pub struct V2ParserCharacters {
+        pub segment_terminator: String,
+        pub field_separator: String,
+        pub component_separator: String,
+        pub repetition_separator: String,
+        pub escape_character: String,
+        pub subcomponent_separator: String,
+        pub truncation_character: String
     }
 
     impl V2ParserCharacters {
-        fn from(msg_key_chars: &str) -> V2Result<Self> {
+        pub fn from(msg_key_chars: &str) -> V2Result<Self> {
             let field_separator: &str = msg_key_chars.get_grapheme(0);
             let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
             let parser_chars: &str = encoding_field[1];
-
 
             match parser_chars.count_graphemes() {
                 5 => Ok(V2ParserCharacters {
@@ -174,19 +174,16 @@ pub mod v2_parser {
             }
         }
 
-        fn from_msh(msh_segment: &str) -> V2Result<Self> {
+        pub fn from_msh(msh_segment: &str) -> V2Result<Self> {
             if V2ParserCharacters::is_msh(msh_segment) {
-                Ok(V2ParserCharacters::from(&msh_segment[4..]).unwrap())
+                V2ParserCharacters::from(&msh_segment[3..])
             } else {
                 Err("The segment is not an MSH segment! This message is malformed!".to_string())
             }
         }
 
         fn is_msh(msh_segment_token: &str) -> bool {
-            match &msh_segment_token[0..4] {
-                V2_MSHEADER_PATTERN => true,
-                _ => false
-            }
+            &msh_segment_token[0..3] == V2_MSHEADER_PATTERN
         }
     }
 
@@ -200,7 +197,7 @@ pub mod v2_parser {
         pub fn from(raw_msg: &str) -> V2Result<Self> {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
-            let parse_characters = match V2ParserCharacters::from(&segment_tokens[0]){
+            let parse_characters = match V2ParserCharacters::from_msh(&segment_tokens[0]){
                 Ok(parser_chars) => parser_chars,
                 Err(why) => return Err(why)
             };
@@ -240,7 +237,7 @@ pub mod v2_parser {
 
         // Message parsing operations
 
-        fn sanitize(raw_message: &str) -> String {
+        pub fn sanitize(raw_message: &str) -> String {
             let rr_string = raw_message.replace("\n", "\r");
             let mut n_string = rr_string.replace("\r\r", "\r");
             while(n_string.contains("\r\r")) {
@@ -249,13 +246,13 @@ pub mod v2_parser {
             n_string
         }
 
-        fn tokenize_segments(raw_message: &str) -> Vec<&str> {
+        pub fn tokenize_segments(raw_message: &str) -> Vec<&str> {
             //Per Figure 2-1. Delimiter values of the HL7 v2 2.9 standard, each segment is separated
             // by a carriage return <cr>. The value cannot be changed by implementers.
             raw_message.split(V2_SEGMENT_TERMINATOR).collect()
         }
 
-        fn extract_segments(raw_segments: &Vec<&str>, parser_chars: &V2ParserCharacters) -> V2Result<SegmentMap> {
+        pub fn extract_segments(raw_segments: &Vec<&str>, parser_chars: &V2ParserCharacters) -> V2Result<SegmentMap> {
             let mut segments: SegmentMap = SegmentMap::new();
 
             for segment_str in raw_segments {
