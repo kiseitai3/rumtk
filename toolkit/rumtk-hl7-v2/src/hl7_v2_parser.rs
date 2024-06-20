@@ -11,6 +11,7 @@
 //https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
 
 pub mod v2_parser {
+    use std::any::TypeId;
     use std::ops::{Index, IndexMut};
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
@@ -36,28 +37,48 @@ pub mod v2_parser {
             V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
         }
 
-        fn is_empty(&self) -> bool {
+        pub fn is_empty(&self) -> bool {
             self.component == ""
         }
 
-        fn as_datetime(&self) -> V2DateTime {
+        pub fn as_datetime(&self) -> V2DateTime {
             V2DateTime::from_v2_string(&self.component)
         }
 
-        fn as_bool(&self) -> bool {
+        pub fn as_bool(&self) -> bool {
             self.component.parse::<bool>().unwrap()
         }
 
-        fn as_integer(&self) -> i64 {
+        pub fn as_integer(&self) -> i64 {
             self.component.parse::<i64>().unwrap()
         }
 
-        fn as_float(&self) -> f64 {
+        pub fn as_float(&self) -> f64 {
             self.component.parse::<f64>().unwrap()
         }
 
-        fn as_str(&self) -> &str {
+        pub fn as_str(&self) -> &str {
             self.component.as_str()
+        }
+
+        pub fn value<T>(&self) -> T {
+            match TypeId::of::<T>() {
+                TypeId::of::<V2DateTime>() => self.as_datetime(),
+                TypeId::of::<bool>() => self.as_bool(),
+                TypeId::of::<i8>() => self.as_integer() as i8,
+                TypeId::of::<u8>() => self.as_integer() as u8,
+                TypeId::of::<i16>() => self.as_integer() as i16,
+                TypeId::of::<u16>() => self.as_integer() as u16,
+                TypeId::of::<i32>() => self.as_integer() as i32,
+                TypeId::of::<u32>() => self.as_integer() as u32,
+                TypeId::of::<i64>() => self.as_integer(),
+                TypeId::of::<usize>() => self.as_integer(),
+                TypeId::of::<f32>() => self.as_float() as f32,
+                TypeId::of::<f64>() => self.as_float(),
+                TypeId::of::<str>() => self.as_str(),
+                TypeId::of::<String>() => self.as_str().to_string(),
+                _ => self.as_str()
+            }
         }
     }
 
@@ -100,14 +121,14 @@ pub mod v2_parser {
         }
     }
 
-    impl Index<&'_ str> for V2Field {
+    impl Index<usize> for V2Field {
         type Output = V2Component;
         fn index(&self, indx: usize) -> V2Result<&Self::Output> {
             self.get(indx)
         }
     }
 
-    impl IndexMut<&'_ str> for V2Field {
+    impl IndexMut<usize> for V2Field {
         fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
             self.get_mut(indx)
         }
@@ -172,14 +193,14 @@ pub mod v2_parser {
         }
     }
 
-    impl Index<&'_ str> for V2Segment {
+    impl Index<usize> for V2Segment {
         type Output = V2Field;
         fn index(&self, indx: usize) -> V2Result<&Self::Output> {
             self.get(indx)
         }
     }
 
-    impl IndexMut<&'_ str> for V2Segment {
+    impl IndexMut<usize> for V2Segment {
         fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
             self.get_mut(indx)
         }
@@ -312,12 +333,12 @@ pub mod v2_parser {
         }
 
         pub fn is_repeat_segment(&self, segment_name: &String) -> bool {
-            let _segment_group: &V2SegmentGroup = self.find_segment(segment_name);
+            let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
             _segment_group.len() > 1
         }
 
         pub fn segment_exists(&self, segment_name: &String) -> bool {
-            let _segment_group: &V2SegmentGroup = self.find_segment(segment_name);
+            let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
             _segment_group.len() > 0
         }
 
