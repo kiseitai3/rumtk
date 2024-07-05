@@ -10,7 +10,7 @@ pub const V2_DATETIME_THOUSAND_TICK: u16 = 1000;
 pub const V2_DATETIME_MIRCRO_LENGTH: u8 = 6;
 pub const V2_EMPTY_STRING: &str = "";
 
-type ElementType = Map<&'static str, &'static str>;
+pub type ElementType = Map<&'static str, &'static str>;
 pub static V2_SEGMENT_TYPES: ElementType = phf_map! {
     "ABS" => "Abstract",
     "ACC" => "Accident",

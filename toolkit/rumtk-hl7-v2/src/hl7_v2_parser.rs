@@ -11,7 +11,6 @@
 //https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
 
 pub mod v2_parser {
-    use std::any::TypeId;
     use std::ops::{Index, IndexMut};
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
@@ -60,26 +59,6 @@ pub mod v2_parser {
         pub fn as_str(&self) -> &str {
             self.component.as_str()
         }
-
-        pub fn value<T>(&self) -> T {
-            match TypeId::of::<T>() {
-                TypeId::of::<V2DateTime>() => self.as_datetime(),
-                TypeId::of::<bool>() => self.as_bool(),
-                TypeId::of::<i8>() => self.as_integer() as i8,
-                TypeId::of::<u8>() => self.as_integer() as u8,
-                TypeId::of::<i16>() => self.as_integer() as i16,
-                TypeId::of::<u16>() => self.as_integer() as u16,
-                TypeId::of::<i32>() => self.as_integer() as i32,
-                TypeId::of::<u32>() => self.as_integer() as u32,
-                TypeId::of::<i64>() => self.as_integer(),
-                TypeId::of::<usize>() => self.as_integer(),
-                TypeId::of::<f32>() => self.as_float() as f32,
-                TypeId::of::<f64>() => self.as_float(),
-                TypeId::of::<str>() => self.as_str(),
-                TypeId::of::<String>() => self.as_str().to_string(),
-                _ => self.as_str()
-            }
-        }
     }
 
     pub type ComponentList = Vec<V2Component>;
@@ -123,14 +102,14 @@ pub mod v2_parser {
 
     impl Index<usize> for V2Field {
         type Output = V2Component;
-        fn index(&self, indx: usize) -> V2Result<&Self::Output> {
-            self.get(indx)
+        fn index(&self, indx: usize) -> &Self::Output {
+            self.get(indx).unwrap()
         }
     }
 
     impl IndexMut<usize> for V2Field {
-        fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
-            self.get_mut(indx)
+        fn index_mut(&mut self, indx: usize) -> &mut V2Component {
+            self.get_mut(indx).unwrap()
         }
     }
 
@@ -195,14 +174,14 @@ pub mod v2_parser {
 
     impl Index<usize> for V2Segment {
         type Output = V2Field;
-        fn index(&self, indx: usize) -> V2Result<&Self::Output> {
-            self.get(indx)
+        fn index(&self, indx: usize) -> &Self::Output {
+            self.get(indx).unwrap()
         }
     }
 
     impl IndexMut<usize> for V2Segment {
-        fn index_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
-            self.get_mut(indx)
+        fn index_mut(&mut self, indx: usize) -> &mut V2Field {
+            self.get_mut(indx).unwrap()
         }
     }
 
@@ -311,7 +290,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, segment_name: &str, sub_segment: usize) -> V2Result<&mut V2Segment> {
-            let mut segment_group = self.get_mut_group(segment_name).unwrap();
+            let segment_group = self.get_mut_group(segment_name).unwrap();
             match segment_group.get_mut(sub_segment) {
                 Some(segment) => Ok(segment),
                 None => Err(format!("Subsegment {} was not found in segment group {}!", sub_segment, segment_name))
@@ -347,7 +326,7 @@ pub mod v2_parser {
         pub fn sanitize(raw_message: &str) -> String {
             let rr_string = raw_message.replace("\n", "\r");
             let mut n_string = rr_string.replace("\r\r", "\r");
-            while(n_string.contains("\r\r")) {
+            while n_string.contains("\r\r") {
                 n_string = n_string.replace("\r\r", "\n");
             }
             n_string
@@ -381,14 +360,14 @@ pub mod v2_parser {
 
     impl Index<&'_ str> for V2Message {
         type Output = V2SegmentGroup;
-        fn index(&self, segment_name: &str) -> V2Result<&Self::Output> {
-            self.get_group(segment_name)
+        fn index(&self, segment_name: &str) -> &Self::Output {
+            self.get_group(segment_name).unwrap()
         }
     }
 
     impl IndexMut<&'_ str> for V2Message {
-        fn index_mut(&mut self, segment_name: &str) -> V2Result<&mut V2SegmentGroup> {
-            self.get_mut_group(segment_name)
+        fn index_mut(&mut self, segment_name: &str) -> &mut V2SegmentGroup {
+            self.get_mut_group(segment_name).unwrap()
         }
     }
 }

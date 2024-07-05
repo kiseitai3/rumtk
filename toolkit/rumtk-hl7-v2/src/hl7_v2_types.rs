@@ -72,7 +72,7 @@ pub mod v2_types {
             V2DateTime{ year, month, day, hour, minute, second, microsecond, offset}
         }
 
-        fn as_utc_string(&self) -> String {
+        pub fn as_utc_string(&self) -> String {
             format!(
                 "{year}-{month}-{day}T{hour}:{minute}:{second}.{microsecond}{offset}",
                 year = self.year,
@@ -86,8 +86,16 @@ pub mod v2_types {
             )
         }
 
-        fn as_utc_datetime(&self) -> DateTime<Utc> {
+        pub fn as_utc_datetime(&self) -> DateTime<Utc> {
             self.as_utc_string().parse().unwrap()
         }
+    }
+
+    pub enum V2TypeIDs{
+        V2DT,
+        BOOL,
+        INTEGER,
+        DECIMAL,
+        V2STRING,
     }
 }

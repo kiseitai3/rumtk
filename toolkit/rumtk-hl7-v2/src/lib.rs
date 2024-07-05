@@ -28,12 +28,12 @@ mod tests {
         let field = V2Field::from_string(&field_str, &encode_chars);
         println!("{:#?}", &field);
         assert_eq!(field.len(), 3, "Wrong number of components in field");
-        println!("Value in component {} [{}]!", 0, field.get(0).unwrap().as_str());
-        assert_eq!(field.get(0).unwrap().value(), "2000", "Wrong value in component!");
-        println!("Value in component {} [{}]!", 1, field.get(1).unwrap().as_str());
-        assert_eq!(field.get(1).unwrap().value(), "2012", "Wrong value in component!");
-        println!("Value in component {} [{}]!", 2, field.get(2).unwrap().as_str());
-        assert_eq!(field.get(2).unwrap().value(), "01", "Wrong value in component!");
+        println!("Value in component {} => {}!", 0, field.get(0).unwrap().as_str());
+        assert_eq!(field.get(0).unwrap().as_str(), "2000", "Wrong value in component!");
+        println!("Value in component {} => {}!", 1, field.get(1).unwrap().as_str());
+        assert_eq!(field.get(1).unwrap().as_str(), "2012", "Wrong value in component!");
+        println!("Value in component {} => {}!", 2, field.get(2).unwrap().as_str());
+        assert_eq!(field.get(2).unwrap().as_str(), "01", "Wrong value in component!");
     }
 
     #[test]
