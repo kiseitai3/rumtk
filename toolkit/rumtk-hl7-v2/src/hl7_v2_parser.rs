@@ -261,7 +261,11 @@ pub mod v2_parser {
         pub fn from(raw_msg: &str) -> V2Result<Self> {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
-            let parse_characters = match V2ParserCharacters::from_msh(&segment_tokens[0]){
+            let msh_segment = match V2Message::find_msh(&segment_tokens){
+                Ok(segment) => segment,
+                Err(why) => return Err(why)
+            };
+            let parse_characters = match V2ParserCharacters::from_msh(&msh_segment.as_str()){
                 Ok(parser_chars) => parser_chars,
                 Err(why) => return Err(why)
             };
@@ -269,7 +273,6 @@ pub mod v2_parser {
                 Ok(segments) => segments,
                 Err(e) => return Err(e)
             };
-
 
             Ok(V2Message {
                 separators: parse_characters,
@@ -311,17 +314,25 @@ pub mod v2_parser {
             }
         }
 
-        pub fn is_repeat_segment(&self, segment_name: &String) -> bool {
+        pub fn is_repeat_segment(&self, segment_name: &str) -> bool {
             let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
             _segment_group.len() > 1
         }
 
-        pub fn segment_exists(&self, segment_name: &String) -> bool {
+        pub fn segment_exists(&self, segment_name: &str) -> bool {
             let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
             _segment_group.len() > 0
         }
 
         // Message parsing operations
+        pub fn find_msh(segments: &Vec<&str>) -> V2Result<String>{
+            for segment in segments{
+                if segment.starts_with(V2_MSHEADER_PATTERN){
+                    return Ok(segment.to_string());
+                }
+            }
+            Err("No MSH segment found! The message is malformed or incomplete!".to_string())
+        }
 
         pub fn sanitize(raw_message: &str) -> String {
             let rr_string = raw_message.replace("\n", "\r");
@@ -335,7 +346,12 @@ pub mod v2_parser {
         pub fn tokenize_segments(raw_message: &str) -> Vec<&str> {
             //Per Figure 2-1. Delimiter values of the HL7 v2 2.9 standard, each segment is separated
             // by a carriage return <cr>. The value cannot be changed by implementers.
-            raw_message.split(V2_SEGMENT_TERMINATOR).collect()
+            let tokens: Vec<&str> = raw_message.split(V2_SEGMENT_TERMINATOR).collect();
+            let mut trimmed_tokens: Vec<&str> = Vec::new();
+            for tok in tokens {
+                trimmed_tokens.push(tok.trim());
+            }
+            trimmed_tokens
         }
 
         pub fn extract_segments(raw_segments: &Vec<&str>, parser_chars: &V2ParserCharacters) -> V2Result<SegmentMap> {
