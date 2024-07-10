@@ -263,10 +263,7 @@ pub mod v2_parser {
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
             let msh_segment = V2Message::find_msh(&segment_tokens)?;
             let parse_characters = V2ParserCharacters::from_msh(&msh_segment.as_str())?;
-            let segments = match V2Message::extract_segments(&segment_tokens, &parse_characters){
-                Ok(segments) => segments,
-                Err(e) => return Err(e)
-            };
+            let segments = V2Message::extract_segments(&segment_tokens, &parse_characters)?;
 
             Ok(V2Message {
                 separators: parse_characters,
