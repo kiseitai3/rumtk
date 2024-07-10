@@ -261,14 +261,8 @@ pub mod v2_parser {
         pub fn from(raw_msg: &str) -> V2Result<Self> {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
-            let msh_segment = match V2Message::find_msh(&segment_tokens){
-                Ok(segment) => segment,
-                Err(why) => return Err(why)
-            };
-            let parse_characters = match V2ParserCharacters::from_msh(&msh_segment.as_str()){
-                Ok(parser_chars) => parser_chars,
-                Err(why) => return Err(why)
-            };
+            let msh_segment = V2Message::find_msh(&segment_tokens)?;
+            let parse_characters = V2ParserCharacters::from_msh(&msh_segment.as_str())?;
             let segments = match V2Message::extract_segments(&segment_tokens, &parse_characters){
                 Ok(segments) => segments,
                 Err(e) => return Err(e)
@@ -358,10 +352,7 @@ pub mod v2_parser {
             let mut segments: SegmentMap = SegmentMap::new();
 
             for segment_str in raw_segments {
-                let segment: V2Segment = match V2Segment::from_string(segment_str, parser_chars){
-                    Ok(segment_value) => segment_value,
-                    Err(why) => return Err(why)
-                };
+                let segment: V2Segment = V2Segment::from_string(segment_str, parser_chars)?;
 
                 let key = String::from(&segment.name);
                 if segments.contains_key(&segment.name) == false {
