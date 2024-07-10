@@ -329,7 +329,7 @@ pub mod v2_parser {
             let rr_string = raw_message.replace("\n", "\r");
             let mut n_string = rr_string.replace("\r\r", "\r");
             while n_string.contains("\r\r") {
-                n_string = n_string.replace("\r\r", "\n");
+                n_string = n_string.replace("\r\r", "\r");
             }
             n_string
         }

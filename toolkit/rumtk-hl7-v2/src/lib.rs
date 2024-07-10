@@ -36,6 +36,17 @@ mod tests {
         RXA|0|999|20190503|20190503|110^DTAP/Polio/Hep B^CVX^Pediarix^Pediarix^WVTN|1.0|||01^^^^^~38230637^WIR immunization id^IMM_ID^^^||^^^WIR Physicians^^^^^^^^^^^|||||||||\n
         BTS|1|\n
         FTS|1|";
+    const HL7_V2_PDF_MESSAGE: &str =
+        "MSH|^~\\&|SendingApp|SendingFac|ReceivingApp|ReceivingFac|201607060811||ORU^R03|5209141|D|2.3\n
+        PID|1|123456|123456||Andrés^Ángel^||19600101|M|||123 BLACK PEARL^^DETROIT^MI^48217||3138363978|||||1036557|123456789\n
+        PV1|||^^\n
+        ORC|RE||161810162||||00001^ONCE^^^^||201607060811|||00007553^PHYSICIAN^आरवा^ ^^^|||||||||BIOTECH CLINICAL LAB INC^^23D0709666^^^CLIA|25775 MEADOWBROOK^^NOVI^MI^48375|^^^^^248^9121700|OFFICE^1234 MILE ROAD  SUITE # 2^ROYAL OAK^MI^48073\n
+        OBR|8|455648^LA01|1618101622^GROUP951|GROUP951^CHROMOSOMAL ANALYSIS^L|||201606291253|||||||201606291631||00007553^PHYSICIAN^RICHARD^ ^^^||||||201607060811|||F||1^^^^^9\n
+        OBX|1|ED|00008510^INTELLIGENT FLOW PROFILE^L||^^^^JVBERi0xLjQKJeLjz9MKCjEgMCBvYmoKPDwvVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFI+PgplbmRvYmoKCjIgMCBvYmoKPDwvVHlwZSAvUGFnZXMKL0tpZHMgWzMgMCBSXQovQ291bnQgMT4+CmVuZG9iagoKMTIgMCBvYmoKPDwvTGVuZ3RoIDEzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZT4+CnN0cmVhbQp4nM1c3ZPUOJJ/569QxMRFMLtgrG+buBfoHmZ6BxgW+u5iN3hxV7m7feMqF3Y...T0YK||||||C|||201606291631\n
+        NTE|1|L|Reference Lab: GENOPTIX|L\n
+        NTE|2|L|2110 ROUTHERFORD RD|L\n
+        NTE|3|L|CARLSBAD, CA  92008|L";
+    const SANSKRIT_NAME: &str = "आरवा";
     const DEFAULT_HL7_V2_FIELD_STRING: &str = "2000^2012^01";
 
     /*********************************Test Cases**************************************/
@@ -123,6 +134,23 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_wir_iis() {
+        /*
+        Per examples in https://confluence.hl7.org/display/OO/v2+Sample+Messages you can have
+        messages that have other header segments before the standard MSH header.
+        As a result, I have made the logic a bit more permissive of the position of the msh segment.
+        I also made sure segments were trimmed to avoid issues with white space padding
+         */
+        let message = V2Message::from(tests::HL7_V2_MESSAGE).unwrap();
+        assert!(message.segment_exists("MSH"), "Missing MSH segment!");
+        assert!(message.segment_exists("FHS"), "Missing FHS segment!");
+        assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
+        assert!(message.segment_exists("PV1"), "Missing PV1 segment!");
+        assert!(message.segment_exists("FTS"), "Missing FTS segment!");
+        assert!(message.segment_exists("BHS"), "Missing BHS segment!");
+    }
+
+    #[test]
+    fn test_load_hl7_v2_utf8_message() {
         /*
         Per examples in https://confluence.hl7.org/display/OO/v2+Sample+Messages you can have
         messages that have other header segments before the standard MSH header.
