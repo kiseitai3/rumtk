@@ -41,12 +41,14 @@ mod tests {
         PID|1|123456|123456||Andrés^Ángel^||19600101|M|||123 BLACK PEARL^^DETROIT^MI^48217||3138363978|||||1036557|123456789\n
         PV1|||^^\n
         ORC|RE||161810162||||00001^ONCE^^^^||201607060811|||00007553^PHYSICIAN^आरवा^ ^^^|||||||||BIOTECH CLINICAL LAB INC^^23D0709666^^^CLIA|25775 MEADOWBROOK^^NOVI^MI^48375|^^^^^248^9121700|OFFICE^1234 MILE ROAD  SUITE # 2^ROYAL OAK^MI^48073\n
-        OBR|8|455648^LA01|1618101622^GROUP951|GROUP951^CHROMOSOMAL ANALYSIS^L|||201606291253|||||||201606291631||00007553^PHYSICIAN^RICHARD^ ^^^||||||201607060811|||F||1^^^^^9\n
+        OBR|8|455648^LA01|1618101622^GROUP951|GROUP951^CHROMOSOMAL ANALYSIS^L|||201606291253|||||||201606291631||00007553^PHYSICIAN^ひなた^ ^^^||||||201607060811|||F||1^^^^^9\n
         OBX|1|ED|00008510^INTELLIGENT FLOW PROFILE^L||^^^^JVBERi0xLjQKJeLjz9MKCjEgMCBvYmoKPDwvVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFI+PgplbmRvYmoKCjIgMCBvYmoKPDwvVHlwZSAvUGFnZXMKL0tpZHMgWzMgMCBSXQovQ291bnQgMT4+CmVuZG9iagoKMTIgMCBvYmoKPDwvTGVuZ3RoIDEzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZT4+CnN0cmVhbQp4nM1c3ZPUOJJ/569QxMRFMLtgrG+buBfoHmZ6BxgW+u5iN3hxV7m7feMqF3Y...T0YK||||||C|||201606291631\n
         NTE|1|L|Reference Lab: GENOPTIX|L\n
         NTE|2|L|2110 ROUTHERFORD RD|L\n
         NTE|3|L|CARLSBAD, CA  92008|L";
+    const SPANISH_NAME: &str = "Andrés";
     const SANSKRIT_NAME: &str = "आरवा";
+    const HIRAGANA_NAME: &str = "ひなた";
     const DEFAULT_HL7_V2_FIELD_STRING: &str = "2000^2012^01";
 
     /*********************************Test Cases**************************************/
@@ -152,17 +154,20 @@ mod tests {
     #[test]
     fn test_load_hl7_v2_utf8_message() {
         /*
-        Per examples in https://confluence.hl7.org/display/OO/v2+Sample+Messages you can have
-        messages that have other header segments before the standard MSH header.
-        As a result, I have made the logic a bit more permissive of the position of the msh segment.
-        I also made sure segments were trimmed to avoid issues with white space padding
+        Testing for the proper parsing of message when presented with Unicode portions.
          */
-        let message = V2Message::from(tests::HL7_V2_MESSAGE).unwrap();
-        assert!(message.segment_exists("MSH"), "Missing MSH segment!");
-        assert!(message.segment_exists("FHS"), "Missing FHS segment!");
-        assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
-        assert!(message.segment_exists("PV1"), "Missing PV1 segment!");
-        assert!(message.segment_exists("FTS"), "Missing FTS segment!");
-        assert!(message.segment_exists("BHS"), "Missing BHS segment!");
+        let message = V2Message::from(tests::HL7_V2_PDF_MESSAGE).unwrap();
+        let pid = message.get("PID", 1).unwrap();
+        let orc = message.get("ORC", 1).unwrap();
+        let obr = message.get("OBR", 1).unwrap();
+        let name1 = pid.get(5).unwrap().get(1).unwrap().as_str();
+        let name2 = orc.get(12).unwrap().get(3).unwrap().as_str();
+        let name3 = obr.get(16).unwrap().get(3).unwrap().as_str();
+        println!("{}", name1);
+        println!("{}", name2);
+        println!("{}", name3);
+        assert_eq!(name1, SPANISH_NAME, "Wrong name/string found in PID(1)5.1!");
+        assert_eq!(name2, SANSKRIT_NAME, "Wrong name/string found in ORC(1)12.3!");
+        assert_eq!(name3, HIRAGANA_NAME, "Wrong name/string found in OBR(1)16.3!");
     }
 }

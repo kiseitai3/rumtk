@@ -86,16 +86,18 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, indx: usize) -> V2Result<&V2Component> {
-            match self.components.get(indx) {
+            let component_indx = indx - 1;
+            match self.components.get(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format!("Component at index {} not found!", indx))
+                None => Err(format!("Component at index {} not found!", component_indx))
             }
         }
 
         pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
-            match self.components.get_mut(indx) {
+            let component_indx = indx - 1;
+            match self.components.get_mut(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format!("Component at index {} not found!", indx))
+                None => Err(format!("Component at index {} not found!", component_indx))
             }
         }
     }
@@ -158,16 +160,18 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, indx: usize) -> V2Result<&V2Field> {
-            match self.fields.get(indx) {
+            let field_indx = indx - 1;
+            match self.fields.get(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format!("Field number {} not found!", indx))
+                None => Err(format!("Field number {} not found!", field_indx))
             }
         }
 
         pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
-            match self.fields.get_mut(indx) {
+            let field_indx = indx - 1;
+            match self.fields.get_mut(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format!("Field number {} not found!", indx))
+                None => Err(format!("Field number {} not found!", field_indx))
             }
         }
     }
@@ -277,17 +281,19 @@ pub mod v2_parser {
 
         pub fn get(&self, segment_name: &str, sub_segment: usize) -> V2Result<&V2Segment> {
             let segment_group = self.get_group(segment_name).unwrap();
-            match segment_group.get(sub_segment) {
+            let subsegment_indx = sub_segment - 1;
+            match segment_group.get(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format!("Subsegment {} was not found in segment group {}!", sub_segment, segment_name))
+                None => Err(format!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
             }
         }
 
         pub fn get_mut(&mut self, segment_name: &str, sub_segment: usize) -> V2Result<&mut V2Segment> {
             let segment_group = self.get_mut_group(segment_name).unwrap();
-            match segment_group.get_mut(sub_segment) {
+            let subsegment_indx = sub_segment - 1;
+            match segment_group.get_mut(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format!("Subsegment {} was not found in segment group {}!", sub_segment, segment_name))
+                None => Err(format!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
             }
         }
 
