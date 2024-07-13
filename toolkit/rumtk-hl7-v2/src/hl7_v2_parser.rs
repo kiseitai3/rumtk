@@ -1,14 +1,15 @@
-/*
-    The V2 Parser module will contain a simple and lightweight message parser that will generate a
-    structure following the message structure in the HL7 Specifications.
-    The V2Message type here will provide a basic interface for navigating through the mapped
-    segments and fields.
-    From here, we will then write a schema driven interpreter module (see other source files in
-    crate). That interpreter will try to generate a message structure using the specified HL7
-    types. That structure will be exportable to JSON and (maybe) XML.
- */
-//https://v2.hl7.org/conformance/HL7v2_Conformance_Methodology_R1_O1_Ballot_Revised_D9_-_September_2019_Introduction.html#:~:text=The%20base%20HL7%20v2%20standard,message%20definition%20is%20called%20profiling.
-//https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
+///
+/// The V2 Parser module will contain a simple and lightweight message parser that will generate a
+/// structure following the message structure in the HL7 Specifications.
+/// The V2Message type here will provide a basic interface for navigating through the mapped
+/// segments and fields.
+/// From here, we will then write a schema driven interpreter module (see other source files in
+/// crate). That interpreter will try to generate a message structure using the specified HL7
+/// types. That structure will be exportable to JSON and (maybe) XML.
+///
+/// https://v2.hl7.org/conformance/HL7v2_Conformance_Methodology_R1_O1_Ballot_Revised_D9_-_September_2019_Introduction.html#:~:text=The%20base%20HL7%20v2%20standard,message%20definition%20is%20called%20profiling.
+/// https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
+
 
 pub mod v2_parser {
     use std::ops::{Index, IndexMut};
@@ -21,6 +22,11 @@ pub mod v2_parser {
 
     pub type V2Result<T> = Result<T, String>;
 
+    ///
+    /// V2Component.
+    /// All V2Components contain the field's component data as a UTF-8 string.
+    /// You can request a conversion to an atomic type via the as_* family of methods.
+    ///
     #[derive(Debug)]
     pub struct V2Component {
         component: V2String,
@@ -32,7 +38,7 @@ pub mod v2_parser {
             V2Component{component: V2String::new(), delete_data: false}
         }
 
-        pub fn from_string(item: &str) -> V2Component {
+        pub fn from_string(item: &str, parser_chars: &V2ParserCharacters) -> V2Component {
             V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
         }
 
