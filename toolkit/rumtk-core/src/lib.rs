@@ -38,4 +38,34 @@ mod tests {
         assert_eq!(result, test_str);
     }
     */
+    #[test]
+    fn test_escaping_control() {
+        let input = "\r\n\'\"";
+        let expected = "\\r\\n\\'\\\"";
+        let result = strings::escape(&input);
+        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        assert_eq!(expected, result, "Incorrect string escaping!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_escaping_unicode() {
+        let input = "❤";
+        let expected = "\\u2764";
+        let result = strings::escape(&input);
+        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        assert_eq!(expected, result, "Incorrect string escaping!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_unescaping_unicode() {
+        let input = "❤";
+        let escaped = strings::escape(&input);
+        let expected = "❤";
+        let result = String::from(strings::unescape(&escaped.as_str()).unwrap());
+        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
+        println!("Passed!")
+    }
 }

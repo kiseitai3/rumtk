@@ -1,3 +1,4 @@
+use std::fmt::format;
 use unicode_segmentation::UnicodeSegmentation;
 
 
@@ -100,29 +101,70 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 }
 
 ///
-/// Turn escaped character sequence into the equivalent UTF-8 character
+/// This function will scan through a raw string and escape any characters outside the legal
+/// ASCII character range.
 ///
-fn unescape(escaped_str: &str) -> Result<char, String> {
+pub fn unescape_str(escaped_string: &str) -> Result<String, String> {
+    let mut result: String = String::with_capacity(escaped_string.len());
+    let mut res_indx: usize = 0;
+    for i in escaped_string.len() {
+
+    }
+    Ok(result)
+}
+
+///
+/// Turn escaped character sequence into the equivalent UTF-8 character
+/// This function accepts \o, \x and \u formats.
+/// This function will also attempt to unescape the common C style control characters.
+/// Anything else needs to be expressed as hex or octal patterns with the formats above.
+///
+pub fn unescape(escaped_str: &str) -> Result<char, String> {
     let lower_case = escaped_str.to_lowercase();
     match &lower_case[0..2] {
+        // Hex notation case.
         "\\x" => match hex_to_number(&lower_case[2..]) {
             Ok(val) => Ok(number_to_char(&val)?),
             Err(why) => Err(why)
         },
+        // Unicode notation case
         "\\u" => match hex_to_number(&lower_case[2..]) {
             Ok(val) => Ok(number_to_char(&val)?),
             Err(why) => Err(why)
         },
-        _ => Ok(unescape_char(&lower_case[1..2].bytes()[0])?)
+        // Unicode notation case
+        "\\o" => match octal_to_number(&lower_case[2..]) {
+            Ok(val) => Ok(number_to_char(&val)?),
+            Err(why) => Err(why)
+        },
+        // Single byte codes.
+        _ => Ok(unescape_control(&lower_case)?)
     }
 }
 
 ///
 /// Unescape basic character
-/// We use a lookup table to map the basic escape character to its corresponding integer value.
+/// We use pattern matching to map the basic escape character to its corresponding integer value.
 ///
-fn unescape_char(escaped_char: &char) -> Result<char, String> {
+fn unescape_control(escaped_str: &str) -> Result<char, String> {
+    match escaped_str {
+        // Common control sequences
+        "\\t" => Ok('\t'),
+        "\\b" => Ok('\x08'),
+        "\\n" => Ok('\n'),
+        "\\r" => Ok('\r'),
+        "\\f" => Ok('\x14'),
+        "\\s" => Ok('\x20'),
+        "\\\\" => Ok('\\'),
+        "\\'" => Ok('\''),
+        "\\\"" => Ok('\"'),
+        "\\0" => Ok('\0'),
+        "\\v" => Ok('\x0B'),
+        "\\a" => Ok('\x07'),
+        // Control sequences by
 
+        _ => Err(format!("Unknown escape sequence? Sequence: {}!", escaped_str))
+    }
 }
 
 ///
@@ -137,19 +179,30 @@ fn hex_to_number(hex_str: &str) -> Result<u32, String> {
 }
 
 ///
+/// Turn hex string to number (u32)
+///
+fn octal_to_number(hoctal_str: &str) -> Result<u32, String> {
+    match u32::from_str_radix(&hoctal_str, 8) {
+        Ok(result) => Ok(result),
+        Err(val) => Err(format!("Failed to parse string with error {}! Input string {} \
+        is not an octal string!", val, hoctal_str))
+    }
+}
+
+///
 /// Turn number to UTF-8 char
 ///
 fn number_to_char(num: &u32) -> Result<char, String> {
     match char::from_u32(*num) {
-        Ok(result) => Ok(result),
-        Err(val) => Err(format!("Failed to cast number to character! Error: {}! Number {}",
-                                val, num))
+        Some(result) => Ok(result),
+        None => Err(format!("Failed to cast number to character! Number {}", num))
     }
 }
 
 ///
 /// Turn UTF-8 character into escaped character sequence
 ///
-fn escape(unescaped_char: &char) -> String {
-    unescaped_char.escape_default().to_string()
+pub fn escape(unescaped_str: &str) -> String {
+    let escaped_value = unescaped_str.escape_default().to_string();
+    escaped_value.replace("{", "").replace("}", "")
 }
