@@ -1,6 +1,10 @@
 use std::fmt::format;
 use unicode_segmentation::UnicodeSegmentation;
 
+/****************************Constants**************************************/
+const ESCAPED_STRING_WINDOW: usize = 6;
+
+/****************************Traits*****************************************/
 
 ///
 /// Implemented indexing trait for String and str which uses the UnicodeSegmentation facilities to
@@ -36,7 +40,7 @@ impl UTFStringExtensions for str {
     }
 }
 
-// Other string helpers.
+/*****************************Other string helpers***************************************/
 
 pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &String) -> usize {
     let mut count: usize = 0;
@@ -101,14 +105,29 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 }
 
 ///
-/// This function will scan through a raw string and escape any characters outside the legal
-/// ASCII character range.
+/// This function will scan through an escaped string and unescape any escaped characters
 ///
 pub fn unescape_str(escaped_string: &str) -> Result<String, String> {
-    let mut result: String = String::with_capacity(escaped_string.len());
-    let mut res_indx: usize = 0;
-    for i in escaped_string.len() {
-
+    let str_size = escaped_string.len();
+    let mut result: String = String::with_capacity(str_size);
+    for mut i in 0..str_size {
+        let remainder = str_size % ESCAPED_STRING_WINDOW;
+        let offset = match remainder {
+            0 => ESCAPED_STRING_WINDOW,
+            _ => remainder
+        };
+        let window: &str = &escaped_string[i..i + offset];
+        if window.len() == ESCAPED_STRING_WINDOW &&
+            (window.contains("\\x") || window.contains("\\X") ||
+                window.contains("\\u") || window.contains("\\U")) {
+            result.push(unescape(&window)?);
+            i += ESCAPED_STRING_WINDOW;
+        } else if window.contains('\\') {
+            result.push(unescape(&window[0..2])?);
+            i += 2;
+        } else {
+            result.push(window.chars().nth(0).unwrap());
+        }
     }
     Ok(result)
 }
