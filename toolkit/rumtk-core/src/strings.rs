@@ -1,8 +1,12 @@
+use std::cmp::max;
 use std::fmt::format;
 use unicode_segmentation::UnicodeSegmentation;
 
 /****************************Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
+const MIN_ASCII_READABLE: char = ' ';
+const MAX_ASCII_READABLE: char = '~';
+const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 /****************************Traits*****************************************/
 
@@ -107,26 +111,28 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 ///
 /// This function will scan through an escaped string and unescape any escaped characters
 ///
-pub fn unescape_str(escaped_string: &str) -> Result<String, String> {
-    let str_size = escaped_string.len();
+pub fn unescape_str(in_string: &str) -> Result<String, String> {
+    let str_size = in_string.len();
     let mut result: String = String::with_capacity(str_size);
-    for mut i in 0..str_size {
-        let remainder = str_size % ESCAPED_STRING_WINDOW;
+    let mut i = 0;
+    while i < str_size {
+        let remainder = str_size - i;
         let offset = match remainder {
-            0 => ESCAPED_STRING_WINDOW,
-            _ => remainder
+            0..=5 => remainder,
+            _ => ESCAPED_STRING_WINDOW
         };
-        let window: &str = &escaped_string[i..i + offset];
+        let window: &str = &in_string[i..i + offset];
         if window.len() == ESCAPED_STRING_WINDOW &&
-            (window.contains("\\x") || window.contains("\\X") ||
-                window.contains("\\u") || window.contains("\\U")) {
+            (window.starts_with("\\x") || window.starts_with("\\X") ||
+                window.starts_with("\\u") || window.starts_with("\\U")) {
             result.push(unescape(&window)?);
             i += ESCAPED_STRING_WINDOW;
-        } else if window.contains('\\') {
+        } else if window.len() >= 2 && window.starts_with('\\') {
             result.push(unescape(&window[0..2])?);
             i += 2;
         } else {
             result.push(window.chars().nth(0).unwrap());
+            i += 1;
         }
     }
     Ok(result)
@@ -216,6 +222,23 @@ fn number_to_char(num: &u32) -> Result<char, String> {
         Some(result) => Ok(result),
         None => Err(format!("Failed to cast number to character! Number {}", num))
     }
+}
+
+///
+/// This function will scan through an unescaped string and escape any characters outside the
+/// ASCII printable range.
+///
+pub fn escape_str(in_str: &str) -> String {
+    let max_str_size = 4 * in_str.len();
+    let mut result = String::with_capacity(max_str_size);
+    for c in in_str.chars() {
+        if c < MIN_ASCII_READABLE || c > MAX_ASCII_READABLE {
+            result += &escape(c.to_string().as_str());
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 ///
