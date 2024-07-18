@@ -4,6 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 /****************************Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
+const ASCII_ESCAPE_CHAR: char = '\\';
 const MIN_ASCII_READABLE: char = ' ';
 const MAX_ASCII_READABLE: char = '~';
 const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
@@ -18,6 +19,15 @@ const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOP
 pub trait UTFStringExtensions {
     fn count_graphemes(&self) -> usize;
     fn get_grapheme(&self, index: usize) -> &str;
+    #[inline(always)]
+    fn get_grapheme_window(&self, min: usize, max: usize) -> String {
+        let mut window: String = String::with_capacity(max - min);
+        for i in min..max {
+            window += self.get_grapheme(i);
+        }
+        println!("{}", window);
+        window
+    }
 }
 
 impl UTFStringExtensions for String {
@@ -112,7 +122,7 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 /// This function will scan through an escaped string and unescape any escaped characters
 ///
 pub fn unescape_str(in_string: &str) -> Result<String, String> {
-    let str_size = in_string.len();
+    let str_size = in_string.count_graphemes();
     let mut result: String = String::with_capacity(str_size);
     let mut i = 0;
     while i < str_size {
@@ -121,18 +131,32 @@ pub fn unescape_str(in_string: &str) -> Result<String, String> {
             0..=5 => remainder,
             _ => ESCAPED_STRING_WINDOW
         };
-        let window: &str = &in_string[i..i + offset];
-        if window.len() == ESCAPED_STRING_WINDOW &&
-            (window.starts_with("\\x") || window.starts_with("\\X") ||
-                window.starts_with("\\u") || window.starts_with("\\U")) {
-            result.push(unescape(&window)?);
-            i += ESCAPED_STRING_WINDOW;
-        } else if window.len() >= 2 && window.starts_with('\\') {
-            result.push(unescape(&window[0..2])?);
-            i += 2;
-        } else {
-            result.push(window.chars().nth(0).unwrap());
-            i += 1;
+        let window = in_string.get_grapheme_window(i, i + offset);
+        let window_size = window.count_graphemes();
+        match window.contains(ASCII_ESCAPE_CHAR){
+            true => {
+                //Fine scan upon detecting escape sequence
+                if (window.starts_with("\\x") || window.starts_with("\\X") ||
+                        window.starts_with("\\u") || window.starts_with("\\U")) {
+                    result.push(unescape(&window)?);
+                    i += ESCAPED_STRING_WINDOW;
+                } else if window_size >= 2 && window.starts_with(ASCII_ESCAPE_CHAR) {
+                    let control_escape_sequence = &window[0..2];
+                    match unescape(control_escape_sequence) {
+                        Ok(c) => result.push(c),
+                        Err(why) => result += control_escape_sequence
+                    }
+                    i += 2;
+                } else {
+                    result.push(window.chars().nth(0).unwrap());
+                    i += 1;
+                }
+            },
+            false => {
+                //Skip this window because we have no escape sequences to work on.
+                result += &window;
+                i += window_size;
+            }
         }
     }
     Ok(result)
@@ -180,7 +204,7 @@ fn unescape_control(escaped_str: &str) -> Result<char, String> {
         "\\r" => Ok('\r'),
         "\\f" => Ok('\x14'),
         "\\s" => Ok('\x20'),
-        "\\\\" => Ok('\\'),
+        "\\\\" => Ok(ASCII_ESCAPE_CHAR),
         "\\'" => Ok('\''),
         "\\\"" => Ok('\"'),
         "\\0" => Ok('\0'),

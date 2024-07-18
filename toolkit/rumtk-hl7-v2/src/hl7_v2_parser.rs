@@ -15,7 +15,7 @@ pub mod v2_parser {
     use std::ops::{Index, IndexMut};
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
-    use rumtk_core::strings::{UTFStringExtensions};
+    use rumtk_core::strings::{unescape_str, UTFStringExtensions};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING};
@@ -38,8 +38,9 @@ pub mod v2_parser {
             V2Component{component: V2String::new(), delete_data: false}
         }
 
-        pub fn from_string(item: &str, parser_chars: &V2ParserCharacters) -> V2Component {
-            V2Component{component: V2String::from(item), delete_data: item == V2_DELETE_FIELD}
+        pub fn from_string(item: &str) -> V2Component {
+            let original_string = unescape_str(item).unwrap();
+            V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}
         }
 
         pub fn is_empty(&self) -> bool {
