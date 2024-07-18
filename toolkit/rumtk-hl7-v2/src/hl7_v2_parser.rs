@@ -38,6 +38,14 @@ pub mod v2_parser {
             V2Component{component: V2String::new(), delete_data: false}
         }
 
+        ///
+        /// Constructs HL7 V2 Component.
+        /// Per Section 2.7 => Added support for unescaping escaped strings.
+        /// Support is limited to control sequences and hex/unicode character sequences.
+        /// Advanced ANSI Escape sequences are not supported at this layer.
+        /// We let the receiving application further handle the advanced ANSI escape sequences as
+        /// it best sees fit.
+        ///
         pub fn from_string(item: &str) -> V2Component {
             let original_string = unescape_str(item).unwrap();
             V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}

@@ -15,7 +15,7 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
 - [ ] Toolkit Core Tests
 - [ ] HL7 v2 Interface Protocol
 - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
-- [ ] HL7 v2 Unescape escaped characters
+- [x] HL7 v2 Escape Sequences Support
 - [x] HL7 v2 UTF-8/Unicode Support
 - [ ] HL7 v2 Custom Message Configuration
 - [ ] HL7 v2 Endpoint Interface utility
