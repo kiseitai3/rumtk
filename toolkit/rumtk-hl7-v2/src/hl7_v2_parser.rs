@@ -46,6 +46,33 @@ pub mod v2_parser {
         /// We let the receiving application further handle the advanced ANSI escape sequences as
         /// it best sees fit.
         ///
+        /// TODO: Section 2.7.3
+        ///
+        /// Single-byte character sets:
+        ///-      \C2842\ISO-IR6 G0 (ISO 646 : ASCII)
+        ///-      \C2D41\ISO-IR100 (ISO 8859 : Latin Alphabet 1)
+        ///-      \C2D42\ISO-IR101 (ISO 8859 : Latin Alphabet 2)
+        ///-      \C2D43\ISO-IR109 (ISO 8859 : Latin Alphabet 3)
+        ///-      \C2D44\ISO-IR110 (ISO 8859 : Latin Alphabet 4)
+        ///-      \C2D4C\ISO-IR144 (ISO 8859 : Cyrillic)
+        ///-      \C2D47\ISO-IR127 (ISO 8859 : Arabic)
+        ///-      \C2D46\ISO-IR126 (ISO 8859 : Greek)
+        ///-      \C2D48\ISO-IR138 (ISO 8859 : Hebrew)
+        ///-      \C2D4D\ISO-IR148 (ISO 8859 : Latin Alphabet 5)
+        ///-      \C284A\ISO-IR14 (JIS X 0201 -1976: Romaji)
+        ///-      \C2949\ISO-IR13 (JIS X 0201 : Katakana)
+        ///
+        /// Multi-byte codes:
+        ///-      \M2442\ISO-IR87 (JIS X 0208 : Kanji, hiragana and katakana)
+        ///-      \M242844\ISO-IR159 (JIS X 0212 : Supplementary Kanji)
+        ///
+        /// TODO: Develop mechanism for propagating encoding of message's escaped sequences.
+        ///-    Cast string to UTF-8 by default (assumes incoming is ASCII with unicode escapes).
+        ///-    Re-cast to encoding from MSH-18 if present (perf penalty hypothetically, but should lessen over time with the use of unicode in modern systems.
+        ///-    Not sure what to do for multibyte sequences
+        ///
+        /// TODO: Might not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
+        ///
         pub fn from_string(item: &str) -> V2Component {
             let original_string = unescape_str(item).unwrap();
             V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}

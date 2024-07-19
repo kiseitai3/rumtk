@@ -172,20 +172,17 @@ pub fn unescape(escaped_str: &str) -> Result<char, String> {
     let lower_case = escaped_str.to_lowercase();
     match &lower_case[0..2] {
         // Hex notation case.
-        "\\x" => match hex_to_number(&lower_case[2..]) {
-            Ok(val) => Ok(number_to_char(&val)?),
-            Err(why) => Err(why)
-        },
+        "\\x" => number_to_char(&hex_to_number(&lower_case[2..])?),
         // Unicode notation case
-        "\\u" => match hex_to_number(&lower_case[2..]) {
-            Ok(val) => Ok(number_to_char(&val)?),
-            Err(why) => Err(why)
-        },
+        "\\u" => number_to_char(&hex_to_number(&lower_case[2..])?),
+        // Single byte notation case
+        "\\c" => number_to_char(&hex_to_number(&lower_case[2..])?),
+        // Multibyte byte notation case
+        //"\\m" => match lower_case.count_graphemes() + 2 {
+        //    6 => number_to_char(&hex_to_number(&lower_case[2..5])?)
+        //},
         // Unicode notation case
-        "\\o" => match octal_to_number(&lower_case[2..]) {
-            Ok(val) => Ok(number_to_char(&val)?),
-            Err(why) => Err(why)
-        },
+        "\\o" => number_to_char(&octal_to_number(&lower_case[2..])?),
         // Single byte codes.
         _ => Ok(unescape_control(&lower_case)?)
     }
