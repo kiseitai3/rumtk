@@ -74,7 +74,7 @@ mod tests {
         let input = "I ❤ my wife!";
         let escaped = "I \\u2764 my wife!";
         let expected = "I ❤ my wife!";
-        let result = strings::unescape_str(&escaped).unwrap();
+        let result = strings::unescape_string(&escaped).unwrap();
         println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")

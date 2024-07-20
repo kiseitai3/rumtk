@@ -28,6 +28,30 @@ pub trait UTFStringExtensions {
         println!("{}", window);
         window
     }
+    #[inline(always)]
+    fn get_grapheme_string(&self, end_pattern: &str, offset: usize) -> String {
+        let grapheme_count = self.count_graphemes();
+        let mut window: String = String::with_capacity(ESCAPED_STRING_WINDOW);
+        for i in offset..grapheme_count {
+            let g = self.get_grapheme(i);
+            if g == end_pattern {
+                return window;
+            } else {
+                window += g;
+            }
+        }
+        window
+    }
+    #[inline(always)]
+    fn find_grapheme(&self, pattern: &str, offset: usize) -> usize {
+        let grapheme_count = self.count_graphemes();
+        for i in offset..grapheme_count {
+            if self.get_grapheme(i) == pattern {
+                return i;
+            }
+        }
+        grapheme_count
+    }
 }
 
 impl UTFStringExtensions for String {
@@ -53,6 +77,9 @@ impl UTFStringExtensions for str {
         self.graphemes(true).nth(index).unwrap()
     }
 }
+
+/*****************************String Types***************************************/
+
 
 /*****************************Other string helpers***************************************/
 
@@ -121,41 +148,25 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 ///
 /// This function will scan through an escaped string and unescape any escaped characters
 ///
-pub fn unescape_str(in_string: &str) -> Result<String, String> {
-    let str_size = in_string.count_graphemes();
-    let mut result: String = String::with_capacity(str_size);
+pub fn unescape_string(escaped_str: &str) -> Result<String, String> {
+    let str_size = escaped_str.count_graphemes();
+    let mut result: String = String::with_capacity(escaped_str.len());
     let mut i = 0;
     while i < str_size {
-        let remainder = str_size - i;
-        let offset = match remainder {
-            0..=5 => remainder,
-            _ => ESCAPED_STRING_WINDOW
-        };
-        let window = in_string.get_grapheme_window(i, i + offset);
-        let window_size = window.count_graphemes();
-        match window.contains(ASCII_ESCAPE_CHAR){
-            true => {
-                //Fine scan upon detecting escape sequence
-                if (window.starts_with("\\x") || window.starts_with("\\X") ||
-                        window.starts_with("\\u") || window.starts_with("\\U")) {
-                    result.push(unescape(&window)?);
-                    i += ESCAPED_STRING_WINDOW;
-                } else if window_size >= 2 && window.starts_with(ASCII_ESCAPE_CHAR) {
-                    let control_escape_sequence = &window[0..2];
-                    match unescape(control_escape_sequence) {
-                        Ok(c) => result.push(c),
-                        Err(why) => result += control_escape_sequence
-                    }
-                    i += 2;
-                } else {
-                    result.push(window.chars().nth(0).unwrap());
-                    i += 1;
-                }
+        let seq_start = escaped_str.get_grapheme(i);
+        match seq_start {
+            "\\" => {
+                let escape_seq = escaped_str.get_grapheme_string(" ", i);
+                let c= match unescape(&escape_seq) {
+                    Ok(c) => c,
+                    Err(why) => escape_seq.clone()
+                };
+                result += &c;
+                i += &escape_seq.count_graphemes();
             },
-            false => {
-                //Skip this window because we have no escape sequences to work on.
-                result += &window;
-                i += window_size;
+            _ => {
+                result += seq_start;
+                i += 1;
             }
         }
     }
@@ -168,23 +179,27 @@ pub fn unescape_str(in_string: &str) -> Result<String, String> {
 /// This function will also attempt to unescape the common C style control characters.
 /// Anything else needs to be expressed as hex or octal patterns with the formats above.
 ///
-pub fn unescape(escaped_str: &str) -> Result<char, String> {
+pub fn unescape(escaped_str: &str) -> Result<String, String> {
     let lower_case = escaped_str.to_lowercase();
     match &lower_case[0..2] {
         // Hex notation case.
-        "\\x" => number_to_char(&hex_to_number(&lower_case[2..])?),
+        "\\x" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
         // Unicode notation case
-        "\\u" => number_to_char(&hex_to_number(&lower_case[2..])?),
+        "\\u" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
         // Single byte notation case
-        "\\c" => number_to_char(&hex_to_number(&lower_case[2..])?),
-        // Multibyte byte notation case
-        //"\\m" => match lower_case.count_graphemes() + 2 {
-        //    6 => number_to_char(&hex_to_number(&lower_case[2..5])?)
-        //},
+        "\\c" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
         // Unicode notation case
-        "\\o" => number_to_char(&octal_to_number(&lower_case[2..])?),
+        "\\o" => number_to_grapheme(&octal_to_number(&lower_case[2..])?),
+        // Multibyte notation case
+        "\\m" => match lower_case.count_graphemes() {
+            8 => Ok(number_to_grapheme(&hex_to_number(&lower_case[2..4])?)? +
+                &number_to_grapheme(&hex_to_number(&lower_case[4..6])?)? +
+                &number_to_grapheme(&hex_to_number(&lower_case[6..])?)?),
+            6 => number_to_grapheme(&octal_to_number(&lower_case[2..])?),
+            _ => Err(format!("Unknown multibyte sequence. Cannot decode {}", lower_case))
+        }
         // Single byte codes.
-        _ => Ok(unescape_control(&lower_case)?)
+        _ => Ok(unescape_control(&lower_case)?.to_string())
     }
 }
 
@@ -238,9 +253,9 @@ fn octal_to_number(hoctal_str: &str) -> Result<u32, String> {
 ///
 /// Turn number to UTF-8 char
 ///
-fn number_to_char(num: &u32) -> Result<char, String> {
+fn number_to_grapheme(num: &u32) -> Result<String, String> {
     match char::from_u32(*num) {
-        Some(result) => Ok(result),
+        Some(result) => Ok(result.to_string()),
         None => Err(format!("Failed to cast number to character! Number {}", num))
     }
 }
