@@ -1,6 +1,7 @@
 use std::cmp::max;
 use std::fmt::format;
 use unicode_segmentation::UnicodeSegmentation;
+pub use compact_str::{CompactString, CompactStringExt, ToCompactString, format_compact};
 
 /****************************Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
@@ -8,6 +9,9 @@ const ASCII_ESCAPE_CHAR: char = '\\';
 const MIN_ASCII_READABLE: char = ' ';
 const MAX_ASCII_READABLE: char = '~';
 const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+
+/****************************Types*****************************************/
+pub type RUMString = CompactString;
 
 /****************************Traits*****************************************/
 
@@ -18,30 +22,33 @@ const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOP
 ///
 pub trait UTFStringExtensions {
     fn count_graphemes(&self) -> usize;
+
     fn get_grapheme(&self, index: usize) -> &str;
+
     #[inline(always)]
-    fn get_grapheme_window(&self, min: usize, max: usize) -> String {
+    fn get_grapheme_window(&self, min: usize, max: usize) -> RUMString {
         let mut window: String = String::with_capacity(max - min);
         for i in min..max {
             window += self.get_grapheme(i);
         }
-        println!("{}", window);
-        window
+        RUMString::from(window)
     }
+
     #[inline(always)]
-    fn get_grapheme_string(&self, end_pattern: &str, offset: usize) -> String {
+    fn get_grapheme_string(&self, end_pattern: &str, offset: usize) -> RUMString {
         let grapheme_count = self.count_graphemes();
         let mut window: String = String::with_capacity(ESCAPED_STRING_WINDOW);
         for i in offset..grapheme_count {
             let g = self.get_grapheme(i);
             if g == end_pattern {
-                return window;
+                return RUMString::from(window);
             } else {
                 window += g;
             }
         }
-        window
+        RUMString::from(window)
     }
+
     #[inline(always)]
     fn find_grapheme(&self, pattern: &str, offset: usize) -> usize {
         let grapheme_count = self.count_graphemes();
@@ -54,7 +61,13 @@ pub trait UTFStringExtensions {
     }
 }
 
-impl UTFStringExtensions for String {
+pub trait RUMStringConversions: ToString {
+    fn to_rumstring(&self) -> RUMString {
+        RUMString::from(self.to_string())
+    }
+}
+
+impl UTFStringExtensions for RUMString {
     #[inline(always)]
     fn count_graphemes(&self) -> usize {
         self.graphemes(true).count()
@@ -65,6 +78,8 @@ impl UTFStringExtensions for String {
         self.graphemes(true).nth(index).unwrap()
     }
 }
+
+impl RUMStringConversions for String { }
 
 impl UTFStringExtensions for str {
     #[inline(always)]
@@ -78,12 +93,13 @@ impl UTFStringExtensions for str {
     }
 }
 
-/*****************************String Types***************************************/
+impl RUMStringConversions for str { }
 
+impl RUMStringConversions for char { }
 
 /*****************************Other string helpers***************************************/
 
-pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &String) -> usize {
+pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &RUMString) -> usize {
     let mut count: usize = 0;
     for tok in vector.iter() {
         if string_token != tok {
@@ -96,7 +112,7 @@ pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &String) 
 /// Take date time string in the format YYYY\[MMDDHHmmss\] and decompose it into numerical
 /// date time components.
 /// Meaning, we take a string and we return a tuple of numbers.
-pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
+pub fn decompose_dt_str(dt_str: &RUMString) -> (u16,u8,u8,u8,u8,u8) {
     let mut year: u16 = 0;
     let mut month: u8 = 0;
     let mut day: u8 = 0;
@@ -148,9 +164,9 @@ pub fn decompose_dt_str(dt_str: &String) -> (u16,u8,u8,u8,u8,u8) {
 ///
 /// This function will scan through an escaped string and unescape any escaped characters
 ///
-pub fn unescape_string(escaped_str: &str) -> Result<String, String> {
+pub fn unescape_string(escaped_str: &str) -> Result<RUMString, RUMString> {
     let str_size = escaped_str.count_graphemes();
-    let mut result: String = String::with_capacity(escaped_str.len());
+    let mut result: RUMString = RUMString::with_capacity(escaped_str.len());
     let mut i = 0;
     while i < str_size {
         let seq_start = escaped_str.get_grapheme(i);
@@ -179,7 +195,7 @@ pub fn unescape_string(escaped_str: &str) -> Result<String, String> {
 /// This function will also attempt to unescape the common C style control characters.
 /// Anything else needs to be expressed as hex or octal patterns with the formats above.
 ///
-pub fn unescape(escaped_str: &str) -> Result<String, String> {
+pub fn unescape(escaped_str: &str) -> Result<RUMString, RUMString> {
     let lower_case = escaped_str.to_lowercase();
     match &lower_case[0..2] {
         // Hex notation case.
@@ -196,10 +212,10 @@ pub fn unescape(escaped_str: &str) -> Result<String, String> {
                 &number_to_grapheme(&hex_to_number(&lower_case[4..6])?)? +
                 &number_to_grapheme(&hex_to_number(&lower_case[6..])?)?),
             6 => number_to_grapheme(&octal_to_number(&lower_case[2..])?),
-            _ => Err(format!("Unknown multibyte sequence. Cannot decode {}", lower_case))
+            _ => Err(format_compact!("Unknown multibyte sequence. Cannot decode {}", lower_case))
         }
         // Single byte codes.
-        _ => Ok(unescape_control(&lower_case)?.to_string())
+        _ => Ok(unescape_control(&lower_case)?.to_rumstring())
     }
 }
 
@@ -207,7 +223,7 @@ pub fn unescape(escaped_str: &str) -> Result<String, String> {
 /// Unescape basic character
 /// We use pattern matching to map the basic escape character to its corresponding integer value.
 ///
-fn unescape_control(escaped_str: &str) -> Result<char, String> {
+fn unescape_control(escaped_str: &str) -> Result<char, RUMString> {
     match escaped_str {
         // Common control sequences
         "\\t" => Ok('\t'),
@@ -224,17 +240,17 @@ fn unescape_control(escaped_str: &str) -> Result<char, String> {
         "\\a" => Ok('\x07'),
         // Control sequences by
 
-        _ => Err(format!("Unknown escape sequence? Sequence: {}!", escaped_str))
+        _ => Err(format_compact!("Unknown escape sequence? Sequence: {}!", escaped_str))
     }
 }
 
 ///
 /// Turn hex string to number (u32)
 ///
-fn hex_to_number(hex_str: &str) -> Result<u32, String> {
+fn hex_to_number(hex_str: &str) -> Result<u32, RUMString> {
     match u32::from_str_radix(&hex_str, 16) {
         Ok(result) => Ok(result),
-        Err(val) => Err(format!("Failed to parse string with error {}! Input string {} \
+        Err(val) => Err(format_compact!("Failed to parse string with error {}! Input string {} \
         is not hex string!", val, hex_str))
     }
 }
@@ -242,10 +258,10 @@ fn hex_to_number(hex_str: &str) -> Result<u32, String> {
 ///
 /// Turn hex string to number (u32)
 ///
-fn octal_to_number(hoctal_str: &str) -> Result<u32, String> {
+fn octal_to_number(hoctal_str: &str) -> Result<u32, RUMString> {
     match u32::from_str_radix(&hoctal_str, 8) {
         Ok(result) => Ok(result),
-        Err(val) => Err(format!("Failed to parse string with error {}! Input string {} \
+        Err(val) => Err(format_compact!("Failed to parse string with error {}! Input string {} \
         is not an octal string!", val, hoctal_str))
     }
 }
@@ -253,10 +269,10 @@ fn octal_to_number(hoctal_str: &str) -> Result<u32, String> {
 ///
 /// Turn number to UTF-8 char
 ///
-fn number_to_grapheme(num: &u32) -> Result<String, String> {
+fn number_to_grapheme(num: &u32) -> Result<RUMString, RUMString> {
     match char::from_u32(*num) {
-        Some(result) => Ok(result.to_string()),
-        None => Err(format!("Failed to cast number to character! Number {}", num))
+        Some(result) => Ok(result.to_rumstring()),
+        None => Err(format_compact!("Failed to cast number to character! Number {}", num))
     }
 }
 
@@ -264,9 +280,9 @@ fn number_to_grapheme(num: &u32) -> Result<String, String> {
 /// This function will scan through an unescaped string and escape any characters outside the
 /// ASCII printable range.
 ///
-pub fn escape_str(in_str: &str) -> String {
+pub fn escape_str(in_str: &str) -> RUMString {
     let max_str_size = 4 * in_str.len();
-    let mut result = String::with_capacity(max_str_size);
+    let mut result = RUMString::with_capacity(max_str_size);
     for c in in_str.chars() {
         if c < MIN_ASCII_READABLE || c > MAX_ASCII_READABLE {
             result += &escape(c.to_string().as_str());
@@ -280,7 +296,7 @@ pub fn escape_str(in_str: &str) -> String {
 ///
 /// Turn UTF-8 character into escaped character sequence
 ///
-pub fn escape(unescaped_str: &str) -> String {
+pub fn escape(unescaped_str: &str) -> RUMString {
     let escaped_value = unescaped_str.escape_default().to_string();
-    escaped_value.replace("{", "").replace("}", "")
+    escaped_value.replace("{", "").replace("}", "").to_rumstring()
 }

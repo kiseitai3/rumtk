@@ -15,12 +15,13 @@ pub mod v2_parser {
     use std::ops::{Index, IndexMut};
     use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
-    use rumtk_core::strings::{unescape_string, UTFStringExtensions};
+    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
+                              RUMStringConversions};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING};
 
-    pub type V2Result<T> = Result<T, String>;
+    pub type V2Result<T> = Result<T, RUMString>;
 
     ///
     /// V2Component.
@@ -35,7 +36,7 @@ pub mod v2_parser {
 
     impl V2Component {
         fn new() -> V2Component {
-            V2Component{component: V2String::new(), delete_data: false}
+            V2Component{component: V2String::from(""), delete_data: false}
         }
 
         ///
@@ -131,7 +132,7 @@ pub mod v2_parser {
             let component_indx = indx - 1;
             match self.components.get(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format!("Component at index {} not found!", component_indx))
+                None => Err(format_compact!("Component at index {} not found!", component_indx))
             }
         }
 
@@ -139,7 +140,7 @@ pub mod v2_parser {
             let component_indx = indx - 1;
             match self.components.get_mut(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format!("Component at index {} not found!", component_indx))
+                None => Err(format_compact!("Component at index {} not found!", component_indx))
             }
         }
     }
@@ -160,8 +161,8 @@ pub mod v2_parser {
     pub type V2FieldList = Vec<V2Field>;
     #[derive(Debug)]
     pub struct V2Segment {
-        name: String,
-        description: String,
+        name: RUMString,
+        description: RUMString,
         fields: V2FieldList
     }
 
@@ -171,7 +172,7 @@ pub mod v2_parser {
             let raw_field_count = raw_fields.len();
 
             if raw_field_count <= 0 {
-                return Err(format!("Error splitting segments into fields!\nRaw segment: {}\nField separator: {}", &raw_segment, &parser_chars.field_separator))
+                return Err(format_compact!("Error splitting segments into fields!\nRaw segment: {}\nField separator: {}", &raw_segment, &parser_chars.field_separator))
             }
 
             let mut fields: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
@@ -184,11 +185,11 @@ pub mod v2_parser {
             let field_name = match fields.pop_front() {
                 Some(field) => match field.components.get(0) {
                     Some(name) => name.component.to_uppercase(),
-                    None => return Err(format!("Expected at least one component in field but got None!\nRaw segment: {}", &raw_segment))
+                    None => return Err(format_compact!("Expected at least one component in field but got None!\nRaw segment: {}", &raw_segment))
                 },
-                None => return Err(format!("Expected field but got None!\nRaw segment: {}", &raw_segment))
+                None => return Err(format_compact!("Expected field but got None!\nRaw segment: {}", &raw_segment))
             };
-            let field_description = String::from(
+            let field_description = RUMString::from(
                 match V2_SEGMENT_TYPES.get(&field_name){
                     Some(description) => &description,
                     None => V2_EMPTY_STRING
@@ -205,7 +206,7 @@ pub mod v2_parser {
             let field_indx = indx - 1;
             match self.fields.get(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format!("Field number {} not found!", field_indx))
+                None => Err(format_compact!("Field number {} not found!", field_indx))
             }
         }
 
@@ -213,7 +214,7 @@ pub mod v2_parser {
             let field_indx = indx - 1;
             match self.fields.get_mut(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format!("Field number {} not found!", field_indx))
+                None => Err(format_compact!("Field number {} not found!", field_indx))
             }
         }
     }
@@ -232,29 +233,29 @@ pub mod v2_parser {
     }
 
     pub type V2SegmentGroup = Vec<V2Segment>;
-    pub type SegmentMap = HashMap<String, V2SegmentGroup>;
+    pub type SegmentMap = HashMap<RUMString, V2SegmentGroup>;
 
     #[derive(Debug)]
     pub struct V2ParserCharacters {
-        pub segment_terminator: String,
-        pub field_separator: String,
-        pub component_separator: String,
-        pub repetition_separator: String,
-        pub escape_character: String,
-        pub subcomponent_separator: String,
-        pub truncation_character: String
+        pub segment_terminator: RUMString,
+        pub field_separator: RUMString,
+        pub component_separator: RUMString,
+        pub repetition_separator: RUMString,
+        pub escape_character: RUMString,
+        pub subcomponent_separator: RUMString,
+        pub truncation_character: RUMString
     }
 
     impl V2ParserCharacters {
         pub fn new() -> V2ParserCharacters {
             V2ParserCharacters {
-                segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
-                field_separator: String::from("|"),
-                component_separator: String::from("^"),
-                repetition_separator: String::from("~"),
-                escape_character: String::from("\\"),
-                subcomponent_separator: String::from("&"),
-                truncation_character: String::from("#"),
+                segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                field_separator: RUMString::from("|"),
+                component_separator: RUMString::from("^"),
+                repetition_separator: RUMString::from("~"),
+                escape_character: RUMString::from("\\"),
+                subcomponent_separator: RUMString::from("&"),
+                truncation_character: RUMString::from("#"),
             }
         }
         pub fn from(msg_key_chars: &str) -> V2Result<Self> {
@@ -264,24 +265,24 @@ pub mod v2_parser {
 
             match parser_chars.count_graphemes() {
                 5 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
-                    field_separator: field_separator.to_string(),
-                    component_separator: parser_chars.get_grapheme(0).to_string(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_string(),
-                    escape_character: parser_chars.get_grapheme(2).to_string(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_string(),
-                    truncation_character: parser_chars.get_grapheme(4).to_string(),
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                    field_separator: field_separator.to_rumstring(),
+                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
+                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
+                    truncation_character: parser_chars.get_grapheme(4).to_rumstring(),
                 }),
                 4 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR.to_string(),
-                    field_separator: field_separator.to_string(),
-                    component_separator: parser_chars.get_grapheme(0).to_string(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_string(),
-                    escape_character: parser_chars.get_grapheme(2).to_string(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_string(),
-                    truncation_character: V2_TRUNCATION_CHARACTER.to_string()
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                    field_separator: field_separator.to_rumstring(),
+                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
+                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
+                    truncation_character: V2_TRUNCATION_CHARACTER.to_rumstring()
                 }),
-                _ => Err("Wrong count of parsing characters in message header!".to_string())
+                _ => Err("Wrong count of parsing characters in message header!".to_rumstring())
             }
         }
 
@@ -289,7 +290,7 @@ pub mod v2_parser {
             if V2ParserCharacters::is_msh(msh_segment) {
                 V2ParserCharacters::from(&msh_segment[3..])
             } else {
-                Err("The segment is not an MSH segment! This message is malformed!".to_string())
+                Err("The segment is not an MSH segment! This message is malformed!".to_rumstring())
             }
         }
 
@@ -326,7 +327,7 @@ pub mod v2_parser {
             let subsegment_indx = sub_segment - 1;
             match segment_group.get(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
+                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
             }
         }
 
@@ -335,21 +336,21 @@ pub mod v2_parser {
             let subsegment_indx = sub_segment - 1;
             match segment_group.get_mut(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
+                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
             }
         }
 
         pub fn get_group(&self, segment_name: &str) -> V2Result<&V2SegmentGroup> {
             match self.segment_groups.get(segment_name) {
                 Some(segment_group) => Ok(segment_group),
-                None => Err(format!("Segment {} not found inm message!", segment_name))
+                None => Err(format_compact!("Segment {} not found inm message!", segment_name))
             }
         }
 
         pub fn get_mut_group(&mut self, segment_name: &str) -> V2Result<&mut V2SegmentGroup> {
             match self.segment_groups.get_mut(segment_name) {
                 Some(segment_group) => Ok(segment_group),
-                None => Err(format!("Segment {} not found inm message!", segment_name))
+                None => Err(format_compact!("Segment {} not found inm message!", segment_name))
             }
         }
 
@@ -364,22 +365,22 @@ pub mod v2_parser {
         }
 
         // Message parsing operations
-        pub fn find_msh(segments: &Vec<&str>) -> V2Result<String>{
+        pub fn find_msh(segments: &Vec<&str>) -> V2Result<RUMString>{
             for segment in segments{
                 if segment.starts_with(V2_MSHEADER_PATTERN){
-                    return Ok(segment.to_string());
+                    return Ok(segment.to_rumstring());
                 }
             }
-            Err("No MSH segment found! The message is malformed or incomplete!".to_string())
+            Err("No MSH segment found! The message is malformed or incomplete!".to_rumstring())
         }
 
-        pub fn sanitize(raw_message: &str) -> String {
+        pub fn sanitize(raw_message: &str) -> RUMString {
             let rr_string = raw_message.replace("\n", "\r");
             let mut n_string = rr_string.replace("\r\r", "\r");
             while n_string.contains("\r\r") {
                 n_string = n_string.replace("\r\r", "\r");
             }
-            n_string
+            n_string.to_rumstring()
         }
 
         pub fn tokenize_segments(raw_message: &str) -> Vec<&str> {
@@ -399,7 +400,7 @@ pub mod v2_parser {
             for segment_str in raw_segments {
                 let segment: V2Segment = V2Segment::from_string(segment_str, parser_chars)?;
 
-                let key = String::from(&segment.name);
+                let key = RUMString::new(&segment.name);
                 if segments.contains_key(&segment.name) == false {
                     segments.insert(key, V2SegmentGroup::new());
                 }

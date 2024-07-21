@@ -4,8 +4,10 @@ pub mod v2_types {
     use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str};
     use rumtk_core::maths::generate_tenth_factor;
     use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK};
+    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
+                              RUMStringConversions};
 
-    pub type V2String = String;
+    pub type V2String = RUMString;
     pub struct V2DateTime {
         year: u16,
         month: u8,
@@ -49,12 +51,12 @@ pub mod v2_types {
             // See https://hl7-definition.caristix.com/v2/HL7v2.8/DataTypes/DTM
             let dt_vec: Vec<&str> = item.split('.').collect();
             let mut ms_vec: Vec<&str> = dt_vec.last().unwrap().split('+').collect();
-            if count_tokens_ignoring_pattern(&ms_vec, &String::from(" ")) < 2 {
+            if count_tokens_ignoring_pattern(&ms_vec, &RUMString::from(" ")) < 2 {
                 ms_vec = dt_vec.last().unwrap().split('-').collect();
             }
 
             let (year, month, day, hour, minute, second) =
-                decompose_dt_str(&String::from(dt_vec[0]));
+                decompose_dt_str(&RUMString::from(dt_vec[0]));
 
             // Now let's grab the two components of the vector and generate the microsecond and offset bits.
             let ms_string = ms_vec[0];

@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 unicode-segmentation = "1.11.0"
+compact_str = "0.8.0"
