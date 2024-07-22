@@ -47,7 +47,10 @@ pub mod v2_parser {
         /// We let the receiving application further handle the advanced ANSI escape sequences as
         /// it best sees fit.
         ///
-        /// Section 2.7.3
+        /// TODO: Section 2.7.3
+        ///
+        /// Note => People have already created the conversion tables for the different encodings
+        /// but auto detection of encoding is not 100% reliable.
         ///
         /// Single-byte character sets:
         ///-      \C2842\ISO-IR6 G0 (ISO 646 : ASCII)
@@ -72,11 +75,11 @@ pub mod v2_parser {
         ///-    Re-cast to encoding from MSH-18 if present (perf penalty hypothetically, but should lessen over time with the use of unicode in modern systems.
         ///-    Not sure what to do for multibyte sequences
         ///
-        /// TODO: Might not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
+        /// Will not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
         ///
         pub fn from_string(item: &str) -> V2Component {
             let original_string = unescape_string(item).unwrap();
-            V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}
+            V2Component{component: V2String::from(original_string.try_decode()), delete_data: item == V2_DELETE_FIELD}
         }
 
         pub fn is_empty(&self) -> bool {

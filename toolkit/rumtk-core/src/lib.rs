@@ -5,6 +5,7 @@ pub mod maths;
 
 #[cfg(test)]
 mod tests {
+    use crate::strings::UTFStringExtensions;
     use super::*;
 
     /*
@@ -87,6 +88,25 @@ mod tests {
         let result = strings::escape_str(&input);
         println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
         assert_eq!(expected, result.as_str(), "Incorrect string escaping!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_autodecode_utf8() {
+        let input = "I ❤ my wife!";
+        let result = input.try_decode();
+        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
+        assert_eq!(input, result.as_str(), "Incorrect string decoding!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_autodecode_other() {
+        //TODO: Need an example of other encoding texts.
+        let input = "I ❤ my wife!";
+        let result = input.try_decode();
+        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
+        assert_eq!(input, result.as_str(), "Incorrect string decoding!");
         println!("Passed!")
     }
 }

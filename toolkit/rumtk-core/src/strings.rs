@@ -1,7 +1,9 @@
 use std::cmp::max;
 use std::fmt::format;
+use std::os::unix::ffi::OsStringExt;
 use unicode_segmentation::UnicodeSegmentation;
 pub use compact_str::{CompactString, CompactStringExt, ToCompactString, format_compact};
+use chardetng::EncodingDetector;
 
 /****************************Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
@@ -19,6 +21,8 @@ pub type RUMString = CompactString;
 /// Implemented indexing trait for String and str which uses the UnicodeSegmentation facilities to
 /// enable grapheme iteration by default. There could be some performance penalty, but it will allow
 /// for native Unicode support to the best extent possible.
+///
+/// We also enable decoding from Encoding Standard encodings to UTF-8.
 ///
 pub trait UTFStringExtensions {
     fn count_graphemes(&self) -> usize;
@@ -59,6 +63,14 @@ pub trait UTFStringExtensions {
         }
         grapheme_count
     }
+
+    ///
+    /// Implements decoding this string from its auto-detected encoding to UTF-8.
+    /// Failing that we assume the string was encoded in UTF-8 and return a copy.
+    ///
+    /// Note => Decoding is facilitated via the crates chardet-ng and encoding_rs.
+    ///
+    fn try_decode(&self) -> RUMString;
 }
 
 pub trait RUMStringConversions: ToString {
@@ -77,6 +89,18 @@ impl UTFStringExtensions for RUMString {
     fn get_grapheme(&self, index: usize) -> &str {
         self.graphemes(true).nth(index).unwrap()
     }
+
+    #[inline(always)]
+    fn try_decode(&self) -> RUMString {
+        let byte_slice = self.as_bytes();
+        let mut detector = EncodingDetector::new();
+        detector.feed(&byte_slice, true);
+        let encoding = detector.guess(None, true);
+        match encoding.decode_without_bom_handling_and_without_replacement(&byte_slice){
+            Some(res) => RUMString::from(res),
+            None => RUMString::from(&self.to_string())
+        }
+    }
 }
 
 impl RUMStringConversions for String { }
@@ -90,6 +114,18 @@ impl UTFStringExtensions for str {
     #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str {
         self.graphemes(true).nth(index).unwrap()
+    }
+
+    #[inline(always)]
+    fn try_decode(&self) -> RUMString {
+        let byte_slice = self.as_bytes();
+        let mut detector = EncodingDetector::new();
+        detector.feed(&byte_slice, true);
+        let encoding = detector.guess(None, true);
+        match encoding.decode_without_bom_handling_and_without_replacement(&byte_slice){
+            Some(res) => RUMString::from(res),
+            None => RUMString::from(&self.to_string())
+        }
     }
 }
 

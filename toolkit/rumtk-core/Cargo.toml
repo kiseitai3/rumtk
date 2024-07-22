@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 unicode-segmentation = "1.11.0"
 compact_str = "0.8.0"
+encoding_rs = "0.8.34"
+chardetng = "0.1.17"
