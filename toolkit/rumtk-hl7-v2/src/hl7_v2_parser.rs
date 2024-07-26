@@ -30,13 +30,12 @@ pub mod v2_parser {
     ///
     #[derive(Debug)]
     pub struct V2Component {
-        component: V2String,
-        delete_data: bool
+        component: V2String
     }
 
     impl V2Component {
         fn new() -> V2Component {
-            V2Component{component: V2String::from(""), delete_data: false}
+            V2Component{component: V2String::from("")}
         }
 
         ///
@@ -82,11 +81,15 @@ pub mod v2_parser {
         ///
         pub fn from_string(item: &str) -> V2Component {
             let original_string = unescape_string(item).unwrap();
-            V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}
+            V2Component{component: V2String::from(original_string)}
         }
 
         pub fn is_empty(&self) -> bool {
             self.component == ""
+        }
+
+        pub fn is_delete(&self) -> bool {
+            self.component == V2_DELETE_FIELD
         }
 
         pub fn as_datetime(&self) -> V2DateTime {
