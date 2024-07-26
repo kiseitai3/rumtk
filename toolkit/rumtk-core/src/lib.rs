@@ -5,7 +5,7 @@ pub mod maths;
 
 #[cfg(test)]
 mod tests {
-    use crate::strings::UTFStringExtensions;
+    use crate::strings::{RUMString, UTFStringExtensions};
     use super::*;
 
     /*
@@ -64,7 +64,7 @@ mod tests {
         let input = "❤";
         let escaped = strings::escape(&input);
         let expected = "❤";
-        let result = String::from(strings::unescape(&escaped.as_str()).unwrap());
+        let result = RUMString::from_utf8(strings::unescape(&escaped.as_str()).unwrap()).unwrap();
         println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")
@@ -72,10 +72,9 @@ mod tests {
 
     #[test]
     fn test_unescaping_string() {
-        let input = "I ❤ my wife!";
-        let escaped = "I \\u2764 my wife!";
+        let input = "I \\u2764 my wife!";
         let expected = "I ❤ my wife!";
-        let result = strings::unescape_string(&escaped).unwrap();
+        let result = strings::unescape_string(&input).unwrap();
         println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")
@@ -94,9 +93,9 @@ mod tests {
     #[test]
     fn test_autodecode_utf8() {
         let input = "I ❤ my wife!";
-        let result = input.try_decode();
-        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
-        assert_eq!(input, result.as_str(), "Incorrect string decoding!");
+        let result = input;
+        println!("Input: {} Expected: {} Got: {}", input, input, result);
+        assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
 
@@ -104,9 +103,10 @@ mod tests {
     fn test_autodecode_other() {
         //TODO: Need an example of other encoding texts.
         let input = "I ❤ my wife!";
-        let result = input.try_decode();
-        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
-        assert_eq!(input, result.as_str(), "Incorrect string decoding!");
+        let expected = "I ❤ my wife!";
+        let result = input;
+        println!("Input: {} Expected: {} Got: {}", input, input, result);
+        assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
 }

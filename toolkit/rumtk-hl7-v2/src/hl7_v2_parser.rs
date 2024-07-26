@@ -47,10 +47,11 @@ pub mod v2_parser {
         /// We let the receiving application further handle the advanced ANSI escape sequences as
         /// it best sees fit.
         ///
-        /// TODO: Section 2.7.3
+        /// Section 2.7.3
         ///
         /// Note => People have already created the conversion tables for the different encodings
-        /// but auto detection of encoding is not 100% reliable.
+        /// but auto detection of encoding is not 100% reliable. Care should be taken when using
+        /// the resulting string.
         ///
         /// Single-byte character sets:
         ///-      \C2842\ISO-IR6 G0 (ISO 646 : ASCII)
@@ -70,16 +71,18 @@ pub mod v2_parser {
         ///-      \M2442\ISO-IR87 (JIS X 0208 : Kanji, hiragana and katakana)
         ///-      \M242844\ISO-IR159 (JIS X 0212 : Supplementary Kanji)
         ///
-        /// TODO: Develop mechanism for propagating encoding of message's escaped sequences.
-        ///-    Cast string to UTF-8 by default (assumes incoming is ASCII with unicode escapes).
-        ///-    Re-cast to encoding from MSH-18 if present (perf penalty hypothetically, but should lessen over time with the use of unicode in modern systems.
-        ///-    Not sure what to do for multibyte sequences
+        /// We grab the ASCII string.
+        /// Cast it to bytes while unescaping any escape sequences.
+        /// Guess the encoding of the bytes.
+        /// Decode back to UTF-8.
+        /// If all things go right, the UTF-8 string should be a faithful representative of the
+        /// intended string per section 2.7 of the standard.
         ///
         /// Will not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
         ///
         pub fn from_string(item: &str) -> V2Component {
             let original_string = unescape_string(item).unwrap();
-            V2Component{component: V2String::from(original_string.try_decode()), delete_data: item == V2_DELETE_FIELD}
+            V2Component{component: V2String::from(original_string), delete_data: item == V2_DELETE_FIELD}
         }
 
         pub fn is_empty(&self) -> bool {

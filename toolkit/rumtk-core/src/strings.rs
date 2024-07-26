@@ -63,14 +63,6 @@ pub trait UTFStringExtensions {
         }
         grapheme_count
     }
-
-    ///
-    /// Implements decoding this string from its auto-detected encoding to UTF-8.
-    /// Failing that we assume the string was encoded in UTF-8 and return a copy.
-    ///
-    /// Note => Decoding is facilitated via the crates chardet-ng and encoding_rs.
-    ///
-    fn try_decode(&self) -> RUMString;
 }
 
 pub trait RUMStringConversions: ToString {
@@ -89,18 +81,6 @@ impl UTFStringExtensions for RUMString {
     fn get_grapheme(&self, index: usize) -> &str {
         self.graphemes(true).nth(index).unwrap()
     }
-
-    #[inline(always)]
-    fn try_decode(&self) -> RUMString {
-        let byte_slice = self.as_bytes();
-        let mut detector = EncodingDetector::new();
-        detector.feed(&byte_slice, true);
-        let encoding = detector.guess(None, true);
-        match encoding.decode_without_bom_handling_and_without_replacement(&byte_slice){
-            Some(res) => RUMString::from(res),
-            None => RUMString::from(&self.to_string())
-        }
-    }
 }
 
 impl RUMStringConversions for String { }
@@ -114,18 +94,6 @@ impl UTFStringExtensions for str {
     #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str {
         self.graphemes(true).nth(index).unwrap()
-    }
-
-    #[inline(always)]
-    fn try_decode(&self) -> RUMString {
-        let byte_slice = self.as_bytes();
-        let mut detector = EncodingDetector::new();
-        detector.feed(&byte_slice, true);
-        let encoding = detector.guess(None, true);
-        match encoding.decode_without_bom_handling_and_without_replacement(&byte_slice){
-            Some(res) => RUMString::from(res),
-            None => RUMString::from(&self.to_string())
-        }
     }
 }
 
@@ -197,32 +165,54 @@ pub fn decompose_dt_str(dt_str: &RUMString) -> (u16,u8,u8,u8,u8,u8) {
     (year, month, day, hour, minute, second)
 }
 
+
 ///
-/// This function will scan through an escaped string and unescape any escaped characters
+/// Implements decoding this string from its auto-detected encoding to UTF-8.
+/// Failing that we assume the string was encoded in UTF-8 and return a copy.
+///
+/// Note => Decoding is facilitated via the crates chardet-ng and encoding_rs.
+///
+pub fn try_decode(src: &[u8]) -> RUMString {
+    let mut detector = EncodingDetector::new();
+    detector.feed(&src, true);
+    let encoding = detector.guess(None, true);
+    match encoding.decode_without_bom_handling_and_without_replacement(&src){
+        Some(res) => {
+            RUMString::from(res)
+        },
+        None => RUMString::from_utf8(src).unwrap()
+    }
+}
+
+///
+/// This function will scan through an escaped string and unescape any escaped characters.
+/// We collect these characters as a byte vector.
+/// Finally, we do a decode pass on the vector to re-encode the bytes **hopefully right** into a
+/// valid UTF-8 string.
 ///
 pub fn unescape_string(escaped_str: &str) -> Result<RUMString, RUMString> {
     let str_size = escaped_str.count_graphemes();
-    let mut result: RUMString = RUMString::with_capacity(escaped_str.len());
+    let mut result: Vec<u8> = Vec::with_capacity(escaped_str.len());
     let mut i = 0;
     while i < str_size {
         let seq_start = escaped_str.get_grapheme(i);
         match seq_start {
             "\\" => {
                 let escape_seq = escaped_str.get_grapheme_string(" ", i);
-                let c= match unescape(&escape_seq) {
+                let mut c= match unescape(&escape_seq) {
                     Ok(c) => c,
-                    Err(why) => escape_seq.clone()
+                    Err(_why) => Vec::from(escape_seq.as_bytes())
                 };
-                result += &c;
+                result.append(&mut c);
                 i += &escape_seq.count_graphemes();
             },
             _ => {
-                result += seq_start;
+                result.append(&mut Vec::from(seq_start.as_bytes()));
                 i += 1;
             }
         }
     }
-    Ok(result)
+    Ok(try_decode(result.as_slice()))
 }
 
 ///
@@ -231,28 +221,51 @@ pub fn unescape_string(escaped_str: &str) -> Result<RUMString, RUMString> {
 /// This function will also attempt to unescape the common C style control characters.
 /// Anything else needs to be expressed as hex or octal patterns with the formats above.
 ///
-pub fn unescape(escaped_str: &str) -> Result<RUMString, RUMString> {
+/// If I did this right, I should get the "raw" byte sequence out of the escaped string.
+/// We can then use the bytes and attempt a decode() to figure out the string encoding and
+/// get the correct conversion to UTF-8. **Fingers crossed**
+///
+pub fn unescape(escaped_str: &str) -> Result<Vec<u8>, RUMString> {
     let lower_case = escaped_str.to_lowercase();
+    let mut bytes: Vec<u8> = Vec::with_capacity(3);
     match &lower_case[0..2] {
-        // Hex notation case.
-        "\\x" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
-        // Unicode notation case
-        "\\u" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
+        // Hex notation case. Assume we are getting xxyy bytes
+        "\\x" => {
+            let byte_str = number_to_char_unchecked(&hex_to_number(&lower_case[2..6])?);
+            bytes.append(&mut byte_str.as_bytes().to_vec());
+        },
+        // Unicode notation case, we need to do an extra step or we will lose key bytes.
+        "\\u" => {
+            let byte_str = number_to_char_unchecked(&hex_to_number(&lower_case[2..6])?);
+            bytes.append(&mut byte_str.as_bytes().to_vec());
+        },
         // Single byte notation case
-        "\\c" => number_to_grapheme(&hex_to_number(&lower_case[2..])?),
+        "\\c" => {
+            let byte_str = number_to_char_unchecked(&hex_to_number(&lower_case[2..6])?);
+            bytes.append(&mut byte_str.as_bytes().to_vec());
+        },
         // Unicode notation case
-        "\\o" => number_to_grapheme(&octal_to_number(&lower_case[2..])?),
+        "\\o" => {
+            let byte_str = number_to_char_unchecked(&octal_to_number(&lower_case[2..6])?);
+            bytes.append(&mut byte_str.as_bytes().to_vec());
+        },
         // Multibyte notation case
         "\\m" => match lower_case.count_graphemes() {
-            8 => Ok(number_to_grapheme(&hex_to_number(&lower_case[2..4])?)? +
-                &number_to_grapheme(&hex_to_number(&lower_case[4..6])?)? +
-                &number_to_grapheme(&hex_to_number(&lower_case[6..])?)?),
-            6 => number_to_grapheme(&octal_to_number(&lower_case[2..])?),
-            _ => Err(format_compact!("Unknown multibyte sequence. Cannot decode {}", lower_case))
+            8 => {
+                bytes.push(hex_to_byte(&lower_case[2..4])?);
+                bytes.push(hex_to_byte(&lower_case[4..6])?);
+                bytes.push(hex_to_byte(&lower_case[6..8])?);
+            },
+            6 => {
+                bytes.push(hex_to_byte(&lower_case[2..4])?);
+                bytes.push(hex_to_byte(&lower_case[4..6])?);
+            },
+            _ => return Err(format_compact!("Unknown multibyte sequence. Cannot decode {}", lower_case))
         }
         // Single byte codes.
-        _ => Ok(unescape_control(&lower_case)?.to_rumstring())
+        _ => bytes.push(unescape_control_byte(&lower_case)?)
     }
+    Ok(bytes)
 }
 
 ///
@@ -281,6 +294,31 @@ fn unescape_control(escaped_str: &str) -> Result<char, RUMString> {
 }
 
 ///
+/// Unescape basic character
+/// We use pattern matching to map the basic escape character to its corresponding integer value.
+///
+fn unescape_control_byte(escaped_str: &str) -> Result<u8, RUMString> {
+    match escaped_str {
+        // Common control sequences
+        "\\t" => Ok(9),                       // Tab/Character Tabulation
+        "\\b" => Ok(8),                       // Backspace
+        "\\n" => Ok(10),                      // New line/ Line Feed character
+        "\\r" => Ok(13),                      // Carriage Return character
+        "\\f" => Ok(12),                      // Form Feed
+        "\\s" => Ok(32),                      // Space
+        "\\\\" => Ok(27),                     // Escape
+        "\\'" => Ok(39),                      // Single quote
+        "\\\"" => Ok(34),                     // Double quote
+        "\\0" => Ok(0),                       // Null character
+        "\\v" => Ok(11),                      // Vertical Tab/Line Tabulation
+        "\\a" => Ok(7),                       // Alert bell
+        // Control sequences by hex
+        //Err(format_compact!("Unknown escape sequence? Sequence: {}!", escaped_str))
+        _ => hex_to_byte(&escaped_str[2..])
+    }
+}
+
+///
 /// Turn hex string to number (u32)
 ///
 fn hex_to_number(hex_str: &str) -> Result<u32, RUMString> {
@@ -292,7 +330,18 @@ fn hex_to_number(hex_str: &str) -> Result<u32, RUMString> {
 }
 
 ///
-/// Turn hex string to number (u32)
+/// Turn hex string to byte (u8)
+///
+fn hex_to_byte(hex_str: &str) -> Result<u8, RUMString> {
+    match u8::from_str_radix(&hex_str, 16) {
+        Ok(result) => Ok(result),
+        Err(val) => Err(format_compact!("Failed to parse string with error {}! Input string {} \
+        is not hex string!", val, hex_str))
+    }
+}
+
+///
+/// Turn octal string to number (u32)
 ///
 fn octal_to_number(hoctal_str: &str) -> Result<u32, RUMString> {
     match u32::from_str_radix(&hoctal_str, 8) {
@@ -303,12 +352,34 @@ fn octal_to_number(hoctal_str: &str) -> Result<u32, RUMString> {
 }
 
 ///
+/// Turn octal string to byte (u32)
+///
+fn octal_to_byte(hoctal_str: &str) -> Result<u8, RUMString> {
+    match u8::from_str_radix(&hoctal_str, 8) {
+        Ok(result) => Ok(result),
+        Err(val) => Err(format_compact!("Failed to parse string with error {}! Input string {} \
+        is not an octal string!", val, hoctal_str))
+    }
+}
+
+///
 /// Turn number to UTF-8 char
 ///
-fn number_to_grapheme(num: &u32) -> Result<RUMString, RUMString> {
+fn number_to_char(num: &u32) -> Result<RUMString, RUMString> {
     match char::from_u32(*num) {
         Some(result) => Ok(result.to_rumstring()),
         None => Err(format_compact!("Failed to cast number to character! Number {}", num))
+    }
+}
+
+///
+/// Turn number to UTF-8 char. Normally, calling from_u32 checks if the value is a valid character.
+/// This version uses the less safe from_u32_unchecked() function because we want to get the bytes
+/// and deal with validity at a higher layer.
+///
+fn number_to_char_unchecked(num: &u32) -> RUMString {
+    unsafe {
+        char::from_u32_unchecked(*num).to_rumstring()
     }
 }
 
