@@ -46,9 +46,26 @@ mod tests {
         NTE|1|L|Reference Lab: GENOPTIX|L\n
         NTE|2|L|2110 ROUTHERFORD RD|L\n
         NTE|3|L|CARLSBAD, CA  92008|L";
+    const HL7_V2_REPEATING_FIELD_MESSAGE: &str =
+        "MSH|^~\&#|NIST EHR^2.16.840.1.113883.3.72.5.22^ISO|NIST EHR Facility^2.16.840.1.113883.3.72.5.23^ISO|NIST Test Lab APP^2.16.840.1.113883.3.72.5.20^ISO|NIST Lab Facility^2.16.840.1.113883.3.72.5.21^ISO|20130211184101-0500||OML^O21^OML_O21|NIST-LOI_9.0_1.1-GU_PRU|T|2.5.1|||AL|AL|||||LOI_Common_Component^LOI BaseProfile^2.16.840.1.113883.9.66^ISO~LOI_GU_Component^LOI GU Profile^2.16.840.1.113883.9.78^ISO~LAB_PRU_Component^LOI PRU Profile^2.16.840.1.113883.9.82^ISO\n
+        PID|1||PATID14567^^^NIST MPI&2.16.840.1.113883.3.72.5.30.2&ISO^MR||Hernandez^Maria^^^^^L||19880906|F||2054-5^Black or   African American^HL70005|3248 E  FlorenceAve^^Huntington Park^CA^90255^^H||^^PH^^^323^5825421|||||||||H^Hispanic or Latino^HL70189\n
+        ORC|NW|ORD231-1^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO|||||||20130116090021-0800|||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI
+        OBR|1|ORD231-1^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO||34555-3^Creatinine 24H renal clearance panel^LN^^^^^^CreatinineClearance|||201301151130-0800|201301160912-0800||||||||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
+        DG1|1||I10^Essential (primary) hypertension^I10C^^^^^^Hypertension, NOS|||F|||||||||2\n
+        DG1|2||O10.93^Unspecified pre-existing hypertension complicating the puerperium^I10C^^^^^^Pregnancy with chronic hypertension|||W|||||||||1\n
+        OBX|1|CWE|67471-3^Pregnancy status^LN^1903^Pregnancy status^99USL^2.44^^Isthe patient pregnant?||Y^Yes^HL70136^1^Yes, confirmed less than 12 weeks^99USL^2.5.1^^early pregnancy (pre 12 weeks)||||||O|||20130115|||||||||||||||SCI\n
+        OBX|2|NM|3167-4^Volume of   24   hour Urine^LN^1904^Urine Volume of 24 hour collection^99USL^2.44^^Urine Volume 24hour collection||1250|mL^milliliter^UCUM^ml^mililiter^L^1.7^^ml|||||O|||20130116|||||||||||||||SCI\n
+        OBX|3|NM|3141-9^Body weight Measured^LN^BWm^Body weight Measured^99USL^2.44^^patient weight measured in kg||59.5|kg^kilogram^UCUM|||||O|||20130116|||||||||||||||SCI\n
+        SPM|1|S-2312987-1&NIST EHR&2.16.840.1.113883.3.72.5.24&ISO||276833005^24 hour urine sample (specimen)^SCT^UR24H^24hr Urine^99USL^^^24 hour urine|||||||||||||201301151130-0800^201301160912-0800\n
+        SPM|2|S-2312987-2&NIST EHR&2.16.840.1.113883.3.72.5.24&ISO||119297000^Blood Specimen^SCT|||||||||||||201301160912-0800ORC|NW|ORD231-2^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO|||||||20130115102146-0800|||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
+        OBR|2|ORD231-2^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO||21482-5^Protein [Mass/volume] in 24 hour Urine^LN^^^^^^24 hour Urine Protein|||201301151130-0800|201301160912-0800||||||||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
+        DG1|1||I10^Essential (primary) hypertension^I10C^^^^^^Hypertension, NOS|||F|||||||||2";
     const SPANISH_NAME: &str = "Andrés";
     const SANSKRIT_NAME: &str = "आरवा";
     const HIRAGANA_NAME: &str = "ひなた";
+    const repeate_field1: &str = "ISO";
+    const repeate_field2: &str = "LOI_GU_Component";
+    const repeate_field3: &str = "LAB_PRU_Component";
     const DEFAULT_HL7_V2_FIELD_STRING: &str = "2000^2012^01";
 
     /*********************************Test Cases**************************************/
@@ -56,7 +73,7 @@ mod tests {
     fn test_hl7_v2_field_parsing() {
         let field_str = tests::DEFAULT_HL7_V2_FIELD_STRING;
         let encode_chars = V2ParserCharacters::new();
-        let field = V2Field::from_string(&field_str, &encode_chars);
+        let field = V2Field::from_str(&field_str, &encode_chars);
         println!("{:#?}", &field);
         assert_eq!(field.len(), 3, "Wrong number of components in field");
         println!("Value in component {} => {}!", 0, field.get(1).unwrap().as_str());
@@ -126,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message() {
-        let message = V2Message::from(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         assert!(message.segment_exists("MSH"), "Missing MSH segment!");
         assert!(message.segment_exists("PID"), "Missing PID segment!");
         assert!(message.segment_exists("PV1"), "Missing PV1 segment!");
@@ -142,7 +159,7 @@ mod tests {
         As a result, I have made the logic a bit more permissive of the position of the msh segment.
         I also made sure segments were trimmed to avoid issues with white space padding
          */
-        let message = V2Message::from(tests::HL7_V2_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::HL7_V2_MESSAGE).unwrap();
         assert!(message.segment_exists("MSH"), "Missing MSH segment!");
         assert!(message.segment_exists("FHS"), "Missing FHS segment!");
         assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
@@ -156,7 +173,7 @@ mod tests {
         /*
         Testing for the proper parsing of message when presented with Unicode portions.
          */
-        let message = V2Message::from(tests::HL7_V2_PDF_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::HL7_V2_PDF_MESSAGE).unwrap();
         let pid = message.get("PID", 1).unwrap();
         let orc = message.get("ORC", 1).unwrap();
         let obr = message.get("OBR", 1).unwrap();
@@ -169,5 +186,20 @@ mod tests {
         assert_eq!(name1, SPANISH_NAME, "Wrong name/string found in PID(1)5.1!");
         assert_eq!(name2, SANSKRIT_NAME, "Wrong name/string found in ORC(1)12.3!");
         assert_eq!(name3, HIRAGANA_NAME, "Wrong name/string found in OBR(1)16.3!");
+    }
+
+    #[test]
+    fn test_handle_hl7_v2_message_with_repeating_fields() {
+        /*
+        Testing for the proper parsing of message when presented with Unicode portions.
+         */
+        let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE).unwrap();
+        let msh = message.get("MSH", 1).unwrap();
+        let field1 = msh.get(5).unwrap().get(1).unwrap().as_str();
+        let field2 = msh.get(12).unwrap().get(3).unwrap().as_str();
+        let field3 = msh.get(16).unwrap().get(3).unwrap().as_str();
+        assert_eq!(field1, repeate_field1, "Wrong field contents found in MSH(1)5.1!");
+        assert_eq!(field2, repeate_field2, "Wrong field contents found in MSH(1)12.3!");
+        assert_eq!(field3, repeate_field3, "Wrong field contents found in MSH(1)16.3!");
     }
 }

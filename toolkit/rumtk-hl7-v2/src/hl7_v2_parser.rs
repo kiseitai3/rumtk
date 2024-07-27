@@ -79,7 +79,7 @@ pub mod v2_parser {
         ///
         /// Will not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
         ///
-        pub fn from_string(item: &str) -> V2Component {
+        pub fn from_str(item: &str) -> V2Component {
             let original_string = unescape_string(item).unwrap();
             V2Component{component: V2String::from(original_string)}
         }
@@ -124,11 +124,11 @@ pub mod v2_parser {
             V2Field{components: ComponentList::new()}
         }
 
-        pub fn from_string(val: &str, parser_chars: &V2ParserCharacters) -> V2Field {
+        pub fn from_str(val: &str, parser_chars: &V2ParserCharacters) -> V2Field {
             let comp_vec: Vec<&str> = val.split(parser_chars.component_separator.as_str()).collect();
             let mut component_list: ComponentList = ComponentList::new();
             for c in comp_vec {
-                component_list.push(V2Component::from_string(c));
+                component_list.push(V2Component::from_str(c));
             }
             V2Field{components: component_list}
         }
@@ -176,7 +176,7 @@ pub mod v2_parser {
     }
 
     impl V2Segment {
-        pub fn from_string(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<Self> {
+        pub fn from_str(raw_segment: &str, parser_chars: &V2ParserCharacters) -> V2Result<Self> {
             let raw_fields: Vec<&str> = raw_segment.split(parser_chars.field_separator.as_str()).collect();
             let raw_field_count = raw_fields.len();
 
@@ -188,7 +188,10 @@ pub mod v2_parser {
             let mut field_list = V2FieldList::with_capacity(raw_fields.len() - 1);
 
             for raw_field in raw_fields {
-                fields.push_back(V2Field::from_string(&raw_field, &parser_chars))
+                for subfield in raw_field.split(&parser_chars.repetition_separator.as_str()) {
+
+                }
+                fields.push_back(V2Field::from_str(&raw_field, &parser_chars))
             }
 
             let field_name = match fields.pop_front() {
@@ -267,7 +270,7 @@ pub mod v2_parser {
                 truncation_character: RUMString::from("#"),
             }
         }
-        pub fn from(msg_key_chars: &str) -> V2Result<Self> {
+        pub fn from_str(msg_key_chars: &str) -> V2Result<Self> {
             let field_separator: &str = msg_key_chars.get_grapheme(0);
             let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
             let parser_chars: &str = encoding_field[1];
@@ -297,7 +300,7 @@ pub mod v2_parser {
 
         pub fn from_msh(msh_segment: &str) -> V2Result<Self> {
             if V2ParserCharacters::is_msh(msh_segment) {
-                V2ParserCharacters::from(&msh_segment[3..])
+                V2ParserCharacters::from_str(&msh_segment[3..])
             } else {
                 Err("The segment is not an MSH segment! This message is malformed!".to_rumstring())
             }
@@ -314,7 +317,7 @@ pub mod v2_parser {
     }
 
     impl V2Message {
-        pub fn from(raw_msg: &str) -> V2Result<Self> {
+        pub fn from_str(raw_msg: &str) -> V2Result<Self> {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
             let msh_segment = V2Message::find_msh(&segment_tokens)?;
@@ -407,7 +410,7 @@ pub mod v2_parser {
             let mut segments: SegmentMap = SegmentMap::new();
 
             for segment_str in raw_segments {
-                let segment: V2Segment = V2Segment::from_string(segment_str, parser_chars)?;
+                let segment: V2Segment = V2Segment::from_str(segment_str, parser_chars)?;
 
                 let key = RUMString::new(&segment.name);
                 if segments.contains_key(&segment.name) == false {
