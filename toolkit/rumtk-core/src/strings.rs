@@ -5,17 +5,17 @@ use unicode_segmentation::UnicodeSegmentation;
 pub use compact_str::{CompactString, CompactStringExt, ToCompactString, format_compact};
 use chardetng::EncodingDetector;
 
-/****************************Constants**************************************/
+/**************************** Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
 const ASCII_ESCAPE_CHAR: char = '\\';
 const MIN_ASCII_READABLE: char = ' ';
 const MAX_ASCII_READABLE: char = '~';
 const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
-/****************************Types*****************************************/
+/**************************** Types *****************************************/
 pub type RUMString = CompactString;
 
-/****************************Traits*****************************************/
+/**************************** Traits ****************************************/
 
 ///
 /// Implemented indexing trait for String and str which uses the UnicodeSegmentation facilities to
@@ -83,7 +83,7 @@ impl UTFStringExtensions for RUMString {
     }
 }
 
-impl RUMStringConversions for String { }
+impl RUMStringConversions for RUMString { }
 
 impl UTFStringExtensions for str {
     #[inline(always)]
@@ -101,7 +101,7 @@ impl RUMStringConversions for str { }
 
 impl RUMStringConversions for char { }
 
-/*****************************Other string helpers***************************************/
+/**************************** Helpers ***************************************/
 
 pub fn count_tokens_ignoring_pattern(vector: &Vec<&str>, string_token: &RUMString) -> usize {
     let mut count: usize = 0;

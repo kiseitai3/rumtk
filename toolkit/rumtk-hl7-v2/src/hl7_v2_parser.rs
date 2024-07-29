@@ -21,6 +21,30 @@ pub mod v2_parser {
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING};
 
+    /**************************** Helpers ***************************************/
+    ///
+    /// Take a requested index and the maximum size of the item container.
+    /// Return the correct positive index (assumes a 1-indexed value) or the correct index
+    /// equivalent to a negative index.
+    /// Think of this function like the indexing done in Python, which I very much enjoy.
+    ///
+    /// For example:
+    /// container\[indx\], where indx = 1 => container\[0\]
+    /// container\[indx\], where indx = -1 => container\[container.len() - 1\]
+    #[inline(always)]
+    fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
+        let max_indx = max_size as isize;
+        let neg_max_indx = max_indx * -1;
+        match given_indx {
+            1.. => Ok((given_indx - 1) as usize),
+            0 => Err(format_compact!("Index {} is invalid! Use 1-indexed values if using positive indices.", given_indx)),
+            ..=-1 => Ok((max_indx + given_indx) as usize),
+            _ => Err(format_compact!("Index {} is outside {} < x < {} boundary!", given_indx, neg_max_indx, max_indx))
+        }
+    }
+
+    /**************************** Types *****************************************/
+
     pub type V2Result<T> = Result<T, RUMString>;
 
     ///
@@ -137,37 +161,38 @@ pub mod v2_parser {
             self.components.len()
         }
 
-        pub fn get(&self, indx: usize) -> V2Result<&V2Component> {
-            let component_indx = indx - 1;
+        pub fn get(&self, indx: isize) -> V2Result<&V2Component> {
+            let component_indx = clamp_index(indx, self.components.len())?;
             match self.components.get(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format_compact!("Component at index {} not found!", component_indx))
+                None => Err(format_compact!("Component at index {} not found!", indx))
             }
         }
 
-        pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Component> {
-            let component_indx = indx - 1;
+        pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2Component> {
+            let component_indx = clamp_index(indx, self.components.len())?;
             match self.components.get_mut(component_indx) {
                 Some(component) => Ok(component),
-                None => Err(format_compact!("Component at index {} not found!", component_indx))
+                None => Err(format_compact!("Component at index {} not found!", indx))
             }
         }
     }
 
-    impl Index<usize> for V2Field {
+    impl Index<isize> for V2Field {
         type Output = V2Component;
-        fn index(&self, indx: usize) -> &Self::Output {
+        fn index(&self, indx: isize) -> &Self::Output {
             self.get(indx).unwrap()
         }
     }
 
-    impl IndexMut<usize> for V2Field {
-        fn index_mut(&mut self, indx: usize) -> &mut V2Component {
+    impl IndexMut<isize> for V2Field {
+        fn index_mut(&mut self, indx: isize) -> &mut V2Component {
             self.get_mut(indx).unwrap()
         }
     }
 
-    pub type V2FieldList = Vec<V2Field>;
+    pub type V2FieldGroup = Vec<V2Field>;
+    pub type V2FieldList = Vec<V2FieldGroup>;
     #[derive(Debug)]
     pub struct V2Segment {
         name: RUMString,
@@ -184,22 +209,25 @@ pub mod v2_parser {
                 return Err(format_compact!("Error splitting segments into fields!\nRaw segment: {}\nField separator: {}", &raw_segment, &parser_chars.field_separator))
             }
 
-            let mut fields: VecDeque<V2Field> = VecDeque::with_capacity(raw_fields.len());
+            let mut fields: VecDeque<V2FieldGroup> = VecDeque::with_capacity(raw_fields.len());
             let mut field_list = V2FieldList::with_capacity(raw_fields.len() - 1);
 
             for raw_field in raw_fields {
+                let subfields: Vec<&str> = raw_field.split(&parser_chars.repetition_separator.as_str()).collect();
+                let mut field_group = V2FieldGroup::with_capacity(subfields.len());
                 for subfield in raw_field.split(&parser_chars.repetition_separator.as_str()) {
-
+                    field_group.push(V2Field::from_str(&subfield, &parser_chars))
                 }
-                fields.push_back(V2Field::from_str(&raw_field, &parser_chars))
+                fields.push_back(field_group);
             }
 
-            let field_name = match fields.pop_front() {
-                Some(field) => match field.components.get(0) {
-                    Some(name) => name.component.to_uppercase(),
-                    None => return Err(format_compact!("Expected at least one component in field but got None!\nRaw segment: {}", &raw_segment))
-                },
+            let field_group = match fields.pop_front() {
+                Some(group) => group,
                 None => return Err(format_compact!("Expected field but got None!\nRaw segment: {}", &raw_segment))
+            };
+            let field_name = match field_group.get(0) {
+                Some(field) => field.get(1)?.component.to_uppercase(),
+                None => return Err(format_compact!("Expected at least one field in the group but got None!\nRaw group: {}", &raw_segment))
             };
             let field_description = RUMString::from(
                 match V2_SEGMENT_TYPES.get(&field_name){
@@ -214,32 +242,32 @@ pub mod v2_parser {
             Ok(V2Segment { name: field_name, description: field_description, fields: field_list })
         }
 
-        pub fn get(&self, indx: usize) -> V2Result<&V2Field> {
-            let field_indx = indx - 1;
+        pub fn get(&self, indx: isize) -> V2Result<&V2FieldGroup> {
+            let field_indx = clamp_index(indx, self.fields.len())?;
             match self.fields.get(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format_compact!("Field number {} not found!", field_indx))
+                None => Err(format_compact!("Field number {} not found!", indx))
             }
         }
 
-        pub fn get_mut(&mut self, indx: usize) -> V2Result<&mut V2Field> {
-            let field_indx = indx - 1;
+        pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2FieldGroup> {
+            let field_indx = clamp_index(indx, self.fields.len())?;
             match self.fields.get_mut(field_indx) {
                 Some(field) => Ok(field),
-                None => Err(format_compact!("Field number {} not found!", field_indx))
+                None => Err(format_compact!("Field number {} not found!", indx))
             }
         }
     }
 
-    impl Index<usize> for V2Segment {
-        type Output = V2Field;
-        fn index(&self, indx: usize) -> &Self::Output {
+    impl Index<isize> for V2Segment {
+        type Output = V2FieldGroup;
+        fn index(&self, indx: isize) -> &Self::Output {
             self.get(indx).unwrap()
         }
     }
 
-    impl IndexMut<usize> for V2Segment {
-        fn index_mut(&mut self, indx: usize) -> &mut V2Field {
+    impl IndexMut<isize> for V2Segment {
+        fn index_mut(&mut self, indx: isize) -> &mut V2FieldGroup {
             self.get_mut(indx).unwrap()
         }
     }

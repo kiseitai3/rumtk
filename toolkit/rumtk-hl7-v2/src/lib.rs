@@ -47,7 +47,7 @@ mod tests {
         NTE|2|L|2110 ROUTHERFORD RD|L\n
         NTE|3|L|CARLSBAD, CA  92008|L";
     const HL7_V2_REPEATING_FIELD_MESSAGE: &str =
-        "MSH|^~\&#|NIST EHR^2.16.840.1.113883.3.72.5.22^ISO|NIST EHR Facility^2.16.840.1.113883.3.72.5.23^ISO|NIST Test Lab APP^2.16.840.1.113883.3.72.5.20^ISO|NIST Lab Facility^2.16.840.1.113883.3.72.5.21^ISO|20130211184101-0500||OML^O21^OML_O21|NIST-LOI_9.0_1.1-GU_PRU|T|2.5.1|||AL|AL|||||LOI_Common_Component^LOI BaseProfile^2.16.840.1.113883.9.66^ISO~LOI_GU_Component^LOI GU Profile^2.16.840.1.113883.9.78^ISO~LAB_PRU_Component^LOI PRU Profile^2.16.840.1.113883.9.82^ISO\n
+        "MSH|^~\\&#|NIST EHR^2.16.840.1.113883.3.72.5.22^ISO|NIST EHR Facility^2.16.840.1.113883.3.72.5.23^ISO|NIST Test Lab APP^2.16.840.1.113883.3.72.5.20^ISO|NIST Lab Facility^2.16.840.1.113883.3.72.5.21^ISO|20130211184101-0500||OML^O21^OML_O21|NIST-LOI_9.0_1.1-GU_PRU|T|2.5.1|||AL|AL|||||LOI_Common_Component^LOI BaseProfile^2.16.840.1.113883.9.66^ISO~LOI_GU_Component^LOI GU Profile^2.16.840.1.113883.9.78^ISO~LAB_PRU_Component^LOI PRU Profile^2.16.840.1.113883.9.82^ISO\n
         PID|1||PATID14567^^^NIST MPI&2.16.840.1.113883.3.72.5.30.2&ISO^MR||Hernandez^Maria^^^^^L||19880906|F||2054-5^Black or   African American^HL70005|3248 E  FlorenceAve^^Huntington Park^CA^90255^^H||^^PH^^^323^5825421|||||||||H^Hispanic or Latino^HL70189\n
         ORC|NW|ORD231-1^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO|||||||20130116090021-0800|||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI
         OBR|1|ORD231-1^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO||34555-3^Creatinine 24H renal clearance panel^LN^^^^^^CreatinineClearance|||201301151130-0800|201301160912-0800||||||||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
@@ -151,14 +151,14 @@ mod tests {
         assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
     }
 
+    ///
+    /// Per examples in https://confluence.hl7.org/display/OO/v2+Sample+Messages you can have
+    ///  messages that have other header segments before the standard MSH header.
+    ///  As a result, I have made the logic a bit more permissive of the position of the msh segment.
+    ///  I also made sure segments were trimmed to avoid issues with white space padding
+    ///
     #[test]
     fn test_load_hl7_v2_message_wir_iis() {
-        /*
-        Per examples in https://confluence.hl7.org/display/OO/v2+Sample+Messages you can have
-        messages that have other header segments before the standard MSH header.
-        As a result, I have made the logic a bit more permissive of the position of the msh segment.
-        I also made sure segments were trimmed to avoid issues with white space padding
-         */
         let message = V2Message::from_str(tests::HL7_V2_MESSAGE).unwrap();
         assert!(message.segment_exists("MSH"), "Missing MSH segment!");
         assert!(message.segment_exists("FHS"), "Missing FHS segment!");
@@ -168,18 +168,18 @@ mod tests {
         assert!(message.segment_exists("BHS"), "Missing BHS segment!");
     }
 
+    ///
+    /// Testing for the proper parsing of message when presented with Unicode portions.
+    ///
     #[test]
     fn test_load_hl7_v2_utf8_message() {
-        /*
-        Testing for the proper parsing of message when presented with Unicode portions.
-         */
         let message = V2Message::from_str(tests::HL7_V2_PDF_MESSAGE).unwrap();
         let pid = message.get("PID", 1).unwrap();
         let orc = message.get("ORC", 1).unwrap();
         let obr = message.get("OBR", 1).unwrap();
-        let name1 = pid.get(5).unwrap().get(1).unwrap().as_str();
-        let name2 = orc.get(12).unwrap().get(3).unwrap().as_str();
-        let name3 = obr.get(16).unwrap().get(3).unwrap().as_str();
+        let name1 = pid.get(5).unwrap().get(0).unwrap().get(1).unwrap().as_str();
+        let name2 = orc.get(12).unwrap().get(0).unwrap().get(3).unwrap().as_str();
+        let name3 = obr.get(16).unwrap().get(0).unwrap().get(3).unwrap().as_str();
         println!("{}", name1);
         println!("{}", name2);
         println!("{}", name3);
@@ -188,18 +188,19 @@ mod tests {
         assert_eq!(name3, HIRAGANA_NAME, "Wrong name/string found in OBR(1)16.3!");
     }
 
+    ///
+    /// Testing for the proper parsing of message when presented with repeating fields.
+    ///
     #[test]
     fn test_handle_hl7_v2_message_with_repeating_fields() {
-        /*
-        Testing for the proper parsing of message when presented with Unicode portions.
-         */
         let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE).unwrap();
         let msh = message.get("MSH", 1).unwrap();
-        let field1 = msh.get(5).unwrap().get(1).unwrap().as_str();
-        let field2 = msh.get(12).unwrap().get(3).unwrap().as_str();
-        let field3 = msh.get(16).unwrap().get(3).unwrap().as_str();
-        assert_eq!(field1, repeate_field1, "Wrong field contents found in MSH(1)5.1!");
-        assert_eq!(field2, repeate_field2, "Wrong field contents found in MSH(1)12.3!");
-        assert_eq!(field3, repeate_field3, "Wrong field contents found in MSH(1)16.3!");
+        let field1 = msh.get(-1).unwrap().get(0).unwrap().get(4).unwrap().as_str();
+        let field2 = msh.get(-1).unwrap().get(1).unwrap().get(1).unwrap().as_str();
+        let field3 = msh.get(-1).unwrap().get(2).unwrap().get(1).unwrap().as_str();
+        assert_eq!(msh.get(-1).unwrap().len(), 3, "Wrong number of subfields in group in MSH(1)-1!");
+        assert_eq!(field1, repeate_field1, "Wrong field contents found in MSH(1)-1(0).4!");
+        assert_eq!(field2, repeate_field2, "Wrong field contents found in MSH(1)-1(1).1!");
+        assert_eq!(field3, repeate_field3, "Wrong field contents found in MSH(1)-1(2).1!");
     }
 }

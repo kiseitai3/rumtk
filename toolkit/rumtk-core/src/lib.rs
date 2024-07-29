@@ -5,7 +5,7 @@ pub mod maths;
 
 #[cfg(test)]
 mod tests {
-    use crate::strings::{RUMString, UTFStringExtensions};
+    use crate::strings::{RUMString, RUMStringHelpers, UTFStringExtensions};
     use super::*;
 
     /*
