@@ -2,6 +2,7 @@ mod net;
 mod log;
 pub mod strings;
 pub mod maths;
+mod cache;
 
 #[cfg(test)]
 mod tests {

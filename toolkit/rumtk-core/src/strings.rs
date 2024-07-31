@@ -261,7 +261,9 @@ pub fn unescape(escaped_str: &str) -> Result<Vec<u8>, RUMString> {
                 bytes.push(hex_to_byte(&lower_case[4..6])?);
             },
             _ => return Err(format_compact!("Unknown multibyte sequence. Cannot decode {}", lower_case))
-        }
+        },
+        // Custom encoding
+        "\\z" => bytes.append(&mut lower_case.as_bytes().to_vec()),
         // Single byte codes.
         _ => bytes.push(unescape_control_byte(&lower_case)?)
     }

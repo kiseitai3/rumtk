@@ -2,6 +2,8 @@ pub mod hl7_v2_parser;
 pub mod hl7_v2_interpreter;
 mod hl7_v2_constants;
 pub mod hl7_v2_types;
+mod hl7_v2_search;
+
 extern crate rumtk_core;
 
 
