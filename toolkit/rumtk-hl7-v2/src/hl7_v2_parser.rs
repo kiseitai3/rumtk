@@ -7,8 +7,10 @@
 /// crate). That interpreter will try to generate a message structure using the specified HL7
 /// types. That structure will be exportable to JSON and (maybe) XML.
 ///
-/// https://v2.hl7.org/conformance/HL7v2_Conformance_Methodology_R1_O1_Ballot_Revised_D9_-_September_2019_Introduction.html#:~:text=The%20base%20HL7%20v2%20standard,message%20definition%20is%20called%20profiling.
-/// https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
+/// [Conformance](https://v2.hl7.org/conformance/HL7v2_Conformance_Methodology_R1_O1_Ballot_Revised_D9_-_September_2019_Introduction.html#:~:text=The%20base%20HL7%20v2%20standard,message%20definition%20is%20called%20profiling.)
+///
+/// [Product Brief](https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185)
+///
 
 
 pub mod v2_parser {
@@ -28,9 +30,9 @@ pub mod v2_parser {
     /// equivalent to a negative index.
     /// Think of this function like the indexing done in Python, which I very much enjoy.
     ///
-    /// For example:
-    /// container\[indx\], where indx = 1 => container\[0\]
-    /// container\[indx\], where indx = -1 => container\[container.len() - 1\]
+    /// ## For example:
+    /// -   container\[indx\], where indx = 1 => container\[0\]
+    /// -   container\[indx\], where indx = -1 => container\[container.len() - 1\]
     #[inline(always)]
     fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
         let max_indx = max_size as isize;
@@ -52,6 +54,30 @@ pub mod v2_parser {
     /// All V2Components contain the field's component data as a UTF-8 string.
     /// You can request a conversion to an atomic type via the as_* family of methods.
     ///
+    /// ## Per Section 2.5.3.1
+    ///
+    /// ```text
+    /// A field SHALL exist in one of three population states in an HL7 message:
+    ///
+    /// **Populated.** (Synonyms: valued, non-blank, not blank, not empty.) The sending system sends a value
+    /// in the field. For example, if a sending system includes medical record number, that would be
+    /// communicated as |1234567^^^MR^KP-CA|.
+    ///
+    /// **Not populated.** (Synonyms: unpopulated, not valued, unvalued, blank, empty, not present, missing.)
+    /// The sending system does not supply a value for the field. The Sender might or might not have a value
+    /// for the field. The receiving system can make no inference regarding the absence of an element value if
+    /// there is not a conformance profile governing the implementation. However, if there is a Conformance
+    /// Message Profile in effect, then special rules apply; see section 2.B, "Conformance Using Message
+    /// Profiles".
+    ///
+    /// **Null. HL7 v2.x does not have an explicit concept for null values.**
+    ///
+    /// **Populated with Delete Indicator:** Any existing value for the corresponding data base element in the
+    /// receiving application SHOULD be deleted. This is symbolically communicated as two double-quotes
+    /// between the delimiters (i.e., |""|).Employing consecutive double quote characters as the only content of
+    /// a field for other purposes is prohibited.
+    /// ```
+    ///
     #[derive(Debug)]
     pub struct V2Component {
         component: V2String
@@ -64,19 +90,20 @@ pub mod v2_parser {
 
         ///
         /// Constructs HL7 V2 Component.
-        /// Per Section 2.7 => Added support for unescaping escaped strings.
+        /// ### Per Section 2.7
+        /// Added support for unescaping escaped strings.
         /// Support is limited to control sequences and hex/unicode character sequences.
         /// Advanced ANSI Escape sequences are not supported at this layer.
         /// We let the receiving application further handle the advanced ANSI escape sequences as
         /// it best sees fit.
         ///
-        /// Section 2.7.3
+        /// ## Section 2.7.3
         ///
         /// Note => People have already created the conversion tables for the different encodings
         /// but auto detection of encoding is not 100% reliable. Care should be taken when using
         /// the resulting string.
         ///
-        /// Single-byte character sets:
+        /// ## Single-byte character sets:
         ///-      \C2842\ISO-IR6 G0 (ISO 646 : ASCII)
         ///-      \C2D41\ISO-IR100 (ISO 8859 : Latin Alphabet 1)
         ///-      \C2D42\ISO-IR101 (ISO 8859 : Latin Alphabet 2)
@@ -90,7 +117,7 @@ pub mod v2_parser {
         ///-      \C284A\ISO-IR14 (JIS X 0201 -1976: Romaji)
         ///-      \C2949\ISO-IR13 (JIS X 0201 : Katakana)
         ///
-        /// Multi-byte codes:
+        /// ## Multi-byte codes:
         ///-      \M2442\ISO-IR87 (JIS X 0208 : Kanji, hiragana and katakana)
         ///-      \M242844\ISO-IR159 (JIS X 0212 : Supplementary Kanji)
         ///
@@ -138,11 +165,27 @@ pub mod v2_parser {
     }
 
     pub type ComponentList = Vec<V2Component>;
+
+    ///
+    /// A field is a collection of items separated by the field separation character.
+    ///
+    /// ## Example
+    ///
+    /// PID5 in
+    /// `PID|||3064985^^^^SR^~ML288^^^^PI^||CHILD^BABEE^^^^^^||20180911|F||2106-3^^^^^|22 YOUNGER LAND^^JUNEAU^WI^53039^^^^WI027^^||(920)386-5555^PRN^PH^^^920^3865555^^|||||||||2186-5^^^^^|||||||`
+    /// is `CHILD^BABEE^^^^^^`
+    ///
+    /// ## Per Section 2.5.3
+    ///
+    /// ```text
+    /// A field is a string of characters. Fields for use within HL7 segments are defined by HL7. A
+    /// comprehensive data dictionary of all HL7 fields is provided in Appendix A.
+    ///```
+    ///
     #[derive(Debug)]
     pub struct V2Field {
         components: ComponentList
     }
-
     impl V2Field {
         pub fn new() -> V2Field {
             V2Field{components: ComponentList::new()}
@@ -193,6 +236,23 @@ pub mod v2_parser {
 
     pub type V2FieldGroup = Vec<V2Field>;
     pub type V2FieldList = Vec<V2FieldGroup>;
+
+    ///
+    /// A segment comprises of a collection of items separated by the segment separator character.
+    /// A segment is one line.
+    ///
+    /// ## Example
+    ///
+    /// - MSH|^~\\&|WIR11.3.2^^|WIR^^||WIRPH^^|20200514||VXU^V04^VXU_V04|2020051412382900|P^|2.5.1^^|||ER||||||^CDCPHINVS
+    ///
+    /// ## Per Section 2.5.2
+    /// ```text
+    /// A segment is a logical grouping of data fields. Segments of a message MAY be required or optional.
+    /// They MAY occur only once in a message or they MAY be allowed to repeat. Each segment is given a
+    /// name. For example, the ADT message MAY contain the following segments: Message Header (MSH),
+    /// Event Type (EVN), Patient ID (PID), and Patient Visit (PV1).
+    /// ```
+    ///
     #[derive(Debug)]
     pub struct V2Segment {
         name: RUMString,
@@ -272,7 +332,22 @@ pub mod v2_parser {
         }
     }
 
+    ///
+    /// Segments can be repeating. As such we contain them in groups.
+    ///
+    /// ## Per Section 2.5.2
+    /// ```text
+    /// Two or more segments MAY be organized as a logical unit called a segment group. A segment group
+    /// MAY be required or optional and might or might not repeat. As of v 2.5, the first segment in a newly
+    /// defined segment group will be required to help ensure that unparsable messages will not be
+    /// inadvertently defined. This required first segment is known as the anchor segment.
+    /// ```
+    ///
     pub type V2SegmentGroup = Vec<V2Segment>;
+
+    ///
+    /// We collect segment groups in a map thus yielding the core of a message.
+    ///
     pub type SegmentMap = HashMap<RUMString, V2SegmentGroup>;
 
     #[derive(Debug)]
