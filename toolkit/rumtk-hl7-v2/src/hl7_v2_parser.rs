@@ -15,13 +15,15 @@
 
 pub mod v2_parser {
     use std::ops::{Index, IndexMut};
-    use std::collections::hash_map::{HashMap};
     use std::collections::VecDeque;
     use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
                               RUMStringConversions};
+    use rumtk_core::cache::{AHashMap, RUMCache};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
-    use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_TYPES, V2_DELETE_FIELD,
-                                  V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING};
+    use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
+                                  V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING,
+                                  V2_SEARCH_EXPR_TYPE};
+    use crate::hl7_v2_search::*;
 
     /**************************** Helpers ***************************************/
     ///
@@ -290,7 +292,7 @@ pub mod v2_parser {
                 None => return Err(format_compact!("Expected at least one field in the group but got None!\nRaw group: {}", &raw_segment))
             };
             let field_description = RUMString::from(
-                match V2_SEGMENT_TYPES.get(&field_name){
+                match V2_SEGMENT_DESC.get(&field_name){
                     Some(description) => &description,
                     None => V2_EMPTY_STRING
                 });
@@ -348,7 +350,7 @@ pub mod v2_parser {
     ///
     /// We collect segment groups in a map thus yielding the core of a message.
     ///
-    pub type SegmentMap = HashMap<RUMString, V2SegmentGroup>;
+    pub type SegmentMap = AHashMap<RUMString, V2SegmentGroup>;
 
     #[derive(Debug)]
     pub struct V2ParserCharacters {
@@ -538,4 +540,39 @@ pub mod v2_parser {
             self.get_mut_group(segment_name).unwrap()
         }
     }
+
+    pub struct V2SearchIndex {
+        segment: u8,
+        segment_group: u8,
+        field_group: u8,
+        field: u8,
+        component: u8,
+    }
+
+    impl V2SearchIndex {
+        pub fn from(expr: &str) -> V2SearchIndex {
+            match Self::expr_type(expr) {
+                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
+            }
+        }
+
+        fn from_v2_default(expr: &str) -> V2SearchIndex {
+            let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT);
+            let segment = match expr_groups.contains("segment") {
+                true => expr_groups.get("segment").unwrap(),
+                false => RUMString::default()
+            };
+            V2SearchIndex{segment: 0, segment_group: 0, field_group: 0, field: 0, component: 0 }
+        }
+
+        fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {
+            V2_SEARCH_EXPR_TYPE::V2_DEFAULT
+        }
+    }
 }
+
+/**************************** Globals ***************************************/
+
+static cache: RUMCache<&str, > = RUMCache::new();
+
+/**************************** Macros ***************************************/

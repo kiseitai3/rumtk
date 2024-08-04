@@ -1,38 +1,13 @@
 
-use std::ops::{Index, IndexMut};
-use std::collections::hash_map::{HashMap};
-use rumtk_core::strings::{RUMString, format_compact, UTFStringExtensions,
-                          RUMStringConversions};
+pub use rumtk_core::search::rumtk_search::*;
 
 /**************************** Globals **************************************/
-static mut search_cache: HashMap<&str, V2FindComponent> = HashMap::with_capacity();
 
 /**************************** Constants**************************************/
 
+pub const REGEX_V2_SEARCH_DEFAULT: &str = r"(?<segment>\w{3})(?<field>\d+).(?<component>\d+)|\w{3}\((?<segment_group>\d+)\)\d+|\d+\((?<field_group>\d+)\).\d+";
+
 /**************************** Types *****************************************/
-
-enum V2ComponentSearchType {
-    DEFAULT,
-
-}
-
-pub struct V2FindComponent {
-    segment: RUMString,
-    segment_group: isize,
-    field_group: isize,
-    field: isize,
-    component: isize
-}
-
-impl V2FindComponent {
-    pub fn compile(expr: &str) -> V2FindComponent {
-
-    }
-
-    fn expr_type(expr: &str) -> Option<V2ComponentSearchType> {
-
-    }
-}
 
 /**************************** Traits ****************************************/
 

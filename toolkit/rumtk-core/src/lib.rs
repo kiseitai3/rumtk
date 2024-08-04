@@ -2,11 +2,14 @@ mod net;
 mod log;
 pub mod strings;
 pub mod maths;
-mod cache;
+pub mod cache;
+pub mod search;
 
 #[cfg(test)]
 mod tests {
-    use crate::strings::{RUMString, RUMStringHelpers, UTFStringExtensions};
+    use compact_str::CompactString;
+    use crate::strings::{RUMString, UTFStringExtensions};
+    use crate::cache::RUMCache;
     use super::*;
 
     /*
@@ -108,6 +111,15 @@ mod tests {
         let result = input;
         println!("Input: {} Expected: {} Got: {}", input, input, result);
         assert_eq!(input, result, "Incorrect string decoding!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_rumcache_insertion() {
+        let mut cache: RUMCache<&str, CompactString> = RUMCache::with_capacity(5);
+        cache.insert("❤", CompactString::from("I ❤ my wife!"));
+        println!("Contents: {:#?}", &cache);
+        assert_eq!(cache.len(), 1, "Incorrect number of items in cache!");
         println!("Passed!")
     }
 }
