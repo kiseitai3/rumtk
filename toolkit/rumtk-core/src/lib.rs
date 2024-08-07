@@ -9,6 +9,7 @@ pub mod search;
 mod tests {
     use compact_str::CompactString;
     use crate::strings::{RUMString, UTFStringExtensions};
+    use crate::search::rumtk_search::*;
     use crate::cache::RUMCache;
     use super::*;
 
@@ -120,6 +121,26 @@ mod tests {
         cache.insert("❤", CompactString::from("I ❤ my wife!"));
         println!("Contents: {:#?}", &cache);
         assert_eq!(cache.len(), 1, "Incorrect number of items in cache!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_search_string() {
+        let input = "Hello World!";
+        let result = string_search(input, r"\w", "");
+        let expected: RUMString = RUMString::from("HelloWorld");
+        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        assert_eq!(expected, result, "String search results mismatch");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_search_string2() {
+        let input = "Hello World!";
+        let result = string_search(input, r"\w+", " ");
+        let expected: RUMString = RUMString::from("Hello World");
+        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
 }
