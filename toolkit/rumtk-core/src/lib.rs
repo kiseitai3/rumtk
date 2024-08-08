@@ -125,9 +125,10 @@ mod tests {
     }
 
     #[test]
-    fn test_search_string() {
+    fn test_search_string_letters() {
         let input = "Hello World!";
-        let result = string_search(input, r"\w", "");
+        let expr = r"\w";
+        let result = string_search(input, expr, "");
         let expected: RUMString = RUMString::from("HelloWorld");
         println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
         assert_eq!(expected, result, "String search results mismatch");
@@ -135,12 +136,24 @@ mod tests {
     }
 
     #[test]
-    fn test_search_string2() {
+    fn test_search_string_words() {
         let input = "Hello World!";
-        let result = string_search(input, r"\w+", " ");
+        let expr = r"\w+";
+        let result = string_search(input, expr, " ");
         let expected: RUMString = RUMString::from("Hello World");
         println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
         assert_eq!(expected, result, "String search results mismatch");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_search_string_groups() {
+        let input = "Hello World!";
+        let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
+        let result = string_search_captures(input, expr);
+        let expected: RUMString = RUMString::from("World");
+        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        assert_eq!(expected, result["world"], "String search results mismatch");
         println!("Passed!")
     }
 }

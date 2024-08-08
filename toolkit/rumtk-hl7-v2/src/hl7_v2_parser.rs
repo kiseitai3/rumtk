@@ -558,10 +558,10 @@ pub mod v2_parser {
 
         fn from_v2_default(expr: &str) -> V2SearchIndex {
             let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT);
-            let segment = match expr_groups.contains("segment") {
-                true => expr_groups.get("segment").unwrap(),
-                false => RUMString::default()
-            };
+            //let segment = match expr_groups.contains("segment") {
+            //    true => expr_groups.get("segment").unwrap(),
+            //    false => RUMString::default()
+            //};
             V2SearchIndex{segment: 0, segment_group: 0, field_group: 0, field: 0, component: 0 }
         }
 
@@ -573,6 +573,6 @@ pub mod v2_parser {
 
 /**************************** Globals ***************************************/
 
-static cache: RUMCache<&str, > = RUMCache::new();
+//static cache: RUMCache<&str, > = RUMCache::new();
 
 /**************************** Macros ***************************************/

@@ -2,7 +2,7 @@ pub mod hl7_v2_parser;
 pub mod hl7_v2_interpreter;
 mod hl7_v2_constants;
 pub mod hl7_v2_types;
-mod hl7_v2_search;
+pub mod hl7_v2_search;
 
 extern crate rumtk_core;
 
@@ -12,7 +12,8 @@ extern crate rumtk_core;
 mod tests {
     use super::*;
     use hl7_v2_parser::v2_parser::*;
-
+    use rumtk_core::search::rumtk_search::*;
+    use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -204,5 +205,14 @@ mod tests {
         assert_eq!(field1, repeate_field1, "Wrong field contents found in MSH(1)-1(0).4!");
         assert_eq!(field2, repeate_field2, "Wrong field contents found in MSH(1)-1(1).1!");
         assert_eq!(field3, repeate_field3, "Wrong field contents found in MSH(1)-1(2).1!");
+    }
+
+
+    #[test]
+    fn test_handle_hl7_v2_search_pattern_parsing() {
+        let pattern = "MSH(1)-1(0).4";
+        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT);
+        println!("{:?}", groups);
+        assert_eq!(2, 3, "Wrong number of subfields in group in MSH(1)-1!");
     }
 }
