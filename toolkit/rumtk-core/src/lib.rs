@@ -150,7 +150,7 @@ mod tests {
     fn test_search_string_groups() {
         let input = "Hello World!";
         let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
-        let result = string_search_captures(input, expr);
+        let result = string_search_captures(input, expr, "");
         let expected: RUMString = RUMString::from("World");
         println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
         assert_eq!(expected, result["world"], "String search results mismatch");

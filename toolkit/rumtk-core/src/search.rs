@@ -40,9 +40,9 @@ pub mod rumtk_search {
         captures
     }
 
-    pub fn string_search_captures(input: &str, expr: &str) -> SearchGroups {
+    pub fn string_search_captures(input: &str, expr: &str, default: &str) -> SearchGroups {
         let re = get_or_set_regex_from_cache(expr);
-        let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap()).collect();
+        let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap_or_else(|| "")).collect();
         let mut groups = SearchGroups::default();
 
         if names.len() == 0 {
@@ -50,15 +50,19 @@ pub mod rumtk_search {
         }
 
         for name in &names {
-            groups.insert(RUMString::from(name.to_string()), RUMString::default());
+            groups.insert(RUMString::from(name.to_string()), RUMString::from(default));
         }
 
         for cap in get_capture_list(input, re) {
             for name in &names {
-                groups.insert(RUMString::from(name.to_string()), RUMString::from(cap.name(name).map_or("", |s| s.as_str())));
+                let val = cap.name(name).map_or("", |s| s.as_str());
+                if val.len() > 0 {
+                    groups.insert(RUMString::from(name.to_string()), RUMString::from(val));
+                }
             }
         }
 
+        groups.remove("");
         groups
     }
 

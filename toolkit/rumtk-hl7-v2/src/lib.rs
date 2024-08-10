@@ -13,6 +13,7 @@ mod tests {
     use super::*;
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
+    use rumtk_core::strings::RUMString;
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
@@ -209,10 +210,33 @@ mod tests {
 
 
     #[test]
-    fn test_handle_hl7_v2_search_pattern_parsing() {
-        let pattern = "MSH(1)-1(0).4";
-        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT);
-        println!("{:?}", groups);
-        assert_eq!(2, 3, "Misparsed search expression MSH(1)-1(0).4!");
+    fn test_handle_hl7_v2_search_pattern_parsing_full() {
+        let pattern = "MSH(1)-1[0].4";
+        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
+        let expected = SearchGroups::from([
+            (RUMString::new("segment_group"), RUMString::new("1")),
+            (RUMString::new("sub_field"), RUMString::new("0")),
+            (RUMString::new("segment"), RUMString::new("MSH")),
+            (RUMString::new("field"), RUMString::new("-1")),
+            (RUMString::new("component"), RUMString::new("4"))
+        ]);
+        println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
+        assert_eq!(groups, expected, "Misparsed search expression MSH(1)-1[0].4!");
+    }
+
+
+    #[test]
+    fn test_handle_hl7_v2_search_pattern_parsing_simple() {
+        let pattern = "MSH1.4";
+        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
+        let expected = SearchGroups::from([
+            (RUMString::new("segment_group"), RUMString::new("1")),
+            (RUMString::new("sub_field"), RUMString::new("1")),
+            (RUMString::new("segment"), RUMString::new("MSH")),
+            (RUMString::new("field"), RUMString::new("1")),
+            (RUMString::new("component"), RUMString::new("4"))
+        ]);
+        println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
+        assert_eq!(groups, expected, "Misparsed search expression MSH1.4!");
     }
 }

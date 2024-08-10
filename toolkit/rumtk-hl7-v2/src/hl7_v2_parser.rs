@@ -557,7 +557,7 @@ pub mod v2_parser {
         }
 
         fn from_v2_default(expr: &str) -> V2SearchIndex {
-            let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT);
+            let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
             //let segment = match expr_groups.contains("segment") {
             //    true => expr_groups.get("segment").unwrap(),
             //    false => RUMString::default()
