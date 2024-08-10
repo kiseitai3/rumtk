@@ -213,6 +213,6 @@ mod tests {
         let pattern = "MSH(1)-1(0).4";
         let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT);
         println!("{:?}", groups);
-        assert_eq!(2, 3, "Wrong number of subfields in group in MSH(1)-1!");
+        assert_eq!(2, 3, "Misparsed search expression MSH(1)-1(0).4!");
     }
 }

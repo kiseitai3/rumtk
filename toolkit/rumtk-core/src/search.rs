@@ -43,30 +43,35 @@ pub mod rumtk_search {
     pub fn string_search_captures(input: &str, expr: &str) -> SearchGroups {
         let re = get_or_set_regex_from_cache(expr);
         let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap()).collect();
-        let mut list = SearchGroups::default();
+        let mut groups = SearchGroups::default();
 
         if names.len() == 0 {
-            return list;
+            return groups;
+        }
+
+        for name in &names {
+            groups.insert(RUMString::from(name.to_string()), RUMString::default());
         }
 
         for cap in get_capture_list(input, re) {
             for name in &names {
-                list.insert(RUMString::from(name.to_string()), RUMString::from(cap.name(name).map_or("", |s| s.as_str())));
+                groups.insert(RUMString::from(name.to_string()), RUMString::from(cap.name(name).map_or("", |s| s.as_str())));
             }
         }
-        list
+
+        groups
     }
 
-    pub fn string_capture_list(input: &str, re: &Regex) -> CapturedList {
+    pub fn string_list(input: &str, re: &Regex) -> CapturedList {
         let mut list: Vec<RUMString> = Vec::default();
-        for cap in get_capture_list(input, re).iter() {
-            list.push(RUMString::from(cap.get(0).unwrap().as_str()));
+        for itm in re.find_iter(input) {
+            list.push(RUMString::from(itm.as_str()));
         }
         list
     }
 
     pub fn string_search(input: &str, expr: &str, join_pattern: &str) -> RUMString {
         let re = get_or_set_regex_from_cache(expr);
-        string_capture_list(input, &re).join_compact(join_pattern)
+        string_list(input, &re).join_compact(join_pattern)
     }
 }
