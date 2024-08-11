@@ -211,17 +211,17 @@ mod tests {
 
     #[test]
     fn test_handle_hl7_v2_search_pattern_parsing_full() {
-        let pattern = "MSH(1)-1[0].4";
+        let pattern = "MSH(1)-1[5].4";
         let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
         let expected = SearchGroups::from([
             (RUMString::new("segment_group"), RUMString::new("1")),
-            (RUMString::new("sub_field"), RUMString::new("0")),
+            (RUMString::new("sub_field"), RUMString::new("5")),
             (RUMString::new("segment"), RUMString::new("MSH")),
             (RUMString::new("field"), RUMString::new("-1")),
             (RUMString::new("component"), RUMString::new("4"))
         ]);
         println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
-        assert_eq!(groups, expected, "Misparsed search expression MSH(1)-1[0].4!");
+        assert_eq!(groups, expected, "Misparsed search expression MSH(1)-1[5].4!");
     }
 
 
@@ -238,5 +238,14 @@ mod tests {
         ]);
         println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
         assert_eq!(groups, expected, "Misparsed search expression MSH1.4!");
+    }
+
+    #[test]
+    fn test_v2_search_index() {
+        let expr = "MSH(1)-1[5].4";
+        let v2_search_index = V2SearchIndex::from(expr);
+        let expected = V2SearchIndex::new("MSH", 1, 5, 1, 4);
+        println!("Input: {:?} Expected: {:?} Got: {:?}", expr, expected, v2_search_index);
+        assert_eq!(v2_search_index, expected, "Failed to parse expression into correct SearchIndex object.");
     }
 }

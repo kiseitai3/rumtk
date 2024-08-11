@@ -1,8 +1,7 @@
 
 pub mod rumtk_search {
     use regex::{Regex, Captures};
-    use once_cell::unsync::Lazy;
-    use crate::cache::{RUMCache, AHashMap};
+    use crate::cache::{RUMCache, AHashMap, Lazy};
     use crate::strings::{RUMString, format_compact, UTFStringExtensions, RUMStringConversions, CompactStringExt};
     /**************************** Globals **************************************/
     static mut re_cache: Lazy<RegexCache> = Lazy::new(|| {

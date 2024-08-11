@@ -1,3 +1,5 @@
+use rumtk_core::cache::Lazy;
+
 ///
 /// The V2 Parser module will contain a simple and lightweight message parser that will generate a
 /// structure following the message structure in the HL7 Specifications.
@@ -18,11 +20,11 @@ pub mod v2_parser {
     use std::collections::VecDeque;
     use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
                               RUMStringConversions};
-    use rumtk_core::cache::{AHashMap, RUMCache};
+    use rumtk_core::cache::{RUMCache, AHashMap, Lazy};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING,
-                                  V2_SEARCH_EXPR_TYPE};
+                                  V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
     use crate::hl7_v2_search::*;
 
     /**************************** Helpers ***************************************/
@@ -541,6 +543,10 @@ pub mod v2_parser {
         }
     }
 
+    ///
+    /// Object representing the exact indices needed to search for a field or component.
+    ///
+    #[derive(Debug, PartialEq, Eq, Default)]
     pub struct V2SearchIndex {
         segment: u8,
         segment_group: u8,
@@ -550,6 +556,16 @@ pub mod v2_parser {
     }
 
     impl V2SearchIndex {
+        pub fn new(_segment: &str, _segment_group: u8, _field: u8, _sub_field: u8, _component: u8) -> V2SearchIndex {
+            V2SearchIndex{
+                segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
+                segment_group: _segment_group,
+                field_group: _sub_field,
+                field: _field,
+                component: _component
+            }
+        }
+
         pub fn from(expr: &str) -> V2SearchIndex {
             match Self::expr_type(expr) {
                 V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
@@ -558,21 +574,29 @@ pub mod v2_parser {
 
         fn from_v2_default(expr: &str) -> V2SearchIndex {
             let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
-            //let segment = match expr_groups.contains("segment") {
-            //    true => expr_groups.get("segment").unwrap(),
-            //    false => RUMString::default()
-            //};
-            V2SearchIndex{segment: 0, segment_group: 0, field_group: 0, field: 0, component: 0 }
+            let _segment = expr_groups.get("segment").unwrap();
+            let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
+            let _field: u8 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
+            let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
+            let _component: u8 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
+            V2SearchIndex::new(_segment, _segment_group, _sub_field, _field, _component)
         }
 
         fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {
             V2_SEARCH_EXPR_TYPE::V2_DEFAULT
         }
     }
+
+    pub type V2SearchCache = RUMCache<RUMString, V2SearchIndex>;
+
+    /**************************** Globals ***************************************/
+
+    static mut search_cache: Lazy<V2SearchCache> = Lazy::new(|| {
+        V2SearchCache::default()
+    });
+
+    /**************************** Macros ***************************************/
+    //TODO: Write v2_parse! and v2_find! macros.
+    //v2_find! will consult cache to avoid allocating already parsed indices. Also avoid having to
+    // regex parse the index expression to begin with.
 }
-
-/**************************** Globals ***************************************/
-
-//static cache: RUMCache<&str, > = RUMCache::new();
-
-/**************************** Macros ***************************************/

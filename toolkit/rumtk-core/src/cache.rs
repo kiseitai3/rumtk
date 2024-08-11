@@ -1,5 +1,6 @@
 
 pub use ahash::AHashMap;
+pub use once_cell::unsync::Lazy;
 
 /**************************** Constants**************************************/
 
