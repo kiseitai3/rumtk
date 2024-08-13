@@ -14,6 +14,7 @@ mod tests {
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::RUMString;
+    use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
@@ -135,24 +136,24 @@ mod tests {
         let keys = parsed_segments.keys();
         print!("Keys: ");
         for k in keys {
-            print!("{} ", k);
+            print!("{} ", V2_SEGMENT_NAMES[k]);
         }
         assert_eq!(parsed_segments.len(), 5, "Number of segments mismatching what was expected!");
-        assert!(parsed_segments.contains_key("MSH"), "Missing MSH segment!");
-        assert!(parsed_segments.contains_key("PID"), "Missing PID segment!");
-        assert!(parsed_segments.contains_key("PV1"), "Missing PV1 segment!");
-        assert!(parsed_segments.contains_key("EVN"), "Missing EVN segment!");
-        assert!(parsed_segments.contains_key("NK1"), "Missing NK1 segment!");
+        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
+        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
+        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
+        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
+        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
     }
 
     #[test]
     fn test_load_hl7_v2_message() {
         let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        assert!(message.segment_exists("MSH"), "Missing MSH segment!");
-        assert!(message.segment_exists("PID"), "Missing PID segment!");
-        assert!(message.segment_exists("PV1"), "Missing PV1 segment!");
-        assert!(message.segment_exists("EVN"), "Missing EVN segment!");
-        assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
     }
 
     ///
@@ -164,12 +165,12 @@ mod tests {
     #[test]
     fn test_load_hl7_v2_message_wir_iis() {
         let message = V2Message::from_str(tests::HL7_V2_MESSAGE).unwrap();
-        assert!(message.segment_exists("MSH"), "Missing MSH segment!");
-        assert!(message.segment_exists("FHS"), "Missing FHS segment!");
-        assert!(message.segment_exists("NK1"), "Missing NK1 segment!");
-        assert!(message.segment_exists("PV1"), "Missing PV1 segment!");
-        assert!(message.segment_exists("FTS"), "Missing FTS segment!");
-        assert!(message.segment_exists("BHS"), "Missing BHS segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["FHS"]), "Missing FHS segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["FTS"]), "Missing FTS segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["BHS"]), "Missing BHS segment!");
     }
 
     ///
@@ -178,9 +179,9 @@ mod tests {
     #[test]
     fn test_load_hl7_v2_utf8_message() {
         let message = V2Message::from_str(tests::HL7_V2_PDF_MESSAGE).unwrap();
-        let pid = message.get("PID", 1).unwrap();
-        let orc = message.get("ORC", 1).unwrap();
-        let obr = message.get("OBR", 1).unwrap();
+        let pid = message.get(&V2_SEGMENT_IDS["PID"], 1).unwrap();
+        let orc = message.get(&V2_SEGMENT_IDS["ORC"], 1).unwrap();
+        let obr = message.get(&V2_SEGMENT_IDS["OBR"], 1).unwrap();
         let name1 = pid.get(5).unwrap().get(0).unwrap().get(1).unwrap().as_str();
         let name2 = orc.get(12).unwrap().get(0).unwrap().get(3).unwrap().as_str();
         let name3 = obr.get(16).unwrap().get(0).unwrap().get(3).unwrap().as_str();
@@ -198,7 +199,7 @@ mod tests {
     #[test]
     fn test_handle_hl7_v2_message_with_repeating_fields() {
         let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE).unwrap();
-        let msh = message.get("MSH", 1).unwrap();
+        let msh = message.get(&V2_SEGMENT_IDS["MSH"], 1).unwrap();
         let field1 = msh.get(-1).unwrap().get(0).unwrap().get(4).unwrap().as_str();
         let field2 = msh.get(-1).unwrap().get(1).unwrap().get(1).unwrap().as_str();
         let field3 = msh.get(-1).unwrap().get(2).unwrap().get(1).unwrap().as_str();

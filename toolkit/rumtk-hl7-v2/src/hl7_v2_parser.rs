@@ -352,7 +352,7 @@ pub mod v2_parser {
     ///
     /// We collect segment groups in a map thus yielding the core of a message.
     ///
-    pub type SegmentMap = AHashMap<RUMString, V2SegmentGroup>;
+    pub type SegmentMap = AHashMap<u8, V2SegmentGroup>;
 
     #[derive(Debug)]
     pub struct V2ParserCharacters {
@@ -441,46 +441,45 @@ pub mod v2_parser {
             self.segment_groups.len()
         }
 
-        pub fn get(&self, segment_name: &str, sub_segment: usize) -> V2Result<&V2Segment> {
-            let segment_group = self.get_group(segment_name).unwrap();
+        pub fn get(&self, segment_index: &u8, sub_segment: usize) -> V2Result<&V2Segment> {
+            let segment_group = self.get_group(segment_index).unwrap();
             let subsegment_indx = sub_segment - 1;
             match segment_group.get(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
+                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_index))
             }
         }
 
-        pub fn get_mut(&mut self, segment_name: &str, sub_segment: usize) -> V2Result<&mut V2Segment> {
-            let segment_group = self.get_mut_group(segment_name).unwrap();
+        pub fn get_mut(&mut self, segment_index: &u8, sub_segment: usize) -> V2Result<&mut V2Segment> {
+            let segment_group = self.get_mut_group(segment_index).unwrap();
             let subsegment_indx = sub_segment - 1;
             match segment_group.get_mut(subsegment_indx) {
                 Some(segment) => Ok(segment),
-                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_name))
+                None => Err(format_compact!("Subsegment {} was not found in segment group {}!", subsegment_indx, segment_index))
             }
         }
 
-        pub fn get_group(&self, segment_name: &str) -> V2Result<&V2SegmentGroup> {
-            match self.segment_groups.get(segment_name) {
+        pub fn get_group(&self, segment_index: &u8) -> V2Result<&V2SegmentGroup> {
+            match self.segment_groups.get(segment_index) {
                 Some(segment_group) => Ok(segment_group),
-                None => Err(format_compact!("Segment {} not found inm message!", segment_name))
+                None => Err(format_compact!("Segment id {} not found in message!", segment_index))
             }
         }
 
-        pub fn get_mut_group(&mut self, segment_name: &str) -> V2Result<&mut V2SegmentGroup> {
-            match self.segment_groups.get_mut(segment_name) {
+        pub fn get_mut_group(&mut self, segment_index: &u8) -> V2Result<&mut V2SegmentGroup> {
+            match self.segment_groups.get_mut(segment_index) {
                 Some(segment_group) => Ok(segment_group),
-                None => Err(format_compact!("Segment {} not found inm message!", segment_name))
+                None => Err(format_compact!("Segment id {} not found in message!", segment_index))
             }
         }
 
-        pub fn is_repeat_segment(&self, segment_name: &str) -> bool {
-            let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
+        pub fn is_repeat_segment(&self, segment_index: &u8) -> bool {
+            let _segment_group: &V2SegmentGroup = self.get_group(segment_index).unwrap();
             _segment_group.len() > 1
         }
 
-        pub fn segment_exists(&self, segment_name: &str) -> bool {
-            let _segment_group: &V2SegmentGroup = self.get_group(segment_name).unwrap();
-            _segment_group.len() > 0
+        pub fn segment_exists(&self, segment_index: &u8) -> bool {
+            self.segment_groups.contains_key(segment_index)
         }
 
         // Message parsing operations
@@ -519,27 +518,30 @@ pub mod v2_parser {
             for segment_str in raw_segments {
                 let segment: V2Segment = V2Segment::from_str(segment_str, parser_chars)?;
 
-                let key = RUMString::new(&segment.name);
-                if segments.contains_key(&segment.name) == false {
-                    segments.insert(key, V2SegmentGroup::new());
+                let key = match V2_SEGMENT_IDS.get(&segment.name) {
+                    Some(k) => k,
+                    None => return Err(format_compact!("Segment name is not a valid segment!"))
+                };
+                if segments.contains_key(key) == false {
+                    segments.insert(*key, V2SegmentGroup::new());
                 }
-                segments.get_mut(&segment.name).unwrap().push(segment);
+                segments.get_mut(key).unwrap().push(segment);
             }
 
             Ok(segments)
         }
     }
 
-    impl Index<&'_ str> for V2Message {
+    impl Index<&'_ u8> for V2Message {
         type Output = V2SegmentGroup;
-        fn index(&self, segment_name: &str) -> &Self::Output {
-            self.get_group(segment_name).unwrap()
+        fn index(&self, segment_index: &u8) -> &Self::Output {
+            self.get_group(segment_index).unwrap()
         }
     }
 
-    impl IndexMut<&'_ str> for V2Message {
-        fn index_mut(&mut self, segment_name: &str) -> &mut V2SegmentGroup {
-            self.get_mut_group(segment_name).unwrap()
+    impl IndexMut<&'_ u8> for V2Message {
+        fn index_mut(&mut self, segment_index: &u8) -> &mut V2SegmentGroup {
+            self.get_mut_group(segment_index).unwrap()
         }
     }
 
