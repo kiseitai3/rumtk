@@ -4,8 +4,7 @@ pub mod v2_types {
     use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str};
     use rumtk_core::maths::generate_tenth_factor;
     use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK};
-    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
-                              RUMStringConversions};
+    use rumtk_core::strings::{RUMString};
 
     pub type V2String = RUMString;
     pub struct V2DateTime {

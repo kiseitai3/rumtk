@@ -20,40 +20,48 @@ pub mod rumtk_search {
     /**************************** Helpers ***************************************/
 
     fn get_or_set_regex_from_cache(expr: &str) -> &Regex {
+        println!("??????");
         unsafe {
-            match re_cache.contains_key(expr) {
-                true => re_cache.get(expr).unwrap(),
-                false => {
-                    re_cache.insert(RUMString::from(expr), Regex::new(expr).unwrap());
+            println!("??????");
+            println!("{:?}", re_cache.get(expr));
+            match re_cache.get(expr) {
+                Some(re) => re,
+                None => {
+                    re_cache.insert(RUMString::from(expr), compile_regex(expr));
+                    println!("Inserted");
                     re_cache.get(expr).unwrap()
                 }
             }
         }
     }
 
-    fn get_capture_list<'b>(input: &'b str, re: &'b Regex) -> Vec<Captures<'b>> {
-        let mut captures: Vec<Captures> = Vec::default();
-        for cap in re.captures_iter(input).map(|c| c) {
-            captures.push(cap);
-        }
-        captures
+    fn compile_regex(expr: &str) -> Regex {
+        Regex::new(expr).unwrap()
     }
 
     pub fn string_search_captures(input: &str, expr: &str, default: &str) -> SearchGroups {
         let re = get_or_set_regex_from_cache(expr);
+        //let re = compile_regex(expr);
         let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap_or_else(|| "")).collect();
+        let mut clean_names: Vec<&str> = Vec::with_capacity(names.len());
         let mut groups = SearchGroups::default();
 
-        if names.len() == 0 {
+        for name in &names {
+            if name.len() > 0 {
+                clean_names.push(name);
+            }
+        }
+
+        if clean_names.len() == 0 {
             return groups;
         }
 
-        for name in &names {
+        for name in &clean_names {
             groups.insert(RUMString::from(name.to_string()), RUMString::from(default));
         }
 
-        for cap in get_capture_list(input, re) {
-            for name in &names {
+        for cap in re.captures_iter(input).map(|c| c) {
+            for name in &clean_names {
                 let val = cap.name(name).map_or("", |s| s.as_str());
                 if val.len() > 0 {
                     groups.insert(RUMString::from(name.to_string()), RUMString::from(val));
@@ -61,7 +69,6 @@ pub mod rumtk_search {
             }
         }
 
-        groups.remove("");
         groups
     }
 

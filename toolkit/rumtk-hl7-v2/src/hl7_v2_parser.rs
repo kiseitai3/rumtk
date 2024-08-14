@@ -1,4 +1,3 @@
-use rumtk_core::cache::Lazy;
 
 ///
 /// The V2 Parser module will contain a simple and lightweight message parser that will generate a
@@ -38,7 +37,7 @@ pub mod v2_parser {
     /// -   container\[indx\], where indx = 1 => container\[0\]
     /// -   container\[indx\], where indx = -1 => container\[container.len() - 1\]
     #[inline(always)]
-    fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
+    /*fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
         let max_indx = max_size as isize;
         let neg_max_indx = max_indx * -1;
         match given_indx {
@@ -47,6 +46,23 @@ pub mod v2_parser {
             ..=-1 => Ok((max_indx + given_indx) as usize),
             _ => Err(format_compact!("Index {} is outside {} < x < {} boundary!", given_indx, neg_max_indx, max_indx))
         }
+    }*/
+    fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
+        let max_indx = max_size as isize;
+        let neg_max_indx = max_indx * -1;
+        if given_indx == 0 {
+            return Err(format_compact!("Index {} is invalid! Use 1-indexed values if using positive indices.", given_indx));
+        }
+
+        if given_indx >= neg_max_indx && given_indx < 0 {
+            return Ok((max_indx + given_indx) as usize);
+        }
+
+        if given_indx > 0 && given_indx <= max_indx {
+            return Ok((given_indx - 1) as usize);
+        }
+
+        Err(format_compact!("Index {} is outside {} < x < {} boundary!", given_indx, neg_max_indx, max_indx))
     }
 
     /**************************** Types *****************************************/
