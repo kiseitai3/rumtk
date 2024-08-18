@@ -569,12 +569,12 @@ pub mod v2_parser {
         segment: u8,
         segment_group: u8,
         field_group: u8,
-        field: u8,
-        component: u8,
+        field: i16,
+        component: i16,
     }
 
     impl V2SearchIndex {
-        pub fn new(_segment: &str, _segment_group: u8, _field: u8, _sub_field: u8, _component: u8) -> V2SearchIndex {
+        pub fn new(_segment: &str, _segment_group: u8, _field: i16, _sub_field: u8, _component: i16) -> V2SearchIndex {
             V2SearchIndex{
                 segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
                 segment_group: _segment_group,
@@ -594,10 +594,10 @@ pub mod v2_parser {
             let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
             let _segment = expr_groups.get("segment").unwrap();
             let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
-            let _field: u8 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
+            let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
             let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
-            let _component: u8 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
-            V2SearchIndex::new(_segment, _segment_group, _sub_field, _field, _component)
+            let _component: i16 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
+            V2SearchIndex::new(_segment, _segment_group, _field, _sub_field, _component)
         }
 
         fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {

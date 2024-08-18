@@ -245,7 +245,7 @@ mod tests {
     fn test_v2_search_index() {
         let expr = "MSH(1)-1[5].4";
         let v2_search_index = V2SearchIndex::from(expr);
-        let expected = V2SearchIndex::new("MSH", 1, 5, 1, 4);
+        let expected = V2SearchIndex::new("MSH", 1, -1, 5, 4);
         println!("Input: {:?} Expected: {:?} Got: {:?}", expr, expected, v2_search_index);
         assert_eq!(v2_search_index, expected, "Failed to parse expression into correct SearchIndex object.");
     }
