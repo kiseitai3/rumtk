@@ -1,24 +1,23 @@
 
 pub mod rumtk_search {
-    use std::sync::RwLock;
-    use once_cell::unsync::Lazy;
-    use regex::{Regex, Captures};
-    use crate::cache::{RUMCache, AHashMap, new_cache};
-    use crate::strings::{RUMString, format_compact, UTFStringExtensions, RUMStringConversions, CompactStringExt};
+    use regex::{Regex};
+    use crate::cache::{LazyRUMCache, AHashMap, new_cache, get_or_set_from_cache};
+    use crate::strings::{RUMString, CompactStringExt};
     /**************************** Globals **************************************/
     static mut re_cache: RegexCache = new_cache();
-
     /**************************** Constants**************************************/
+   // const compile_regex: dyn Fn() = || {
 
+    //};
     /**************************** Types *****************************************/
-    pub type RegexCache = RUMCache<RUMString, Regex>;
+    pub type RegexCache = LazyRUMCache<RUMString, Regex>;
     pub type SearchGroups = AHashMap<RUMString, RUMString>;
     pub type CapturedList = Vec<RUMString>;
 
     /**************************** Traits ****************************************/
 
     /**************************** Helpers ***************************************/
-
+/*
     fn get_or_set_regex_from_cache(expr: &str) -> Regex {
         println!("??????");
         unsafe {
@@ -36,9 +35,16 @@ pub mod rumtk_search {
     fn compile_regex(expr: &str) -> Regex {
         Regex::new(expr).unwrap()
     }
+*/
+
+    fn compile_regex(expr: &RUMString) -> Regex {
+        Regex::new(expr).unwrap()
+    }
 
     pub fn string_search_captures(input: &str, expr: &str, default: &str) -> SearchGroups {
-        let re = get_or_set_regex_from_cache(expr);
+        let re = unsafe {
+            get_or_set_from_cache(&mut re_cache, &RUMString::from(expr), compile_regex)
+        };
         let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap_or_else(|| "")).collect();
         let mut clean_names: Vec<&str> = Vec::with_capacity(names.len());
         let mut groups = SearchGroups::default();
@@ -59,7 +65,6 @@ pub mod rumtk_search {
 
         let mut c_count = 0;
         for cap in re.captures_iter(input).map(|c| c) {
-            println!("capture # {}", c_count);
             c_count += 1;
             for name in &clean_names {
                 let val = cap.name(name).map_or("", |s| s.as_str());
@@ -69,7 +74,6 @@ pub mod rumtk_search {
             }
         }
 
-        println!("Captures end!");
         groups
     }
 
@@ -82,7 +86,9 @@ pub mod rumtk_search {
     }
 
     pub fn string_search(input: &str, expr: &str, join_pattern: &str) -> RUMString {
-        let re = get_or_set_regex_from_cache(expr);
+        let re = unsafe {
+            get_or_set_from_cache(&mut re_cache, &RUMString::from(expr), compile_regex)
+        };
         string_list(input, &re).join_compact(join_pattern)
     }
 }

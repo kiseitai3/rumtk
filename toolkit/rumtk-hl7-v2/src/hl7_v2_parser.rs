@@ -467,7 +467,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, segment_index: &u8, sub_segment: usize) -> V2Result<&mut V2Segment> {
-            let segment_group = self.get_mut_group(segment_index).unwrap();
+            let segment_group = self.get_mut_group(segment_index)?;
             let subsegment_indx = sub_segment - 1;
             match segment_group.get_mut(subsegment_indx) {
                 Some(segment) => Ok(segment),
