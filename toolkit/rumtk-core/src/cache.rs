@@ -4,7 +4,7 @@ pub use ahash::AHashMap;
 pub use once_cell::unsync::Lazy;
 pub use std::sync::Mutex;
 /**************************** Constants**************************************/
-
+pub const DEFAULT_CACHE_PAGE_SIZE: usize = 10; /// I don't think most scenarios will need more than 10 items worth of memory pre-allocated at a time.
 /**************************** Caches ****************************************/
 
 /**************************** Types *****************************************/
@@ -19,7 +19,7 @@ pub type LazyRUMCache<K, V> = Lazy<RUMCache<K, V>>;
 
 /**************************** Helpers ***************************************/
 pub const fn new_cache<K, V>() -> LazyRUMCache<K, V> {
-    LazyRUMCache::new(|| { RUMCache::default() })
+    LazyRUMCache::new(|| { RUMCache::with_capacity(DEFAULT_CACHE_PAGE_SIZE) })
 }
 
 pub fn get_or_set_from_cache<K, V, F>(cache: &'static mut LazyRUMCache<K, V>, expr: &K, new_fn: F) -> V

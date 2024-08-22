@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn test_handle_hl7_v2_search_pattern_parsing_full() {
         let pattern = "MSH(1)-1[5].4";
-        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
+        let groups = string_search_named_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
         let expected = SearchGroups::from([
             (RUMString::new("segment_group"), RUMString::new("1")),
             (RUMString::new("sub_field"), RUMString::new("5")),
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_handle_hl7_v2_search_pattern_parsing_simple() {
         let pattern = "MSH1.4";
-        let groups = string_search_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
+        let groups = string_search_named_captures(pattern, REGEX_V2_SEARCH_DEFAULT, "1");
         let expected = SearchGroups::from([
             (RUMString::new("segment_group"), RUMString::new("1")),
             (RUMString::new("sub_field"), RUMString::new("1")),

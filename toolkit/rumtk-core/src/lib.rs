@@ -147,13 +147,24 @@ mod tests {
     }
 
     #[test]
-    fn test_search_string_groups() {
+    fn test_search_string_named_groups() {
         let input = "Hello World!";
         let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
-        let result = string_search_captures(input, expr, "");
+        let result = string_search_named_captures(input, expr, "");
         let expected: RUMString = RUMString::from("World");
         println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
         assert_eq!(expected, result["world"], "String search results mismatch");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_search_string_all_groups() {
+        let input = "Hello World!";
+        let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
+        let result = string_search_all_captures(input, expr, "");
+        let expected: Vec<&str> = vec!["Hello", "World"];
+        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
 }
