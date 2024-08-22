@@ -13,7 +13,7 @@ mod tests {
     use super::*;
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::RUMString;
+    use rumtk_core::strings::{RUMString, format_compact};
     use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     /**********************************Constants**************************************/
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message() {
-        let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE);
         assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
@@ -164,7 +164,7 @@ mod tests {
     ///
     #[test]
     fn test_load_hl7_v2_message_wir_iis() {
-        let message = V2Message::from_str(tests::HL7_V2_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::HL7_V2_MESSAGE);
         assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["FHS"]), "Missing FHS segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
@@ -178,7 +178,7 @@ mod tests {
     ///
     #[test]
     fn test_load_hl7_v2_utf8_message() {
-        let message = V2Message::from_str(tests::HL7_V2_PDF_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::HL7_V2_PDF_MESSAGE);
         let pid = message.get(&V2_SEGMENT_IDS["PID"], 1).unwrap();
         let orc = message.get(&V2_SEGMENT_IDS["ORC"], 1).unwrap();
         let obr = message.get(&V2_SEGMENT_IDS["OBR"], 1).unwrap();
@@ -198,7 +198,7 @@ mod tests {
     ///
     #[test]
     fn test_handle_hl7_v2_message_with_repeating_fields() {
-        let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE).unwrap();
+        let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE);
         let msh = message.get(&V2_SEGMENT_IDS["MSH"], 1).unwrap();
         let field1 = msh.get(-1).unwrap().get(0).unwrap().get(4).unwrap().as_str();
         let field2 = msh.get(-1).unwrap().get(1).unwrap().get(1).unwrap().as_str();
@@ -248,5 +248,28 @@ mod tests {
         let expected = V2SearchIndex::new("MSH", 1, -1, 5, 4);
         println!("Input: {:?} Expected: {:?} Got: {:?}", expr, expected, v2_search_index);
         assert_eq!(v2_search_index, expected, "Failed to parse expression into correct SearchIndex object.");
+    }
+
+    #[test]
+    fn test_load_hl7_v2_message_macro() {
+        let message = v2_parse!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
+        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
+    }
+
+    #[test]
+    fn test_load_hl7_v2_message_macro_failure() {
+        let input = "Hello World!";
+        let err_msg = format_compact!("Parsing did not fail as expected. Input {} => parsed?", input);
+        match v2_parse!(input) {
+            Ok(v) => panic!("{}", err_msg.as_str()),
+            Err(e) => {
+                println!("{}", format_compact!("Got error => {}", e).as_str());
+                println!("Passed failed case!");
+            }
+        };
     }
 }

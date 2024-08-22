@@ -28,13 +28,11 @@ where
     V: Clone,
     F: Fn(&K) -> V
 {
-    unsafe {
-        if cache.contains_key(expr) {
-            cache.get(expr).unwrap().clone()
-        } else {
-            cache.insert(expr.clone(), new_fn(expr));
-            cache.get(expr).unwrap().clone()
-        }
+    if cache.contains_key(expr) {
+        cache.get(expr).unwrap().clone()
+    } else {
+        cache.insert(expr.clone(), new_fn(expr));
+        cache.get(expr).unwrap().clone()
     }
 }
 

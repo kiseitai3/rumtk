@@ -17,8 +17,7 @@
 pub mod v2_parser {
     use std::ops::{Index, IndexMut};
     use std::collections::VecDeque;
-    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions,
-                              RUMStringConversions};
+    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions, RUMStringConversions, try_decode, try_decode_with};
     use rumtk_core::cache::{RUMCache, AHashMap, Lazy};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
@@ -37,16 +36,6 @@ pub mod v2_parser {
     /// -   container\[indx\], where indx = 1 => container\[0\]
     /// -   container\[indx\], where indx = -1 => container\[container.len() - 1\]
     #[inline(always)]
-    /*fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
-        let max_indx = max_size as isize;
-        let neg_max_indx = max_indx * -1;
-        match given_indx {
-            1.. => Ok((given_indx - 1) as usize),
-            0 => Err(format_compact!("Index {} is invalid! Use 1-indexed values if using positive indices.", given_indx)),
-            ..=-1 => Ok((max_indx + given_indx) as usize),
-            _ => Err(format_compact!("Index {} is outside {} < x < {} boundary!", given_indx, neg_max_indx, max_indx))
-        }
-    }*/
     fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
         let max_indx = max_size as isize;
         let neg_max_indx = max_indx * -1;
@@ -440,7 +429,10 @@ pub mod v2_parser {
     }
 
     impl V2Message {
-        pub fn from_str(raw_msg: &str) -> V2Result<Self> {
+        pub fn from_str(raw_msg: &str) -> Self {
+            Self::try_from_str(raw_msg).expect("If calls to from_str are failing for V2Message, consider using try_from_str or the TryFrom trait! You should not see this message.")
+        }
+        pub fn try_from_str(raw_msg: &str) -> V2Result<Self> {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
             let msh_segment = V2Message::find_msh(&segment_tokens)?;
@@ -561,6 +553,20 @@ pub mod v2_parser {
         }
     }
 
+    impl TryFrom<&str> for V2Message {
+        type Error = V2String;
+        fn try_from(input: &str) -> V2Result<Self> {
+            V2Message::try_from_str(input)
+        }
+    }
+
+    impl TryFrom<&[u8]> for V2Message {
+        type Error = V2String;
+        fn try_from(input: &[u8]) -> V2Result<Self> {
+            V2Message::try_from_str(try_decode_with(input, "ascii").as_str())
+        }
+    }
+
     ///
     /// Object representing the exact indices needed to search for a field or component.
     ///
@@ -591,7 +597,7 @@ pub mod v2_parser {
         }
 
         fn from_v2_default(expr: &str) -> V2SearchIndex {
-            let expr_groups: SearchGroups = string_search_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
+            let expr_groups: SearchGroups = string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
             let _segment = expr_groups.get("segment").unwrap();
             let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
             let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
@@ -604,17 +610,39 @@ pub mod v2_parser {
             V2_SEARCH_EXPR_TYPE::V2_DEFAULT
         }
     }
+}
 
+pub mod v2_parser_interface {
+    use std::any::TypeId;
+    use rumtk_core::cache::{new_cache, Lazy, RUMCache};
+    use rumtk_core::strings::RUMString;
+    use crate::hl7_v2_parser::v2_parser::{V2Message, V2SearchIndex};
+
+    /**************************** Constants**************************************/
+
+    /**************************** Helpers ***************************************/
+
+    /**************************** Types *****************************************/
     pub type V2SearchCache = RUMCache<RUMString, V2SearchIndex>;
 
     /**************************** Globals ***************************************/
 
-    static mut search_cache: Lazy<V2SearchCache> = Lazy::new(|| {
-        V2SearchCache::default()
-    });
+    static mut search_cache: Lazy<V2SearchCache> = new_cache();
 
     /**************************** Macros ***************************************/
     //TODO: Write v2_parse! and v2_find! macros.
     //v2_find! will consult cache to avoid allocating already parsed indices. Also avoid having to
     // regex parse the index expression to begin with.
+
+    #[macro_export]
+    macro_rules! v2_parse {
+        ( $( $x:expr ),* ) => {
+            {
+                $(
+                    V2Message::try_from($x)
+                )*
+            }
+        };
+    }
+
 }
