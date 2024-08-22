@@ -4,7 +4,7 @@ use std::os::unix::ffi::OsStringExt;
 use unicode_segmentation::UnicodeSegmentation;
 pub use compact_str::{CompactString, CompactStringExt, ToCompactString, format_compact};
 use chardetng::EncodingDetector;
-
+use encoding_rs::Encoding;
 /**************************** Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
 const ASCII_ESCAPE_CHAR: char = '\\';
@@ -176,6 +176,29 @@ pub fn try_decode(src: &[u8]) -> RUMString {
     let mut detector = EncodingDetector::new();
     detector.feed(&src, true);
     let encoding = detector.guess(None, true);
+    decode(src, encoding)
+}
+
+
+///
+/// Implements decoding this string from a specific encoding to UTF-8.
+///
+/// Note => Decoding is facilitated via the crates chardet-ng and encoding_rs.
+///
+pub fn try_decode_with(src: &[u8], encoding_name: &str) -> RUMString {
+    let encoding = match Encoding::for_label(encoding_name.as_bytes()){
+        Some(v) => v,
+        None => return RUMString::from("")
+    };
+    decode(src, encoding)
+}
+
+///
+/// Implements decoding of input with encoder.
+///
+/// Note => Decoding is facilitated via the crate encoding_rs.
+///
+fn decode(src: &[u8], encoding: &'static Encoding) -> RUMString {
     match encoding.decode_without_bom_handling_and_without_replacement(&src){
         Some(res) => {
             RUMString::from(res)

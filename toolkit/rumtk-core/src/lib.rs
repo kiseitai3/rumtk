@@ -98,8 +98,8 @@ mod tests {
     #[test]
     fn test_autodecode_utf8() {
         let input = "I ❤ my wife!";
-        let result = input;
-        println!("Input: {} Expected: {} Got: {}", input, input, result);
+        let result = strings::try_decode(input.as_bytes());
+        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
         assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
@@ -111,6 +111,16 @@ mod tests {
         let expected = "I ❤ my wife!";
         let result = input;
         println!("Input: {} Expected: {} Got: {}", input, input, result);
+        assert_eq!(input, result, "Incorrect string decoding!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_decode() {
+        let input = "I ❤ my wife!";
+        let expected = "I ❤ my wife!";
+        let result = strings::try_decode_with(input.as_bytes(), "utf-8");
+        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
         assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
