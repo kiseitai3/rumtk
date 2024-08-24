@@ -7,29 +7,38 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
 + The toolkit will focus on increasing security and simplicity with the first step taken by starting the project using Rust.
 + The toolkit shall foster reliability and will make attempts to be standards compliant.
 
-# Milestones
-- [ ] Network Core library
-- [ ] Cryptologic Adapters
-- [ ] Commandline Standard Argument Interface
+# Features
 - [ ] Toolkit Core Library
-- [ ] Toolkit Core Tests
+  - [ ] Network Core library
+  - [ ] Cryptologic Adapters
+  - [ ] Commandline Standard Argument Interface
+  - [ ] Enable STDIN|Pipe Functionality
+  - [ ] Toolkit Core Tests
 - [ ] HL7 v2 Interface Protocol
-- [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
-- [x] HL7 v2 Escape Sequences Support
-- [x] HL7 v2 Repeating Field Support
-- [x] HL7 v2 UTF-8/Unicode Support
-- [ ] HL7 v2 Custom Message Configuration
-- [ ] HL7 v2 Endpoint Interface utility
-- [ ] HL7 v2 Client Interface utility
-- [ ] HL7 v2 Tests
-- [ ] HL7 v2 to FHIR Basic Mapping.
-- [ ] HL7 v2 to FHIR Custom Mappings
-- [ ] HL7 v2 to FHIR Conversion utility
-- [ ] HL7 v2 to FHIR Conversion Tests
-- [ ] HL7 FHIR CRUD
-- [ ] HL7 FHIR Client
-- [ ] HL7 FHIR Client utility
-- [ ] HL7 FHIR Tests
+  - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
+  - [x] HL7 v2 Escape Sequences Support
+  - [x] HL7 v2 Repeating Field Support
+  - [x] HL7 v2 UTF-8/Unicode Support
+  - [x] HL7 v2 Encodings to UTF-8 Conversion
+  - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
+  - [ ] HL7 v2 Types
+  - [ ] HL7 v2 Base Message to HL7 Type casting
+  - [ ] HL7 v2 Message to ASCII Message Generation
+  - [ ] HL7 v2 MLLP
+  - [ ] HL7 v2 Custom Message Configuration
+  - [ ] HL7 v2 Endpoint Interface utility
+  - [ ] HL7 v2 Client Interface utility
+  - [ ] HL7 v2 Tests
+- [ ] HL7 v2 to FHIR Conversion
+  - [ ] HL7 v2 to FHIR Basic Mapping
+  - [ ] HL7 v2 to FHIR Custom Mappings
+  - [ ] HL7 v2 to FHIR Conversion utility
+  - [ ] HL7 v2 to FHIR Conversion Tests
+- [ ] HL7 FHIR Interface
+  - [ ] HL7 FHIR CRUD
+  - [ ] HL7 FHIR Client
+  - [ ] HL7 FHIR Client utility
+  - [ ] HL7 FHIR Tests
 - [ ] HIFLAMES utility => HL7 Interface - FHIR Loader And Message Exporter System
 
 # Contributing
