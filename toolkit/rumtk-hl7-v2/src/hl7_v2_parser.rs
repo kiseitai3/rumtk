@@ -635,7 +635,7 @@ pub mod v2_parser_interface {
     // regex parse the index expression to begin with.
 
     #[macro_export]
-    macro_rules! v2_parse {
+    macro_rules! v2_parse_message {
         ( $( $x:expr ),* ) => {
             {
                 $(

@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_macro() {
-        let message = v2_parse!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
         assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
@@ -264,7 +264,7 @@ mod tests {
     fn test_load_hl7_v2_message_macro_failure() {
         let input = "Hello World!";
         let err_msg = format_compact!("Parsing did not fail as expected. Input {} => parsed?", input);
-        match v2_parse!(input) {
+        match v2_parse_message!(input) {
             Ok(v) => panic!("{}", err_msg.as_str()),
             Err(e) => {
                 println!("{}", format_compact!("Got error => {}", e).as_str());

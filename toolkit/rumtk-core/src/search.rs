@@ -21,10 +21,10 @@ pub mod rumtk_search {
 
     ///
     /// Finds all of the named regex captures and generates a hash table with the results assorted
-    /// into key-value pairs. The keys are the names found in the regex expression. The values are
-    /// the matches corresponding to the named capture.
+    /// into key-value pairs. The keys are the names found in the regex expression. The value is
+    /// the match corresponding to the named capture.
     ///
-    /// This function returns and instance of SearchGroup which is the hash map.
+    /// This function returns an instance of SearchGroup which is the hash map.
     ///
     pub fn string_search_named_captures(input: &str, expr: &str, default: &str) -> SearchGroups {
         let re = unsafe {
@@ -65,7 +65,7 @@ pub mod rumtk_search {
     /// of strings. Elsewhere, this provides a simple way to iterate through the contents that
     /// were inside a group \(\).
     ///
-    /// This function returns and instance of CapturedList which is the list of strings.
+    /// This function returns an instance of CapturedList which is the list of strings.
     ///
     pub fn string_search_all_captures(input: &str, expr: &str, default: &str) -> CapturedList {
         let re = unsafe {
