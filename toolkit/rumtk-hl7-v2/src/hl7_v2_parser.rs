@@ -37,12 +37,16 @@ pub mod v2_parser {
     use std::ops::{Index, IndexMut};
     use std::collections::VecDeque;
     use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions, RUMStringConversions, try_decode, try_decode_with};
-    use rumtk_core::cache::{RUMCache, AHashMap, Lazy};
+    use rumtk_core::cache::{RUMCache, AHashMap, Lazy, new_cache, get_or_set_from_cache, LazyRUMCache};
     use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING,
                                   V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
     use crate::hl7_v2_search::*;
+
+    /**************************** Globals ***************************************/
+
+    static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
 
     /**************************** Helpers ***************************************/
     ///
@@ -73,7 +77,54 @@ pub mod v2_parser {
         Err(format_compact!("Index {} is outside {} < x < {} boundary!", given_indx, neg_max_indx, max_indx))
     }
 
+    fn compile_search_index(search_pattern: &RUMString) -> V2SearchIndex {
+        V2SearchIndex::from(search_pattern)
+    }
+
     /**************************** Types *****************************************/
+    ///
+    /// Object representing the exact indices needed to search for a field or component.
+    ///
+    #[derive(Debug, PartialEq, Eq, Default, Clone)]
+    pub struct V2SearchIndex {
+        segment: u8,
+        segment_group: u8,
+        field_group: u8,
+        field: i16,
+        component: i16,
+    }
+
+    impl V2SearchIndex {
+        pub fn new(_segment: &str, _segment_group: u8, _field: i16, _sub_field: u8, _component: i16) -> V2SearchIndex {
+            V2SearchIndex{
+                segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
+                segment_group: _segment_group,
+                field_group: _sub_field,
+                field: _field,
+                component: _component
+            }
+        }
+
+        pub fn from(expr: &str) -> V2SearchIndex {
+            match Self::expr_type(expr) {
+                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
+            }
+        }
+
+        fn from_v2_default(expr: &str) -> V2SearchIndex {
+            let expr_groups: SearchGroups = string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
+            let _segment = expr_groups.get("segment").unwrap();
+            let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
+            let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
+            let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
+            let _component: i16 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
+            V2SearchIndex::new(_segment, _segment_group, _field, _sub_field, _component)
+        }
+
+        fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {
+            V2_SEARCH_EXPR_TYPE::V2_DEFAULT
+        }
+    }
 
     pub type V2Result<T> = Result<T, RUMString>;
 
@@ -469,7 +520,7 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, segment_index: &u8, sub_segment: usize) -> V2Result<&V2Segment> {
-            let segment_group = self.get_group(segment_index).unwrap();
+            let segment_group = self.get_group(segment_index)?;
             let subsegment_indx = sub_segment - 1;
             match segment_group.get(subsegment_indx) {
                 Some(segment) => Ok(segment),
@@ -498,6 +549,18 @@ pub mod v2_parser {
                 Some(segment_group) => Ok(segment_group),
                 None => Err(format_compact!("Segment id {} not found in message!", segment_index))
             }
+        }
+
+        pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
+            let index = unsafe {
+                get_or_set_from_cache(&mut search_cache, search_pattern, compile_search_index)
+            };
+            let segment = self.get(&index.segment, index.segment_group as usize)?;
+            let field = match segment.get(index.field as isize)?.get((index.field_group - 1) as usize) {
+                Some(field) => field,
+                None => return Err(format_compact!("Subfield provided is not 1 indexed or out of bounds. Did you give us a 0 when you meant 1? Got {}!", index.field_group))
+            };
+            field.get(index.component as isize)
         }
 
         pub fn is_repeat_segment(&self, segment_index: &u8) -> bool {
@@ -585,80 +648,48 @@ pub mod v2_parser {
             V2Message::try_from_str(try_decode_with(input, "ascii").as_str())
         }
     }
-
-    ///
-    /// Object representing the exact indices needed to search for a field or component.
-    ///
-    #[derive(Debug, PartialEq, Eq, Default)]
-    pub struct V2SearchIndex {
-        segment: u8,
-        segment_group: u8,
-        field_group: u8,
-        field: i16,
-        component: i16,
-    }
-
-    impl V2SearchIndex {
-        pub fn new(_segment: &str, _segment_group: u8, _field: i16, _sub_field: u8, _component: i16) -> V2SearchIndex {
-            V2SearchIndex{
-                segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
-                segment_group: _segment_group,
-                field_group: _sub_field,
-                field: _field,
-                component: _component
-            }
-        }
-
-        pub fn from(expr: &str) -> V2SearchIndex {
-            match Self::expr_type(expr) {
-                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
-            }
-        }
-
-        fn from_v2_default(expr: &str) -> V2SearchIndex {
-            let expr_groups: SearchGroups = string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
-            let _segment = expr_groups.get("segment").unwrap();
-            let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
-            let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
-            let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
-            let _component: i16 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
-            V2SearchIndex::new(_segment, _segment_group, _field, _sub_field, _component)
-        }
-
-        fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {
-            V2_SEARCH_EXPR_TYPE::V2_DEFAULT
-        }
-    }
 }
 
 pub mod v2_parser_interface {
-    use std::any::TypeId;
-    use rumtk_core::cache::{new_cache, Lazy, RUMCache};
-    use rumtk_core::strings::RUMString;
-    use crate::hl7_v2_parser::v2_parser::{V2Message, V2SearchIndex};
-
     /**************************** Constants**************************************/
 
     /**************************** Helpers ***************************************/
 
     /**************************** Types *****************************************/
-    pub type V2SearchCache = RUMCache<RUMString, V2SearchIndex>;
 
     /**************************** Globals ***************************************/
-
-    static mut search_cache: Lazy<V2SearchCache> = new_cache();
 
     /**************************** Macros ***************************************/
     //TODO: Write v2_parse! and v2_find! macros.
     //v2_find! will consult cache to avoid allocating already parsed indices. Also avoid having to
     // regex parse the index expression to begin with.
 
+    use rumtk_core::strings::RUMString;
+
     #[macro_export]
     macro_rules! v2_parse_message {
+        ( $msg:expr ) => {
+            {
+                V2Message::try_from($msg)
+            }
+        };
+    }
+
+    #[macro_export]
+    macro_rules! v2_find_component {
+        ( $v2_msg:expr, $v2_search_pattern:expr ) => {
+            {
+                $v2_msg.find_component(&RUMString::from($v2_search_pattern))
+            }
+        };
+    }
+
+    #[macro_export]
+    macro_rules! v2_generate_message {
         ( $( $x:expr ),* ) => {
             {
                 $(
-                    V2Message::try_from($x)
+                    //TODO: build ASCII message exporter to ship over the network.
                 )*
             }
         };
