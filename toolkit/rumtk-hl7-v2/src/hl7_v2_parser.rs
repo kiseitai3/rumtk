@@ -642,6 +642,20 @@ pub mod v2_parser {
         }
     }
 
+    impl TryFrom<&String> for V2Message {
+        type Error = V2String;
+        fn try_from(input: &String) -> V2Result<Self> {
+            V2Message::try_from_str(input.as_str())
+        }
+    }
+
+    impl TryFrom<&RUMString> for V2Message {
+        type Error = V2String;
+        fn try_from(input: &RUMString) -> V2Result<Self> {
+            V2Message::try_from_str(input.as_str())
+        }
+    }
+
     impl TryFrom<&[u8]> for V2Message {
         type Error = V2String;
         fn try_from(input: &[u8]) -> V2Result<Self> {
@@ -651,21 +665,15 @@ pub mod v2_parser {
 }
 
 pub mod v2_parser_interface {
-    /**************************** Constants**************************************/
-
-    /**************************** Helpers ***************************************/
-
-    /**************************** Types *****************************************/
-
-    /**************************** Globals ***************************************/
-
     /**************************** Macros ***************************************/
-    //TODO: Write v2_parse! and v2_find! macros.
-    //v2_find! will consult cache to avoid allocating already parsed indices. Also avoid having to
-    // regex parse the index expression to begin with.
-
-    use rumtk_core::strings::RUMString;
-
+    ///
+    /// Simple interface for creating an instance of V2Message!
+    /// You can pass a string view, a String, a RUMString, or a byte slice as input.
+    ///
+    /// # Example
+    ///
+    ///     v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+    ///
     #[macro_export]
     macro_rules! v2_parse_message {
         ( $msg:expr ) => {
@@ -675,6 +683,25 @@ pub mod v2_parser_interface {
         };
     }
 
+    ///
+    /// Simple interface for searching for a component inside a V2Message.
+    /// This macro takes a borrow of a V2Message instance and a string search pattern.
+    /// The only search pattern supported at the moment takes the form
+    /// **<3-letter segment>(optional, segment_group)<field>\[optional, field_group\].<component>**.
+    /// For example, you can search with **PID5.1** or **PID(1)5.1** or **PID(1)5\[1\].1**.
+    ///
+    /// The optional portions are for when you need to select a specific repeated segment or field.
+    ///
+    /// All of these indices must be 1-indexed.
+    ///
+    /// For the main indices, you can use negative values. For example, a -1 means you want to select
+    /// the last item. This is applicable for the field and component indices.
+    ///
+    /// # Example
+    ///
+    ///     let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+    ///     let component = v2_find_component!(message, pattern).unwrap();
+    ///
     #[macro_export]
     macro_rules! v2_find_component {
         ( $v2_msg:expr, $v2_search_pattern:expr ) => {
@@ -686,11 +713,9 @@ pub mod v2_parser_interface {
 
     #[macro_export]
     macro_rules! v2_generate_message {
-        ( $( $x:expr ),* ) => {
+        ( $v2_msg:expr ) => {
             {
-                $(
-                    //TODO: build ASCII message exporter to ship over the network.
-                )*
+
             }
         };
     }

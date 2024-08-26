@@ -304,6 +304,15 @@ mod tests {
     }
 
     #[test]
+    fn test_find_hl7_v2_message_component_simple_macro() {
+        let pattern = "PID5.4";
+        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let component = v2_find_component!(message, pattern).unwrap();
+        let expected = "III";
+        assert_eq!(component.as_str(), expected, "Wrong component found! Looked for {} expecting {}, but got {}", pattern, expected, component.as_str());
+    }
+
+    #[test]
     fn test_find_hl7_v2_message_component_macro_failure() {
         let pattern = "PID(1)15.4";
         let err_msg = format_compact!("Search did not fail as expected. Input {} => found component?", pattern);
