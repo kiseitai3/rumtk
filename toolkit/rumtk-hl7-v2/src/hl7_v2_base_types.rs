@@ -26,6 +26,8 @@ pub mod v2_base_types {
     use rumtk_core::strings::{RUMString};
 
     pub type V2String = RUMString;
+    /// It's ambiguous how to handle an ID other than keep it as a string and not really validate it. See Section 2A.3.35
+    pub type V2ID = V2String;
     pub struct V2DateTime {
         year: u16,
         month: u8,
