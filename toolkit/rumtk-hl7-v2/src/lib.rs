@@ -24,6 +24,7 @@ pub mod hl7_v2_interpreter;
 mod hl7_v2_constants;
 pub mod hl7_v2_types;
 pub mod hl7_v2_search;
+mod hl7_v2_base_types;
 
 extern crate rumtk_core;
 

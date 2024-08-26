@@ -38,7 +38,7 @@ pub mod v2_parser {
     use std::collections::VecDeque;
     use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions, RUMStringConversions, try_decode, try_decode_with};
     use rumtk_core::cache::{RUMCache, AHashMap, Lazy, new_cache, get_or_set_from_cache, LazyRUMCache};
-    use crate::hl7_v2_types::v2_types::{V2String, V2DateTime};
+    use crate::hl7_v2_base_types::v2_base_types::{V2String, V2DateTime};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING,
                                   V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
