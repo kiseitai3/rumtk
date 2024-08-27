@@ -21,11 +21,13 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
   - [x] HL7 v2 UTF-8/Unicode Support
   - [x] HL7 v2 Encodings to UTF-8 Conversion
   - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
-  - [ ] HL7 v2 Types
+  - [ ] HL7 v2 Primitive Types
+  - [ ] HL7 v2 Complex Types (aka structs/classes)
   - [ ] HL7 v2 Base Message to HL7 Type casting
+  - [ ] HL7 v2 Base Message to HL7 Type casting
+  - [ ] HL7 v2 Custom Message Configuration
   - [ ] HL7 v2 Message to ASCII Message Generation
   - [ ] HL7 v2 MLLP
-  - [ ] HL7 v2 Custom Message Configuration
   - [ ] HL7 v2 Endpoint Interface utility
   - [ ] HL7 v2 Client Interface utility
   - [ ] HL7 v2 Tests
@@ -34,6 +36,14 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
   - [ ] HL7 v2 to FHIR Custom Mappings
   - [ ] HL7 v2 to FHIR Conversion utility
   - [ ] HL7 v2 to FHIR Conversion Tests
+- [ ] HL7 v2 to DB [Maybe]
+  - [ ] HL7 v2 Python bindings
+  - [ ] HL7 v2 to DB utility
+  - [ ] HL7 v2 to DB Tests
+- [ ] HL7 v2 Dashboard [Maybe]
+  - [ ] HL7 v2 Message History DB
+  - [ ] HL7 v2 Dashboard service
+  - [ ] HL7 v2 Dashboard Tests
 - [ ] HL7 FHIR Interface
   - [ ] HL7 FHIR CRUD
   - [ ] HL7 FHIR Client
