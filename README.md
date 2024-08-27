@@ -24,8 +24,8 @@ Rust's Medical Toolkit is a toolkit being developed to put together a set of too
   - [ ] HL7 v2 Primitive Types
   - [ ] HL7 v2 Complex Types (aka structs/classes)
   - [ ] HL7 v2 Base Message to HL7 Type casting
-  - [ ] HL7 v2 Base Message to HL7 Type casting
-  - [ ] HL7 v2 Custom Message Configuration
+  - [ ] HL7 v2 Custom Message Overrides
+  - [ ] HL7 v2 Message Validator
   - [ ] HL7 v2 Message to ASCII Message Generation
   - [ ] HL7 v2 MLLP
   - [ ] HL7 v2 Endpoint Interface utility
