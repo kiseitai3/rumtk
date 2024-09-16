@@ -1,5 +1,5 @@
 # rumtk
-Rust's Medical Toolkit is a toolkit being developed to put together a set of tools and libraries to facilitate communication and automation in medicine. 
+Rust's Universal Medical Toolkit is a toolkit being developed to put together a set of tools and libraries to facilitate communication and automation in medicine. 
 
 # Goal
 + To create a simple toolkit with the necessary libraries, dependencies, and utilities for managing standard tasks in Medical IT. 
