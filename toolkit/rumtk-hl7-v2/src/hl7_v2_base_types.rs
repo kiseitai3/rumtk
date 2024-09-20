@@ -22,14 +22,64 @@ pub mod v2_base_types {
     use chrono::prelude::*;
     use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str, format_compact, ToCompactString};
     use rumtk_core::maths::generate_tenth_factor;
-    use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK};
+    use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
+    use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
     use rumtk_core::strings::{RUMString};
+    use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
 
     ///
     /// Nothing fancier than a SSO string.
+    /// A G-String if you will.
     /// Basic type used to derive other types for the standard implementation.
     ///
     pub type V2String = RUMString;
+    ///
+    /// Object representing the exact indices needed to search for a field or component.
+    ///
+    #[derive(Debug, PartialEq, Eq, Default, Clone)]
+    pub struct V2SearchIndex {
+        segment: u8,
+        segment_group: u8,
+        field_group: u8,
+        field: i16,
+        component: i16,
+    }
+
+    impl V2SearchIndex {
+        pub fn new(_segment: &str, _segment_group: u8, _field: i16, _sub_field: u8, _component: i16) -> V2SearchIndex {
+            V2SearchIndex {
+                segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
+                segment_group: _segment_group,
+                field_group: _sub_field,
+                field: _field,
+                component: _component
+            }
+        }
+
+        pub fn from(expr: &str) -> V2SearchIndex {
+            match Self::expr_type(expr) {
+                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
+            }
+        }
+
+        fn from_v2_default(expr: &str) -> V2SearchIndex {
+            let expr_groups: SearchGroups = string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
+            let _segment = expr_groups.get("segment").unwrap();
+            let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
+            let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
+            let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
+            let _component: i16 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
+            V2SearchIndex::new(_segment, _segment_group, _field, _sub_field, _component)
+        }
+
+        fn expr_type(expr: &str) -> V2_SEARCH_EXPR_TYPE {
+            V2_SEARCH_EXPR_TYPE::V2_DEFAULT
+        }
+    }
+    ///
+    /// Type used for propagating error messages.
+    ///
+    pub type V2Result<T> = Result<T, RUMString>;
     ///
     /// 2A.3.76 ST - string data
     ///
@@ -245,9 +295,13 @@ pub mod v2_base_types {
             }
         }
 
+        ///
         /// Begin decomposing string into discrete components per HL7 DateTime format specs.
         /// See https://hl7-definition.caristix.com/v2/HL7v2.8/DataTypes/DTM
-        pub fn from_v2_string(item: &V2String) -> V2DateTime {
+        ///
+        /// Take a string view as input.
+        ///
+        pub fn from_str(item: &str) -> V2DateTime {
             let dt_vec: Vec<&str> = item.split('.').collect();
             let mut offset_sign = "+";
             let mut ms_vec: Vec<&str> = dt_vec.last().unwrap().split(&offset_sign).collect();
@@ -305,6 +359,17 @@ pub mod v2_base_types {
     /// Section 2A.3.21 DT - date
     ///
     pub type V2Date = V2DateTime;
+
+    impl TryFrom<&str> for V2Date {
+        type Error = V2String;
+        fn try_from(input: &str) -> V2Result<Self> {
+            match input.len() {
+                0..=3 => Err(format_compact!("Cannot build V2Date type due to the string input being smaller than 4 characters. => [{}] ", input)),
+                4..=24 => Ok(Self::from_str(input)),
+                _ => Err(format_compact!("Cannot build V2Date type due to the string input being larger than 24 characters. => [{}] ", input)),
+            }
+        }
+    }
     // TODO: Missing the TM time type.
 
     ///
