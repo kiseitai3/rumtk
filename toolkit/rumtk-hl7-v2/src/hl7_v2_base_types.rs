@@ -42,11 +42,11 @@ pub mod v2_base_types {
     ///
     #[derive(Debug, PartialEq, Eq, Default, Clone)]
     pub struct V2SearchIndex {
-        segment: u8,
-        segment_group: u8,
-        field_group: u8,
-        field: i16,
-        component: i16,
+        pub segment: u8,
+        pub segment_group: u8,
+        pub field_group: u8,
+        pub field: i16,
+        pub component: i16,
     }
 
     impl V2SearchIndex {
@@ -541,7 +541,7 @@ pub mod v2_base_types {
     ///
     ///     1.0200 may be truncated to 1.02, but not to 1.0.
     ///
-    pub type NM = f64;
+    pub type V2NM = f64;
     ///
     /// 2A.3.70 SI - sequence ID
     ///
@@ -552,7 +552,7 @@ pub mod v2_base_types {
     ///     Maximum Length: 4.
     ///     This allows for a number between 0 and 9999 to be specified.
     ///
-    pub type SI = i16;
+    pub type V2SI = i16;
     ///
     /// 2A.3.72 SNM - string of telephone number digits
     ///
@@ -565,7 +565,7 @@ pub mod v2_base_types {
     ///     Maximum Length: Not specified for the type. May be specified in the context of use
     ///     SNM is used for telephone numbers, so it is never appropriate to truncate values of type SNM.
     ///
-    pub type SNM = V2String;
+    pub type V2SNM = V2String;
     pub enum V2TypeIDs{
         V2DT,
         BOOL,
@@ -576,8 +576,22 @@ pub mod v2_base_types {
 }
 
 pub mod v2_primitives {
-    use rumtk_core::strings::{format_compact, ToCompactString, UTFStringExtensions};
+    use rumtk_core::search::rumtk_search::{string_search};
+    use rumtk_core::strings::{format_compact, RUMString, ToCompactString, UTFStringExtensions};
     use crate::hl7_v2_base_types::v2_base_types::*;
+
+    /**************************** Constants**************************************/
+    const REGEX_VALIDATE_NM: &str = r"\d+.\d?|^\d+";
+
+    /****************************** API *****************************************/
+    pub fn validate_type(input: &str, regex: &str) -> V2Result<RUMString> {
+        let r = string_search(input, regex, "");
+        if r.len() == 0 {
+            Ok(r)
+        } else {
+            Err(format_compact!("Empty results detected! Input string validation failure! Input: {}\nRegex used: {}", input, regex))
+        }
+    }
 
     pub fn to_datetime(input: &str) -> V2Result<V2DateTime> {
         let truncated_input = input.truncate(24);
@@ -600,6 +614,15 @@ pub mod v2_primitives {
         match input.len() {
             0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
             _ => Ok(V2Date::from_str(format_compact!("00000000{}", &truncated_input).as_str())),
+        }
+    }
+
+    pub fn to_number(input: &str) -> V2Result<V2NM> {
+        let truncated_input = input.truncate(16);
+        let validated = validate_type(&truncated_input, REGEX_VALIDATE_NM)?;
+        match validated.parse::<V2NM>() {
+            Ok(val) => Ok(val),
+            Err(why) => Err(format_compact!("Error parsing string into numeric type V2NM. Input: {}", validated))
         }
     }
 }
