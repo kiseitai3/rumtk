@@ -34,6 +34,7 @@ extern crate rumtk_core;
 mod tests {
     use super::*;
     use hl7_v2_parser::v2_parser::*;
+    use hl7_v2_base_types::v2_base_types::*;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{RUMString, format_compact};
     use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};

@@ -20,12 +20,16 @@
 
 pub mod v2_base_types {
     use chrono::prelude::*;
-    use rumtk_core::strings::{count_tokens_ignoring_pattern, decompose_dt_str, format_compact, ToCompactString};
+    use rumtk_core::strings::{count_tokens_ignoring_pattern, format_compact, ToCompactString, UTFStringExtensions};
     use rumtk_core::maths::generate_tenth_factor;
     use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
     use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
     use rumtk_core::strings::{RUMString};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
+    /**************************** Traits ****************************************/
+
+
+    /**************************** Types *****************************************/
 
     ///
     /// Nothing fancier than a SSO string.
@@ -311,7 +315,7 @@ pub mod v2_base_types {
             }
 
             let (year, month, day, hour, minute, second) =
-                decompose_dt_str(&RUMString::from(dt_vec[0]));
+                Self::decompose_dt_str(&RUMString::from(dt_vec[0]));
 
             // Now let's grab the two components of the vector and generate the microsecond and offset bits.
             let ms_string = ms_vec[0];
@@ -326,7 +330,59 @@ pub mod v2_base_types {
             let offset: V2String = offset_sign.to_compact_string() + ms_vec[1];
 
 
-            V2DateTime { year, month, day, hour, minute, second, microsecond, offset}
+            V2DateTime { year, month, day, hour, minute, second, microsecond, offset }
+        }
+
+        /// Take date time string in the format YYYY\[MMDDHHmmss\] and decompose it into numerical
+        /// date time components.
+        /// Meaning, we take a string and we return a tuple of numbers.
+        pub fn decompose_dt_str(dt_str: &RUMString) -> (u16,u8,u8,u8,u8,u8) {
+            let mut year: u16 = 0;
+            let mut month: u8 = 0;
+            let mut day: u8 = 0;
+            let mut hour: u8 = 0;
+            let mut minute: u8 = 0;
+            let mut second: u8 = 0;
+
+            match dt_str.len() {
+                4 => {
+                    year = dt_str.parse::<u16>().unwrap();
+                }
+                6 => {
+                    year = dt_str[0..4].parse::<u16>().unwrap();
+                    month = dt_str[4..].parse::<u8>().unwrap();
+                }
+                8 => {
+                    year = dt_str[0..4].parse::<u16>().unwrap();
+                    month = dt_str[4..6].parse::<u8>().unwrap();
+                    day = dt_str[6..].parse::<u8>().unwrap();
+                }
+                10 => {
+                    year = dt_str[0..4].parse::<u16>().unwrap();
+                    month = dt_str[4..6].parse::<u8>().unwrap();
+                    day = dt_str[6..8].parse::<u8>().unwrap();
+                    hour = dt_str[8..].parse::<u8>().unwrap();
+                }
+                12 => {
+                    year = dt_str[0..4].parse::<u16>().unwrap();
+                    month = dt_str[4..6].parse::<u8>().unwrap();
+                    day = dt_str[6..8].parse::<u8>().unwrap();
+                    hour = dt_str[8..10].parse::<u8>().unwrap();
+                    minute = dt_str[10..].parse::<u8>().unwrap();
+                }
+                14 => {
+                    year = dt_str[0..4].parse::<u16>().unwrap();
+                    month = dt_str[4..6].parse::<u8>().unwrap();
+                    day = dt_str[6..8].parse::<u8>().unwrap();
+                    hour = dt_str[8..10].parse::<u8>().unwrap();
+                    minute = dt_str[10..12].parse::<u8>().unwrap();
+                    second = dt_str[12..].parse::<u8>().unwrap();
+                }
+                _ => {
+
+                }
+            }
+            (year, month, day, hour, minute, second)
         }
 
         pub fn as_utc_string(&self) -> String {
@@ -358,19 +414,38 @@ pub mod v2_base_types {
     ///
     /// Section 2A.3.21 DT - date
     ///
+    /// Definition: Specifies the century and year with optional precision to month and day.
+    ///
+    /// Minimum Length: 4
+    /// Maximum Length: 8
+    ///
+    /// The number of digits populated specifies the precision using the format specification
+    /// YYYY\[MM\[DD\]\].
+    ///
+    /// # Thus:
+    ///
+    ///     a) only the first four digits are used to specify a precision of "year"
+    ///     b) the first six are used to specify a precision of "month"
+    ///     c) the first eight are used to specify a precision of "day"
+    ///
+    /// # Examples:
+    ///
+    ///     |19880704|
+    ///     |199503|
+    ///
+    /// The DT data type does not follow the normal truncation pattern, and the truncation character is
+    /// never valid in the DT data type. Instead, the truncation behavior is based on the semantics of dates.
+    ///
+    /// Unless specified in the context where the DT type is used, the DT type may not be truncated.
+    /// When a DT is truncated, the truncated form SHALL still be a valid DT type. Systems should
+    /// always be able to persist full dates. Refer to Chapter 2, section 2.5.5.2 "Truncation Pattern" for
+    /// further information.
+    ///
+    /// **Note:** Prior to v2.3, this data type was specified in the format YYYYMMDD. As of v2.3, month and days
+    /// are no longer required. By site-specific agreement, YYYYMMDD may be used where backward
+    /// compatibility must be maintained.
+    ///
     pub type V2Date = V2DateTime;
-
-    impl TryFrom<&str> for V2Date {
-        type Error = V2String;
-        fn try_from(input: &str) -> V2Result<Self> {
-            match input.len() {
-                0..=3 => Err(format_compact!("Cannot build V2Date type due to the string input being smaller than 4 characters. => [{}] ", input)),
-                4..=24 => Ok(Self::from_str(input)),
-                _ => Err(format_compact!("Cannot build V2Date type due to the string input being larger than 24 characters. => [{}] ", input)),
-            }
-        }
-    }
-
     ///
     /// 2A.3.77 TM – time
     ///
@@ -412,9 +487,9 @@ pub mod v2_base_types {
     /// |093544.2312|44.2312 seconds after Nine thirty-five AM, local time of sender.
     /// |13|1pm (with a precision of hours), local time of sender.
     ///
-    /// Prior to v 2.3, this data type was specified in the format HHMM[SS[.SSSS]][+/-ZZZZ]. As of v
-    /// 2.3 minutes are no longer required. By site-specific agreement, HHMM[SS[.SSSS]][+/-ZZZZ]
-    /// may be used where backward compatibility must be maintained.This corresponds a minimum
+    /// Prior to v 2.3, this data type was specified in the format HHMM\[SS\[.SSSS\]\]\[+/-ZZZZ\]. As of v
+    /// 2.3 minutes are no longer required. By site-specific agreement, HHMM\[SS\[.SSSS\]\]\[+/-ZZZZ\]
+    /// may be used where backward compatibility must be maintained. This corresponds a minimum
     /// length of 4.
     ///
     /// The TM data type does not follow the normal truncation pattern, and the truncation character is
@@ -426,18 +501,6 @@ pub mod v2_base_types {
     /// valid TM type. Refer to Chapter 2, section 2.5.5.2, "Truncation Pattern", for further information.
     ///
     pub type V2Time = V2DateTime;
-
-    impl TryFrom<&str> for V2Time {
-        type Error = V2String;
-        fn try_from(input: &str) -> V2Result<Self> {
-            match input.len() {
-                0..=1 => Err(format_compact!("Cannot build V2Date type due to the string input being smaller than 2 characters. => [{}] ", input)),
-                2..=16 => Ok(Self::from_str(input)),
-                _ => Err(format_compact!("Cannot build V2Date type due to the string input being larger than 16 characters. => [{}] ", input)),
-            }
-        }
-    }
-
     ///
     /// 2A.3.47 NM - numeric
     ///
@@ -509,6 +572,35 @@ pub mod v2_base_types {
         INTEGER,
         DECIMAL,
         V2STRING,
+    }
+}
+
+pub mod v2_primitives {
+    use rumtk_core::strings::{format_compact, ToCompactString, UTFStringExtensions};
+    use crate::hl7_v2_base_types::v2_base_types::*;
+
+    pub fn to_datetime(input: &str) -> V2Result<V2DateTime> {
+        let truncated_input = input.truncate(24);
+        match input.len() {
+            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
+            _ => Ok(V2DateTime::from_str(&truncated_input)),
+        }
+    }
+
+    pub fn to_date(input: &str) -> V2Result<V2Date> {
+        let truncated_input = input.truncate(8);
+        match input.len() {
+            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
+            _ => Ok(V2Date::from_str(&truncated_input)),
+        }
+    }
+
+    pub fn to_time(input: &str) -> V2Result<V2Date> {
+        let truncated_input = input.truncate(16);
+        match input.len() {
+            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
+            _ => Ok(V2Date::from_str(format_compact!("00000000{}", &truncated_input).as_str())),
+        }
     }
 }
 
