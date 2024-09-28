@@ -30,6 +30,8 @@ const ESCAPED_STRING_WINDOW: usize = 6;
 const ASCII_ESCAPE_CHAR: char = '\\';
 const MIN_ASCII_READABLE: char = ' ';
 const MAX_ASCII_READABLE: char = '~';
+const EMPTY_STRING: &str = "";
+const EMPTY_STRING_OPTION: Option<&str> = Some("");
 const READABLE_ASCII: &str = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 /**************************** Types *****************************************/
@@ -47,6 +49,13 @@ pub type RUMString = CompactString;
 pub trait UTFStringExtensions {
     fn count_graphemes(&self) -> usize;
 
+    ///
+    /// Return a grapheme unit which could span multiple Unicode codepoints or "characters".
+    ///
+    /// # Note
+    ///
+    ///     If the grapheme requested does not exists, this method will return a blank string.
+    ///
     fn get_grapheme(&self, index: usize) -> &str;
 
     #[inline(always)]
@@ -106,7 +115,7 @@ impl UTFStringExtensions for RUMString {
 
     #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str {
-        self.graphemes(true).nth(index).unwrap()
+        self.graphemes(true).nth(index).or(EMPTY_STRING_OPTION).unwrap()
     }
 }
 
@@ -120,7 +129,7 @@ impl UTFStringExtensions for str {
 
     #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str {
-        self.graphemes(true).nth(index).unwrap()
+        self.graphemes(true).nth(index).or(EMPTY_STRING_OPTION).unwrap()
     }
 }
 
