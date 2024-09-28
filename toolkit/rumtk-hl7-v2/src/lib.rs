@@ -35,6 +35,7 @@ mod tests {
     use super::*;
     use hl7_v2_parser::v2_parser::*;
     use hl7_v2_base_types::v2_base_types::*;
+    use hl7_v2_base_types::v2_primitives::*;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{RUMString, format_compact};
     use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
@@ -326,5 +327,15 @@ mod tests {
                 println!("Passed failed case!");
             }
         }
+    }
+
+    #[test]
+    fn test_cast_component_to_datetime() {
+        let location = "EVN2"; //EVN|A01|200708181123||\n\
+        let expected_component = "200708181123";
+        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let component = v2_find_component!(message, location).unwrap();
+        assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
+        let val = to_datetime(component.as_str()).unwrap();
     }
 }

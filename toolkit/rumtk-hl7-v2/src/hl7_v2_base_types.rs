@@ -581,7 +581,15 @@ pub mod v2_primitives {
     use crate::hl7_v2_base_types::v2_base_types::*;
 
     /**************************** Constants**************************************/
-    const REGEX_VALIDATE_NM: &str = r"\d+.\d?|^\d+";
+    //Truncation limits
+    const TRUNCATE_DATETIME: u8 = 24;
+    const TRUNCATE_DATE: u8 = 8;
+    const TRUNCATE_TIME: u8 = 16;
+    const TRUNCATE_NM: u8 = 16;
+
+    // Regex
+    const REGEX_VALIDATE_NM: &str = r"(\+|\-)|(\d+.\d?e\d+|\d+e\d+|\d+.\d?|^\d+)";
+    const REGEX_VALIDATE_DATETIME: &str = r"^\d{6}(\+|\-)\d{4}|^\d{6}\.\d+|^\d{6}|^\d{4}|^\d{2}";
 
     /****************************** API *****************************************/
     pub fn validate_type(input: &str, regex: &str) -> V2Result<RUMString> {
@@ -594,32 +602,35 @@ pub mod v2_primitives {
     }
 
     pub fn to_datetime(input: &str) -> V2Result<V2DateTime> {
-        let truncated_input = input.truncate(24);
+        let truncated_input = input.truncate(TRUNCATE_DATETIME as usize);
+        let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
         match input.len() {
             0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
-            _ => Ok(V2DateTime::from_str(&truncated_input)),
+            _ => Ok(V2DateTime::from_str(&validated)),
         }
     }
 
     pub fn to_date(input: &str) -> V2Result<V2Date> {
-        let truncated_input = input.truncate(8);
+        let truncated_input = input.truncate(TRUNCATE_DATE as usize);
+        let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
         match input.len() {
-            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
-            _ => Ok(V2Date::from_str(&truncated_input)),
+            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 4 characters. => [{}] ", input)),
+            _ => Ok(V2Date::from_str(&validated)),
         }
     }
 
     pub fn to_time(input: &str) -> V2Result<V2Date> {
-        let truncated_input = input.truncate(16);
+        let truncated_input = input.truncate(TRUNCATE_TIME as usize);
+        let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
         match input.len() {
-            0..=4 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
-            _ => Ok(V2Date::from_str(format_compact!("00000000{}", &truncated_input).as_str())),
+            0..=2 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
+            _ => Ok(V2Date::from_str(format_compact!("00000000{}", &validated).as_str())),
         }
     }
 
     pub fn to_number(input: &str) -> V2Result<V2NM> {
-        let truncated_input = input.truncate(16);
-        let validated = validate_type(&truncated_input, REGEX_VALIDATE_NM)?;
+        let truncated_input = input.truncate(TRUNCATE_NM as usize);
+        let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_NM)?;
         match validated.parse::<V2NM>() {
             Ok(val) => Ok(val),
             Err(why) => Err(format_compact!("Error parsing string into numeric type V2NM. Input: {}", validated))
