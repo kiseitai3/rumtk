@@ -336,6 +336,9 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
-        let val = to_datetime(component.as_str()).unwrap();
+        let date = to_datetime(component.as_str()).unwrap();
+        let expected_utc = "2007-8-18T11:23:0.0";
+        let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
+        assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
     }
 }

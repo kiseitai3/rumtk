@@ -22,10 +22,15 @@ pub mod v2_base_types {
     use chrono::prelude::*;
     use rumtk_core::strings::{count_tokens_ignoring_pattern, format_compact, ToCompactString, UTFStringExtensions};
     use rumtk_core::maths::generate_tenth_factor;
-    use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
+    use rumtk_core::search::rumtk_search::{string_search, string_search_named_captures, SearchGroups};
     use crate::hl7_v2_constants::{V2_DATETIME_MIRCRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
     use rumtk_core::strings::{RUMString};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
+
+    /**************************** Constants**************************************/
+    // Regex
+    const REGEX_DT_TIMEZONE: &str = r"\+\d{4}|\-\d{4}";
+
     /**************************** Traits ****************************************/
 
 
@@ -305,32 +310,31 @@ pub mod v2_base_types {
         ///
         /// Take a string view as input.
         ///
+        /// Return an instance of V2DateTime. This instance may be empty if the input is malformed.
+        ///
         pub fn from_str(item: &str) -> V2DateTime {
             let dt_vec: Vec<&str> = item.split('.').collect();
-            let mut offset_sign = "+";
-            let mut ms_vec: Vec<&str> = dt_vec.last().unwrap().split(&offset_sign).collect();
-            if count_tokens_ignoring_pattern(&ms_vec, &RUMString::from(" ")) < 2 {
-                ms_vec = dt_vec.last().unwrap().split('-').collect();
-                offset_sign = "-";
-            }
-
             let (year, month, day, hour, minute, second) =
                 Self::decompose_dt_str(&RUMString::from(dt_vec[0]));
 
-            // Now let's grab the two components of the vector and generate the microsecond and offset bits.
-            let ms_string = ms_vec[0];
-            let ms_string_len = ms_string.len();
-            let microsecond = match ms_string_len {
-                0 => 0,
-                _ => ms_string.parse::<u32>().unwrap() *
-                    generate_tenth_factor(
-                        (V2_DATETIME_MIRCRO_LENGTH - (ms_string_len as u8)) as u32)
-            };
+            match dt_vec.len() {
+                1 => V2DateTime { year, month, day, hour, minute, second, microsecond: 0, offset: "".to_compact_string() },
+                2 => {
+                    let extended_dt_str = dt_vec.last().unwrap();
+                    let offset = string_search(extended_dt_str, REGEX_DT_TIMEZONE, "");
+                    let ms_string = extended_dt_str.split(&offset.as_str()).collect::<Vec<&str>>()[0];
+                    let ms_string_len = ms_string.trim().len();
+                    let microsecond = match ms_string_len {
+                        0 => 0,
+                        _ => ms_string.parse::<u32>().unwrap() *
+                            generate_tenth_factor(
+                                (V2_DATETIME_MIRCRO_LENGTH - (ms_string_len as u8)) as u32)
+                    };
+                    V2DateTime { year, month, day, hour, minute, second, microsecond, offset }
 
-            let offset: V2String = offset_sign.to_compact_string() + ms_vec[1];
-
-
-            V2DateTime { year, month, day, hour, minute, second, microsecond, offset }
+                },
+                _ => V2DateTime::new()
+            }
         }
 
         /// Take date time string in the format YYYY\[MMDDHHmmss\] and decompose it into numerical
@@ -378,15 +382,13 @@ pub mod v2_base_types {
                     minute = dt_str[10..12].parse::<u8>().unwrap();
                     second = dt_str[12..].parse::<u8>().unwrap();
                 }
-                _ => {
-
-                }
+                _ => ()
             }
             (year, month, day, hour, minute, second)
         }
 
-        pub fn as_utc_string(&self) -> String {
-            format!(
+        pub fn as_utc_string(&self) -> V2String {
+            format_compact!(
                 "{year}-{month}-{day}T{hour}:{minute}:{second}.{microsecond}{offset}",
                 year = self.year,
                 month = self.month,
@@ -589,12 +591,12 @@ pub mod v2_primitives {
 
     // Regex
     const REGEX_VALIDATE_NM: &str = r"(\+|\-)|(\d+.\d?e\d+|\d+e\d+|\d+.\d?|^\d+)";
-    const REGEX_VALIDATE_DATETIME: &str = r"^\d{6}(\+|\-)\d{4}|^\d{6}\.\d+|^\d{6}|^\d{4}|^\d{2}";
+    const REGEX_VALIDATE_DATETIME: &str = r"^\d{6}(\+|\-)\d{4}|^\d{6}\.\d+|^\d{12}|^\d{6}|^\d{4}|^\d{2}";
 
     /****************************** API *****************************************/
     pub fn validate_type(input: &str, regex: &str) -> V2Result<RUMString> {
         let r = string_search(input, regex, "");
-        if r.len() == 0 {
+        if r.len() > 0 {
             Ok(r)
         } else {
             Err(format_compact!("Empty results detected! Input string validation failure! Input: {}\nRegex used: {}", input, regex))
