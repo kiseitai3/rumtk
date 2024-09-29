@@ -28,7 +28,7 @@ pub const V2_SEGMENT_TERMINATOR: char = '\r';
 pub const V2_TRUNCATION_CHARACTER: char = '#';
 
 pub const V2_DATETIME_THOUSAND_TICK: u16 = 1000;
-pub const V2_DATETIME_MIRCRO_LENGTH: u8 = 6;
+pub const V2_DATETIME_MICRO_LENGTH: u8 = 4;
 pub const V2_EMPTY_STRING: &str = "";
 
 pub type ElementDesc = Map<&'static str, &'static str>;

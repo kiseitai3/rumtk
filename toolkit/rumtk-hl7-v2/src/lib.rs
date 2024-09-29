@@ -330,15 +330,33 @@ mod tests {
     }
 
     #[test]
-    fn test_cast_component_to_datetime() {
-        let location = "EVN2"; //EVN|A01|200708181123||\n\
+    fn test_cast_component_to_datetime_expected_functionality() {
+        let inputs  = ["2007", "200708", "20070818", "200708181123","20070818112355", "20070818112355.55", "20070818112355.5555-5000", "20070818112355-5000"];
+        let expected_outputs = ["2007-01-01T00:00:00.0000", "2007-08-01T00:00:00.0000", "2007-08-18T00:00:00.0000", "2007-08-18T11:23:00.0000", "2007-08-18T11:23:55.0000", "2007-08-18T11:23:55.5500", "2007-08-18T11:23:55.5555-5000", "2007-08-18T11:23:55.0000-5000"];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_utc = expected_outputs[i];
+            print!("Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.", i, input, expected_utc);
+            let date = to_datetime(input).unwrap();
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", date.as_utc_string());
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_datetime_base_example() {
+        let location = "EVN2"; //EVN|A01|200708181123||\n\r; EVN2 => segment = EVN, field = 2
         let expected_component = "200708181123";
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
         let date = to_datetime(component.as_str()).unwrap();
-        let expected_utc = "2007-8-18T11:23:0.0";
+        let expected_utc = "2007-08-18T11:23:00.0000";
         let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
     }
+
+    // TODO: Add fuzzing test for to_datetime().
+    // TODO: Refactor to_* validation functions to trait methods. Name trait PrimitiveTypeCasting. Apply trait to V2Component.
 }
