@@ -37,7 +37,7 @@ mod tests {
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
     use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::{RUMString, format_compact};
+    use rumtk_core::strings::{RUMString, format_compact, AsStr};
     use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     /**********************************Constants**************************************/
@@ -337,7 +337,7 @@ mod tests {
             let input = inputs[i];
             let expected_utc = expected_outputs[i];
             print!("Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.", i, input, expected_utc);
-            let date = to_datetime(input).unwrap();
+            let date = input.to_datetime().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
@@ -351,12 +351,11 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
-        let date = to_datetime(component.as_str()).unwrap();
+        let date = component.to_datetime().unwrap();
         let expected_utc = "2007-08-18T11:23:00.0000";
         let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
     }
 
     // TODO: Add fuzzing test for to_datetime().
-    // TODO: Refactor to_* validation functions to trait methods. Name trait PrimitiveTypeCasting. Apply trait to V2Component.
 }

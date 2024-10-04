@@ -101,6 +101,10 @@ pub trait UTFStringExtensions {
     }
 }
 
+pub trait AsStr {
+    fn as_str(&self) -> &str;
+}
+
 pub trait RUMStringConversions: ToString {
     fn to_rumstring(&self) -> RUMString {
         RUMString::from(self.to_string())
@@ -120,6 +124,11 @@ impl UTFStringExtensions for RUMString {
 }
 
 impl RUMStringConversions for RUMString { }
+impl AsStr for RUMString {
+    fn as_str(&self) -> &str {
+        self.as_str()
+    }
+}
 
 impl UTFStringExtensions for str {
     #[inline(always)]
@@ -134,6 +143,12 @@ impl UTFStringExtensions for str {
 }
 
 impl RUMStringConversions for str { }
+
+impl AsStr for str {
+    fn as_str(&self) -> &str {
+        self
+    }
+}
 
 impl RUMStringConversions for char { }
 

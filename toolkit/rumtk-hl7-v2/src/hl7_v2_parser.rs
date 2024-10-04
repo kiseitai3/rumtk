@@ -36,9 +36,9 @@
 pub mod v2_parser {
     use std::ops::{Index, IndexMut};
     use std::collections::VecDeque;
-    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions, RUMStringConversions, try_decode, try_decode_with};
+    use rumtk_core::strings::{RUMString, format_compact, unescape_string, UTFStringExtensions, RUMStringConversions, try_decode, try_decode_with, AsStr};
     use rumtk_core::cache::{AHashMap, new_cache, get_or_set_from_cache, LazyRUMCache};
-    use crate::hl7_v2_base_types::v2_base_types::{V2String, V2DateTime, V2Result, V2SearchIndex};
+    use crate::hl7_v2_base_types::v2_primitives::{V2String, V2DateTime, V2Result, V2SearchIndex, V2PrimitiveCasting};
     use crate::hl7_v2_constants::{V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_DELETE_FIELD,
                                   V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER, V2_EMPTY_STRING,
                                   V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
@@ -191,11 +191,15 @@ pub mod v2_parser {
         pub fn as_float(&self) -> f64 {
             self.component.parse::<f64>().unwrap()
         }
+    }
 
-        pub fn as_str(&self) -> &str {
+    impl AsStr for V2Component {
+        fn as_str(&self) -> &str {
             self.component.as_str()
         }
     }
+
+    impl V2PrimitiveCasting for V2Component {  }
 
     pub type ComponentList = Vec<V2Component>;
 
