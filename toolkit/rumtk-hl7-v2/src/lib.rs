@@ -18,28 +18,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-
-pub mod hl7_v2_parser;
-pub mod hl7_v2_interpreter;
-mod hl7_v2_constants;
-pub mod hl7_v2_types;
-pub mod hl7_v2_search;
-mod hl7_v2_base_types;
-
 extern crate rumtk_core;
-
+mod hl7_v2_base_types;
+mod hl7_v2_constants;
+pub mod hl7_v2_interpreter;
+pub mod hl7_v2_parser;
+pub mod hl7_v2_search;
+pub mod hl7_v2_types;
 
 /*****************************************Tests****************************************/
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hl7_v2_parser::v2_parser::*;
-    use hl7_v2_base_types::v2_base_types::*;
-    use hl7_v2_base_types::v2_primitives::*;
-    use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::{RUMString, format_compact, AsStr};
     use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
+    use hl7_v2_base_types::v2_base_types::*;
+    use hl7_v2_base_types::v2_primitives::*;
+    use hl7_v2_parser::v2_parser::*;
+    use rumtk_core::search::rumtk_search::*;
+    use rumtk_core::strings::{format_compact, AsStr, RUMString};
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -105,22 +102,52 @@ mod tests {
         let field = V2Field::from_str(&field_str, &encode_chars);
         println!("{:#?}", &field);
         assert_eq!(field.len(), 3, "Wrong number of components in field");
-        println!("Value in component {} => {}!", 0, field.get(1).unwrap().as_str());
-        assert_eq!(field.get(1).unwrap().as_str(), "2000", "Wrong value in component!");
-        println!("Value in component {} => {}!", 1, field.get(2).unwrap().as_str());
-        assert_eq!(field.get(2).unwrap().as_str(), "2012", "Wrong value in component!");
-        println!("Value in component {} => {}!", 2, field.get(3).unwrap().as_str());
-        assert_eq!(field.get(3).unwrap().as_str(), "01", "Wrong value in component!");
+        println!(
+            "Value in component {} => {}!",
+            0,
+            field.get(1).unwrap().as_str()
+        );
+        assert_eq!(
+            field.get(1).unwrap().as_str(),
+            "2000",
+            "Wrong value in component!"
+        );
+        println!(
+            "Value in component {} => {}!",
+            1,
+            field.get(2).unwrap().as_str()
+        );
+        assert_eq!(
+            field.get(2).unwrap().as_str(),
+            "2012",
+            "Wrong value in component!"
+        );
+        println!(
+            "Value in component {} => {}!",
+            2,
+            field.get(3).unwrap().as_str()
+        );
+        assert_eq!(
+            field.get(3).unwrap().as_str(),
+            "01",
+            "Wrong value in component!"
+        );
     }
 
     #[test]
     fn test_sanitize_hl7_v2_message() {
         let message = tests::DEFAULT_HL7_V2_MESSAGE;
         let sanitized_message = V2Message::sanitize(message);
-        println!("{}",message);
-        println!("{}",sanitized_message);
-        assert!(message.contains('\n'), "Raw message has new line characters.");
-        assert!(!sanitized_message.contains('\n'), "Sanitized message has new line characters.");
+        println!("{}", message);
+        println!("{}", sanitized_message);
+        assert!(
+            message.contains('\n'),
+            "Raw message has new line characters."
+        );
+        assert!(
+            !sanitized_message.contains('\n'),
+            "Sanitized message has new line characters."
+        );
         assert!(!sanitized_message.contains("\r\r"), "Sanitizer failed to consolidate double carriage returns into a single carriage return per instance..");
     }
 
@@ -130,7 +157,11 @@ mod tests {
         let sanitized_message = V2Message::sanitize(message);
         let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
         println!("Token count {}", tokens.len());
-        assert_eq!(tokens.len(), 5, "Tokenizer generated the wrong number of tokens! We expected 5 segment tokens.");
+        assert_eq!(
+            tokens.len(),
+            5,
+            "Tokenizer generated the wrong number of tokens! We expected 5 segment tokens."
+        );
     }
 
     #[test]
@@ -140,13 +171,34 @@ mod tests {
         let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
         let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
         println!("{:#?}", encode_chars);
-        assert!(encode_chars.segment_terminator.contains('\r'), "Wrong segment character!");
-        assert!(encode_chars.field_separator.contains('|'), "Wrong field character!");
-        assert!(encode_chars.component_separator.contains('^'), "Wrong component character!");
-        assert!(encode_chars.repetition_separator.contains('~'), "Wrong repetition character!");
-        assert!(encode_chars.escape_character.contains('\\'), "Wrong escape character!");
-        assert!(encode_chars.subcomponent_separator.contains('&'), "Wrong subcomponent character!");
-        assert!(encode_chars.truncation_character.contains('#'), "Wrong truncation character!");
+        assert!(
+            encode_chars.segment_terminator.contains('\r'),
+            "Wrong segment character!"
+        );
+        assert!(
+            encode_chars.field_separator.contains('|'),
+            "Wrong field character!"
+        );
+        assert!(
+            encode_chars.component_separator.contains('^'),
+            "Wrong component character!"
+        );
+        assert!(
+            encode_chars.repetition_separator.contains('~'),
+            "Wrong repetition character!"
+        );
+        assert!(
+            encode_chars.escape_character.contains('\\'),
+            "Wrong escape character!"
+        );
+        assert!(
+            encode_chars.subcomponent_separator.contains('&'),
+            "Wrong subcomponent character!"
+        );
+        assert!(
+            encode_chars.truncation_character.contains('#'),
+            "Wrong truncation character!"
+        );
     }
 
     #[test]
@@ -162,22 +214,56 @@ mod tests {
         for k in keys {
             print!("{} ", V2_SEGMENT_NAMES[k]);
         }
-        assert_eq!(parsed_segments.len(), 5, "Number of segments mismatching what was expected!");
-        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
-        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
-        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
-        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
-        assert!(parsed_segments.contains_key(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
+        assert_eq!(
+            parsed_segments.len(),
+            5,
+            "Number of segments mismatching what was expected!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["PID"]),
+            "Missing PID segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["PV1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["EVN"]),
+            "Missing EVN segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["NK1"]),
+            "Missing NK1 segment!"
+        );
     }
 
     #[test]
     fn test_load_hl7_v2_message() {
         let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE);
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PID"]),
+            "Missing PID segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PV1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["EVN"]),
+            "Missing EVN segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["NK1"]),
+            "Missing NK1 segment!"
+        );
     }
 
     ///
@@ -189,12 +275,30 @@ mod tests {
     #[test]
     fn test_load_hl7_v2_message_wir_iis() {
         let message = V2Message::from_str(tests::HL7_V2_MESSAGE);
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["FHS"]), "Missing FHS segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["FTS"]), "Missing FTS segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["BHS"]), "Missing BHS segment!");
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["FHS"]),
+            "Missing FHS segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["NK1"]),
+            "Missing NK1 segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PV1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["FTS"]),
+            "Missing FTS segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["BHS"]),
+            "Missing BHS segment!"
+        );
     }
 
     ///
@@ -207,14 +311,34 @@ mod tests {
         let orc = message.get(&V2_SEGMENT_IDS["ORC"], 1).unwrap();
         let obr = message.get(&V2_SEGMENT_IDS["OBR"], 1).unwrap();
         let name1 = pid.get(5).unwrap().get(0).unwrap().get(1).unwrap().as_str();
-        let name2 = orc.get(12).unwrap().get(0).unwrap().get(3).unwrap().as_str();
-        let name3 = obr.get(16).unwrap().get(0).unwrap().get(3).unwrap().as_str();
+        let name2 = orc
+            .get(12)
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .get(3)
+            .unwrap()
+            .as_str();
+        let name3 = obr
+            .get(16)
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .get(3)
+            .unwrap()
+            .as_str();
         println!("{}", name1);
         println!("{}", name2);
         println!("{}", name3);
         assert_eq!(name1, SPANISH_NAME, "Wrong name/string found in PID(1)5.1!");
-        assert_eq!(name2, SANSKRIT_NAME, "Wrong name/string found in ORC(1)12.3!");
-        assert_eq!(name3, HIRAGANA_NAME, "Wrong name/string found in OBR(1)16.3!");
+        assert_eq!(
+            name2, SANSKRIT_NAME,
+            "Wrong name/string found in ORC(1)12.3!"
+        );
+        assert_eq!(
+            name3, HIRAGANA_NAME,
+            "Wrong name/string found in OBR(1)16.3!"
+        );
     }
 
     ///
@@ -224,15 +348,48 @@ mod tests {
     fn test_handle_hl7_v2_message_with_repeating_fields() {
         let message = V2Message::from_str(tests::HL7_V2_REPEATING_FIELD_MESSAGE);
         let msh = message.get(&V2_SEGMENT_IDS["MSH"], 1).unwrap();
-        let field1 = msh.get(-1).unwrap().get(0).unwrap().get(4).unwrap().as_str();
-        let field2 = msh.get(-1).unwrap().get(1).unwrap().get(1).unwrap().as_str();
-        let field3 = msh.get(-1).unwrap().get(2).unwrap().get(1).unwrap().as_str();
-        assert_eq!(msh.get(-1).unwrap().len(), 3, "Wrong number of subfields in group in MSH(1)-1!");
-        assert_eq!(field1, repeate_field1, "Wrong field contents found in MSH(1)-1(0).4!");
-        assert_eq!(field2, repeate_field2, "Wrong field contents found in MSH(1)-1(1).1!");
-        assert_eq!(field3, repeate_field3, "Wrong field contents found in MSH(1)-1(2).1!");
+        let field1 = msh
+            .get(-1)
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .get(4)
+            .unwrap()
+            .as_str();
+        let field2 = msh
+            .get(-1)
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .as_str();
+        let field3 = msh
+            .get(-1)
+            .unwrap()
+            .get(2)
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .as_str();
+        assert_eq!(
+            msh.get(-1).unwrap().len(),
+            3,
+            "Wrong number of subfields in group in MSH(1)-1!"
+        );
+        assert_eq!(
+            field1, repeate_field1,
+            "Wrong field contents found in MSH(1)-1(0).4!"
+        );
+        assert_eq!(
+            field2, repeate_field2,
+            "Wrong field contents found in MSH(1)-1(1).1!"
+        );
+        assert_eq!(
+            field3, repeate_field3,
+            "Wrong field contents found in MSH(1)-1(2).1!"
+        );
     }
-
 
     #[test]
     fn test_handle_hl7_v2_search_pattern_parsing_full() {
@@ -243,12 +400,17 @@ mod tests {
             (RUMString::new("sub_field"), RUMString::new("5")),
             (RUMString::new("segment"), RUMString::new("MSH")),
             (RUMString::new("field"), RUMString::new("-1")),
-            (RUMString::new("component"), RUMString::new("4"))
+            (RUMString::new("component"), RUMString::new("4")),
         ]);
-        println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
-        assert_eq!(groups, expected, "Misparsed search expression MSH(1)-1[5].4!");
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            pattern, expected, groups
+        );
+        assert_eq!(
+            groups, expected,
+            "Misparsed search expression MSH(1)-1[5].4!"
+        );
     }
-
 
     #[test]
     fn test_handle_hl7_v2_search_pattern_parsing_simple() {
@@ -259,9 +421,12 @@ mod tests {
             (RUMString::new("sub_field"), RUMString::new("1")),
             (RUMString::new("segment"), RUMString::new("MSH")),
             (RUMString::new("field"), RUMString::new("1")),
-            (RUMString::new("component"), RUMString::new("4"))
+            (RUMString::new("component"), RUMString::new("4")),
         ]);
-        println!("Input: {:?} Expected: {:?} Got: {:?}", pattern, expected, groups);
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            pattern, expected, groups
+        );
         assert_eq!(groups, expected, "Misparsed search expression MSH1.4!");
     }
 
@@ -270,24 +435,48 @@ mod tests {
         let expr = "MSH(1)-1[5].4";
         let v2_search_index = V2SearchIndex::from(expr);
         let expected = V2SearchIndex::new("MSH", 1, -1, 5, 4);
-        println!("Input: {:?} Expected: {:?} Got: {:?}", expr, expected, v2_search_index);
-        assert_eq!(v2_search_index, expected, "Failed to parse expression into correct SearchIndex object.");
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            expr, expected, v2_search_index
+        );
+        assert_eq!(
+            v2_search_index, expected,
+            "Failed to parse expression into correct SearchIndex object."
+        );
     }
 
     #[test]
     fn test_load_hl7_v2_message_macro() {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["MSH"]), "Missing MSH segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["PID"]), "Missing PID segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["PV1"]), "Missing PV1 segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["EVN"]), "Missing EVN segment!");
-        assert!(message.segment_exists(&V2_SEGMENT_IDS["NK1"]), "Missing NK1 segment!");
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PID"]),
+            "Missing PID segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PV1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["EVN"]),
+            "Missing EVN segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["NK1"]),
+            "Missing NK1 segment!"
+        );
     }
 
     #[test]
     fn test_load_hl7_v2_message_macro_failure() {
         let input = "Hello World!";
-        let err_msg = format_compact!("Parsing did not fail as expected. Input {} => parsed?", input);
+        let err_msg = format_compact!(
+            "Parsing did not fail as expected. Input {} => parsed?",
+            input
+        );
         match v2_parse_message!(input) {
             Ok(v) => panic!("{}", err_msg.as_str()),
             Err(e) => {
@@ -303,7 +492,14 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, pattern).unwrap();
         let expected = "III";
-        assert_eq!(component.as_str(), expected, "Wrong component found! Looked for {} expecting {}, but got {}", pattern, expected, component.as_str());
+        assert_eq!(
+            component.as_str(),
+            expected,
+            "Wrong component found! Looked for {} expecting {}, but got {}",
+            pattern,
+            expected,
+            component.as_str()
+        );
     }
 
     #[test]
@@ -312,13 +508,23 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, pattern).unwrap();
         let expected = "III";
-        assert_eq!(component.as_str(), expected, "Wrong component found! Looked for {} expecting {}, but got {}", pattern, expected, component.as_str());
+        assert_eq!(
+            component.as_str(),
+            expected,
+            "Wrong component found! Looked for {} expecting {}, but got {}",
+            pattern,
+            expected,
+            component.as_str()
+        );
     }
 
     #[test]
     fn test_find_hl7_v2_message_component_macro_failure() {
         let pattern = "PID(1)15.4";
-        let err_msg = format_compact!("Search did not fail as expected. Input {} => found component?", pattern);
+        let err_msg = format_compact!(
+            "Search did not fail as expected. Input {} => found component?",
+            pattern
+        );
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         match v2_find_component!(message, pattern) {
             Ok(v) => panic!("{}", err_msg.as_str()),
@@ -331,16 +537,56 @@ mod tests {
 
     #[test]
     fn test_cast_component_to_datetime_expected_functionality() {
-        let inputs  = ["2007", "200708", "20070818", "200708181123","20070818112355", "20070818112355.55", "20070818112355.5555-5000", "20070818112355-5000"];
-        let expected_outputs = ["2007-01-01T00:00:00.0000", "2007-08-01T00:00:00.0000", "2007-08-18T00:00:00.0000", "2007-08-18T11:23:00.0000", "2007-08-18T11:23:55.0000", "2007-08-18T11:23:55.5500", "2007-08-18T11:23:55.5555-5000", "2007-08-18T11:23:55.0000-5000"];
+        let inputs = [
+            "2007",
+            "200708",
+            "20070818",
+            "200708181123",
+            "20070818112355",
+            "20070818112355.55",
+            "20070818112355.5555-5000",
+            "20070818112355-5000",
+        ];
+        let expected_outputs = [
+            "2007-01-01T00:00:00.0000",
+            "2007-08-01T00:00:00.0000",
+            "2007-08-18T00:00:00.0000",
+            "2007-08-18T11:23:00.0000",
+            "2007-08-18T11:23:55.0000",
+            "2007-08-18T11:23:55.5500",
+            "2007-08-18T11:23:55.5555-5000",
+            "2007-08-18T11:23:55.0000-5000",
+        ];
         for i in 0..inputs.len() {
             let input = inputs[i];
             let expected_utc = expected_outputs[i];
-            print!("Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.", i, input, expected_utc);
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
+                i, input, expected_utc
+            );
             let date = input.to_datetime().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_datetime_validation() {
+        let input = "200";
+        let expected_outputs: Option<V2DateTime> = None;
+        match input.to_datetime() {
+            Ok(date) => {
+                panic!(
+                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                    input,
+                    date.as_utc_string()
+                );
+            }
+            Err(e) => println!(
+                "Validation correctly identified malformed input with message => [{}] ✅",
+                e.as_str()
+            ),
         }
     }
 
@@ -355,6 +601,102 @@ mod tests {
         let expected_utc = "2007-08-18T11:23:00.0000";
         let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
+    }
+
+    #[test]
+    fn test_cast_component_to_date_expected_functionality() {
+        let inputs = ["2007", "200708", "20070818"];
+        let expected_outputs = [
+            "2007-01-01T00:00:00.0000",
+            "2007-08-01T00:00:00.0000",
+            "2007-08-18T00:00:00.0000",
+        ];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_utc = expected_outputs[i];
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
+                i, input, expected_utc
+            );
+            let date = input.to_date().unwrap();
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", date.as_utc_string());
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_date_validation() {
+        let input = "200";
+        let expected_outputs: Option<V2DateTime> = None;
+        match input.to_date() {
+            Ok(date) => {
+                panic!(
+                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                    input,
+                    date.as_utc_string()
+                );
+            }
+            Err(e) => println!(
+                "Validation correctly identified malformed input with message => [{}] ✅",
+                e.as_str()
+            ),
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_date_base_example() {
+        let location = "PD113"; //EVN|A01|200708181123||\n\r; PD113 => segment = PD1, field = 13
+        let expected_component = "20150625";
+        let message = v2_parse_message!(tests::VXU_HL7_V2_MESSAGE).unwrap();
+        let component = v2_find_component!(message, location).unwrap();
+        assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
+        let date = component.to_date().unwrap();
+        let expected_utc = "2015-06-25T00:00:00.0000";
+        let err_msg = format_compact!("The expected date string does not match the date string generated from the V2Component [{}]", component.as_str());
+        assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
+    }
+
+    #[test]
+    fn test_cast_component_to_time_expected_functionality() {
+        let inputs = ["1123", "112355", "112355.5555", "112355.5555-5000"];
+        let expected_outputs = [
+            "1970-01-01T11:23:00.0000",
+            "1970-01-01T11:23:55.0000",
+            "1970-01-01T11:23:55.5555",
+            "1970-01-01T11:23:55.5555-5000",
+        ];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_utc = expected_outputs[i];
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
+                i, input, expected_utc
+            );
+            let date = input.to_time().unwrap();
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", date.as_utc_string());
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_time_validation() {
+        let input = "2";
+        let expected_outputs: Option<V2DateTime> = None;
+        match input.to_time() {
+            Ok(date) => {
+                panic!(
+                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                    input,
+                    date.as_utc_string()
+                );
+            }
+            Err(e) => println!(
+                "Validation correctly identified malformed input with message => [{}] ✅",
+                e.as_str()
+            ),
+        }
     }
 
     // TODO: Add fuzzing test for to_datetime().

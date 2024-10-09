@@ -19,20 +19,23 @@
  */
 
 pub mod v2_base_types {
-    use chrono::prelude::*;
-    use rumtk_core::strings::{count_tokens_ignoring_pattern, format_compact, ToCompactString, UTFStringExtensions};
-    use rumtk_core::maths::generate_tenth_factor;
-    use rumtk_core::search::rumtk_search::{string_search, string_search_named_captures, SearchGroups};
-    use crate::hl7_v2_constants::{V2_DATETIME_MICRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS};
-    use rumtk_core::strings::{RUMString};
+    use crate::hl7_v2_constants::{
+        V2_DATETIME_MICRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS,
+    };
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
+    use chrono::prelude::*;
+    use rumtk_core::maths::generate_tenth_factor;
+    use rumtk_core::search::rumtk_search::{
+        string_search, string_search_named_captures, SearchGroups,
+    };
+    use rumtk_core::strings::RUMString;
+    use rumtk_core::strings::{format_compact, ToCompactString};
 
     /**************************** Constants**************************************/
     // Regex
     const REGEX_DT_TIMEZONE: &str = r"(\-|\+)\d{4}";
 
     /**************************** Traits ****************************************/
-
 
     /**************************** Types *****************************************/
 
@@ -55,26 +58,37 @@ pub mod v2_base_types {
     }
 
     impl V2SearchIndex {
-        pub fn new(_segment: &str, _segment_group: u8, _field: i16, _sub_field: u8, _component: i16) -> V2SearchIndex {
+        pub fn new(
+            _segment: &str,
+            _segment_group: u8,
+            _field: i16,
+            _sub_field: u8,
+            _component: i16,
+        ) -> V2SearchIndex {
             V2SearchIndex {
                 segment: *V2_SEGMENT_IDS.get(_segment).unwrap(),
                 segment_group: _segment_group,
                 field_group: _sub_field,
                 field: _field,
-                component: _component
+                component: _component,
             }
         }
 
         pub fn from(expr: &str) -> V2SearchIndex {
             match Self::expr_type(expr) {
-                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr)
+                V2_SEARCH_EXPR_TYPE::V2_DEFAULT => Self::from_v2_default(expr),
             }
         }
 
         fn from_v2_default(expr: &str) -> V2SearchIndex {
-            let expr_groups: SearchGroups = string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
+            let expr_groups: SearchGroups =
+                string_search_named_captures(expr, REGEX_V2_SEARCH_DEFAULT, "1");
             let _segment = expr_groups.get("segment").unwrap();
-            let _segment_group: u8 = expr_groups.get("segment_group").unwrap().parse().unwrap_or(1);
+            let _segment_group: u8 = expr_groups
+                .get("segment_group")
+                .unwrap()
+                .parse()
+                .unwrap_or(1);
             let _field: i16 = expr_groups.get("field").unwrap().parse().unwrap_or(1);
             let _sub_field: u8 = expr_groups.get("sub_field").unwrap().parse().unwrap_or(1);
             let _component: i16 = expr_groups.get("component").unwrap().parse().unwrap_or(1);
@@ -274,7 +288,7 @@ pub mod v2_base_types {
         minute: u8,
         second: u8,
         microsecond: u32,
-        offset: V2String
+        offset: V2String,
     }
 
     impl V2DateTime {
@@ -303,7 +317,7 @@ pub mod v2_base_types {
         /// > The Unix time 0 is exactly midnight UTC on 1 January 1970, with Unix time incrementing
         /// > by 1 for every non-leap second after this.
         ///
-        pub fn unix_time_default() -> (u16,u8,u8,u8,u8,u8) {
+        pub fn unix_time_default() -> (u16, u8, u8, u8, u8, u8) {
             (1970, 1, 1, 0, 0, 0)
         }
 
@@ -336,28 +350,49 @@ pub mod v2_base_types {
                 Self::decompose_dt_str(&RUMString::from(dt_vec[0]));
 
             match dt_vec.len() {
-                1 => V2DateTime { year, month, day, hour, minute, second, microsecond: 0, offset },
+                1 => V2DateTime {
+                    year,
+                    month,
+                    day,
+                    hour,
+                    minute,
+                    second,
+                    microsecond: 0,
+                    offset,
+                },
                 2 => {
                     let ms_string = dt_vec.last().unwrap();
                     let ms_string_len = ms_string.trim().len();
                     let microsecond = match ms_string_len {
                         0 => 0,
-                        _ => ms_string.parse::<u32>().unwrap() *
-                            generate_tenth_factor(
-                                (V2_DATETIME_MICRO_LENGTH - (ms_string_len as u8)) as u32)
+                        _ => {
+                            ms_string.parse::<u32>().unwrap()
+                                * generate_tenth_factor(
+                                    (V2_DATETIME_MICRO_LENGTH - (ms_string_len as u8)) as u32,
+                                )
+                        }
                     };
-                    V2DateTime { year, month, day, hour, minute, second, microsecond, offset }
-
-                },
-                _ => V2DateTime::new()
+                    V2DateTime {
+                        year,
+                        month,
+                        day,
+                        hour,
+                        minute,
+                        second,
+                        microsecond,
+                        offset,
+                    }
+                }
+                _ => V2DateTime::new(),
             }
         }
 
         /// Take date time string in the format YYYY\[MMDDHHmmss\] and decompose it into numerical
         /// date time components.
         /// Meaning, we take a string and we return a tuple of numbers.
-        pub fn decompose_dt_str(dt_str: &RUMString) -> (u16,u8,u8,u8,u8,u8) {
-            let (mut year, mut month, mut day, mut hour, mut minute, mut second) = Self::unix_time_default();
+        pub fn decompose_dt_str(dt_str: &RUMString) -> (u16, u8, u8, u8, u8, u8) {
+            let (mut year, mut month, mut day, mut hour, mut minute, mut second) =
+                Self::unix_time_default();
 
             match dt_str.len() {
                 4 => {
@@ -393,7 +428,7 @@ pub mod v2_base_types {
                     minute = dt_str[10..12].parse::<u8>().unwrap();
                     second = dt_str[12..14].parse::<u8>().unwrap();
                 }
-                _ => ()
+                _ => (),
             };
             (year, month, day, hour, minute, second)
         }
@@ -419,7 +454,16 @@ pub mod v2_base_types {
             format_compact!("{:04}{:02}{:02}", &self.year, &self.month, &self.day)
         }
         pub fn as_v2_date_time(&self) -> V2String {
-            format_compact!("{:04}{:02}{:02}{:02}{:02}{:02}.{:04}", &self.year, &self.month, &self.day, &self.hour, &self.minute, &self.second, &self.microsecond)
+            format_compact!(
+                "{:04}{:02}{:02}{:02}{:02}{:02}.{:04}",
+                &self.year,
+                &self.month,
+                &self.day,
+                &self.hour,
+                &self.minute,
+                &self.second,
+                &self.microsecond
+            )
         }
     }
     ///
@@ -579,7 +623,7 @@ pub mod v2_base_types {
     ///     SNM is used for telephone numbers, so it is never appropriate to truncate values of type SNM.
     ///
     pub type V2SNM = V2String;
-    pub enum V2TypeIDs{
+    pub enum V2TypeIDs {
         V2DT,
         BOOL,
         INTEGER,
@@ -589,10 +633,11 @@ pub mod v2_base_types {
 }
 
 pub mod v2_primitives {
-    use std::any::TypeId;
-    use rumtk_core::search::rumtk_search::{string_search};
-    use rumtk_core::strings::{format_compact, RUMString, ToCompactString, UTFStringExtensions, AsStr};
     pub use crate::hl7_v2_base_types::v2_base_types::*;
+    use rumtk_core::search::rumtk_search::string_search;
+    use rumtk_core::strings::{
+        format_compact, AsStr, RUMString, ToCompactString, UTFStringExtensions,
+    };
 
     /**************************** Constants**************************************/
     //Truncation limits
@@ -615,13 +660,15 @@ pub mod v2_primitives {
         }
     }
 
-
     pub trait V2PrimitiveCasting: AsStr {
         #[inline(always)]
         fn to_datetime(&self) -> V2Result<V2DateTime> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_DATETIME as usize);
-            let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
+            let validated = validate_type(
+                &truncated_input.trim().to_lowercase(),
+                REGEX_VALIDATE_DATETIME,
+            )?;
             match input.len() {
                 0..=3 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 4 characters. => [{}] ", input)),
                 _ => Ok(V2DateTime::from_str(&validated)),
@@ -632,7 +679,10 @@ pub mod v2_primitives {
         fn to_date(&self) -> V2Result<V2Date> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_DATE as usize);
-            let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
+            let validated = validate_type(
+                &truncated_input.trim().to_lowercase(),
+                REGEX_VALIDATE_DATETIME,
+            )?;
             match input.len() {
                 0..=3 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 4 characters. => [{}] ", input)),
                 _ => Ok(V2Date::from_str(&validated)),
@@ -640,13 +690,16 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_time(&self) -> V2Result<V2Date> {
+        fn to_time(&self) -> V2Result<V2Time> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_TIME as usize);
-            let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_DATETIME)?;
+            let validated = validate_type(
+                &truncated_input.trim().to_lowercase(),
+                REGEX_VALIDATE_DATETIME,
+            )?;
             match input.len() {
                 0..=1 => Err(format_compact!("Cannot build V2DateTime type due to the string input being smaller than 2 characters. => [{}] ", input)),
-                _ => Ok(V2Date::from_str(format_compact!("00000000{}", &validated).as_str())),
+                _ => Ok(V2Date::from_str(format_compact!("19700101{}", &validated).as_str())),
             }
         }
 
@@ -654,16 +707,18 @@ pub mod v2_primitives {
         fn to_number(&self) -> V2Result<V2NM> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_NM as usize);
-            let validated = validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_NM)?;
+            let validated =
+                validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_NM)?;
             match validated.parse::<V2NM>() {
                 Ok(val) => Ok(val),
-                Err(why) => Err(format_compact!("Error parsing string into numeric type V2NM. Input: {}", validated))
+                Err(why) => Err(format_compact!(
+                    "Error parsing string into numeric type V2NM. Input: {}",
+                    validated
+                )),
             }
         }
     }
 
     impl V2PrimitiveCasting for str {}
     impl V2PrimitiveCasting for V2String {}
-
 }
-
