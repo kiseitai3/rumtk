@@ -574,7 +574,6 @@ mod tests {
     #[test]
     fn test_cast_component_to_datetime_validation() {
         let input = "200";
-        let expected_outputs: Option<V2DateTime> = None;
         match input.to_datetime() {
             Ok(date) => {
                 panic!(
@@ -628,7 +627,6 @@ mod tests {
     #[test]
     fn test_cast_component_to_date_validation() {
         let input = "200";
-        let expected_outputs: Option<V2DateTime> = None;
         match input.to_date() {
             Ok(date) => {
                 panic!(
@@ -683,13 +681,67 @@ mod tests {
     #[test]
     fn test_cast_component_to_time_validation() {
         let input = "2";
-        let expected_outputs: Option<V2DateTime> = None;
         match input.to_time() {
             Ok(date) => {
                 panic!(
                     "Validation failed [In: {} Got: {} Expected: None] ... ✕",
                     input,
                     date.as_utc_string()
+                );
+            }
+            Err(e) => println!(
+                "Validation correctly identified malformed input with message => [{}] ✅",
+                e.as_str()
+            ),
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_number_expected_functionality() {
+        let inputs = [
+            "5e3",
+            "5E3",
+            "112355.5555",
+            "5F",
+            "5.5F",
+            "5f",
+            "5.5e2",
+            "-5f",
+            "-05e1",
+        ];
+        let expected_outputs = [
+            5000.0,
+            5000.0,
+            112355.5555,
+            5.0,
+            5.5,
+            5.0,
+            550.0,
+            -5.0,
+            -50.0,
+        ];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_val = expected_outputs[i];
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to NM type.",
+                i, input, expected_val
+            );
+            let val = input.to_number().unwrap();
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, val);
+            assert_eq!(expected_val, val, "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", val);
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_number_validation() {
+        let input = ".2";
+        match input.to_number() {
+            Ok(val) => {
+                panic!(
+                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                    input, val
                 );
             }
             Err(e) => println!(

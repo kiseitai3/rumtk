@@ -636,7 +636,7 @@ pub mod v2_primitives {
     pub use crate::hl7_v2_base_types::v2_base_types::*;
     use rumtk_core::search::rumtk_search::string_search;
     use rumtk_core::strings::{
-        format_compact, AsStr, RUMString, ToCompactString, UTFStringExtensions,
+        format_compact, AsStr, RUMString, ToCompactString, UTFStringExtensions, DOT_STR,
     };
 
     /**************************** Constants**************************************/
@@ -647,7 +647,7 @@ pub mod v2_primitives {
     const TRUNCATE_NM: u8 = 16;
 
     // Regex
-    const REGEX_VALIDATE_NM: &str = r"(\+|\-)|(\d+.\d?e\d+|\d+e\d+|\d+.\d?|^\d+)";
+    const REGEX_VALIDATE_NM: &str = r"\+|\-|\d+\.\d+e\d+|\d+e\d+|\d+\.\d+|\d+";
     const REGEX_VALIDATE_DATETIME: &str = r"^\d{4,14}\.\d{1,4}(\+|\-)\d{4}|^\d{4,14}(\+|\-)\d{4}|^\d{2,6}(\+|\-)\d{4}|^\d{4,14}\.\d{1,4}|^\d{2,6}\.\d{1,4}|^\d{4,14}|^\d{2,6}";
 
     /****************************** API *****************************************/
@@ -707,6 +707,11 @@ pub mod v2_primitives {
         fn to_number(&self) -> V2Result<V2NM> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_NM as usize);
+
+            if truncated_input.starts_with(DOT_STR) {
+                return Err(format_compact!("Malformed floating point number string. The standard forbids starting with a period for input {}!", truncated_input));
+            }
+
             let validated =
                 validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_NM)?;
             match validated.parse::<V2NM>() {
