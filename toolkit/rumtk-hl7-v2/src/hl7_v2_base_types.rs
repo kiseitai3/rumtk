@@ -29,7 +29,9 @@ pub mod v2_base_types {
         string_search, string_search_named_captures, SearchGroups,
     };
     use rumtk_core::strings::RUMString;
-    use rumtk_core::strings::{format_compact, ToCompactString};
+    use rumtk_core::strings::{
+        format_compact, ToCompactString,
+    };
 
     /**************************** Constants**************************************/
     // Regex
@@ -171,7 +173,14 @@ pub mod v2_base_types {
     ///
     /// Pretty much the same as the ID type so we are simply aliasing that type here.
     ///
+    /// 2A.3.36 IS - coded value for user-defined tables
+    ///
     /// Per Section 2A.3.36
+    ///
+    /// ## Definition
+    ///
+    ///     Minimum Length: ≥ 1- Varies - dependent on length of shortest code in code set.
+    ///     Maximum Length: Varies - dependent on length of longest code in code set.
     ///
     ///     As of v2.7, the only approved use of the IS data type is in the HD.1, EI.2 and PL.6 plus a limited
     ///     number of fields where a determination could not readily be made as to whether the item is an
@@ -189,7 +198,7 @@ pub mod v2_base_types {
     ///
     ///     It is never acceptable to truncate an IS value.
     ///
-    pub type V2IS = V2ID;
+    pub type V2IS = V2ST;
     ///
     /// Formatted Text type
     ///
@@ -636,7 +645,8 @@ pub mod v2_primitives {
     pub use crate::hl7_v2_base_types::v2_base_types::*;
     use rumtk_core::search::rumtk_search::string_search;
     use rumtk_core::strings::{
-        format_compact, AsStr, RUMString, ToCompactString, UTFStringExtensions, DOT_STR,
+        format_compact, AsStr, CompactString, RUMString, ToCompactString, UTFStringExtensions,
+        DOT_STR,
     };
 
     /**************************** Constants**************************************/
@@ -645,9 +655,14 @@ pub mod v2_primitives {
     const TRUNCATE_DATE: u8 = 8;
     const TRUNCATE_TIME: u8 = 16;
     const TRUNCATE_NM: u8 = 16;
+    const TRUNCATE_SI: u8 = 4;
+    const TRUNCATE_FT: u32 = 65536;
+    const TRUNCATE_ST: u16 = 1000;
 
     // Regex
     const REGEX_VALIDATE_NM: &str = r"\+|\-|\d+\.\d+e\d+|\d+e\d+|\d+\.\d+|\d+";
+    const REGEX_VALIDATE_SI: &str = r"^\d{1,4}";
+    const REGEX_VALIDATE_SNM: &str = r"\+|\d+";
     const REGEX_VALIDATE_DATETIME: &str = r"^\d{4,14}\.\d{1,4}(\+|\-)\d{4}|^\d{4,14}(\+|\-)\d{4}|^\d{2,6}(\+|\-)\d{4}|^\d{4,14}\.\d{1,4}|^\d{2,6}\.\d{1,4}|^\d{4,14}|^\d{2,6}";
 
     /****************************** API *****************************************/
@@ -721,6 +736,78 @@ pub mod v2_primitives {
                     validated
                 )),
             }
+        }
+
+        #[inline(always)]
+        fn to_v2sequenceid(&self) -> V2Result<V2SI> {
+            let input: &str = self.as_str();
+            let truncated_input = input.truncate(TRUNCATE_SI as usize);
+
+            let validated =
+                validate_type(&truncated_input.trim().to_lowercase(), REGEX_VALIDATE_SI)?;
+            match validated.parse::<V2SI>() {
+                Ok(val) => Ok(val),
+                Err(why) => Err(format_compact!(
+                    "Error parsing string into Sequence ID type V2SI. Input: {}",
+                    validated
+                )),
+            }
+        }
+
+        #[inline(always)]
+        fn to_v2telephonestring(&self) -> V2Result<V2SNM> {
+            let input: &str = self.as_str();
+            let validated = validate_type(&input.trim().to_lowercase(), REGEX_VALIDATE_SNM)?;
+            if validated.len() == 0 {
+                return Err(format_compact!(
+                    "Error parsing string into Sequence ID type V2SI. Input: {}",
+                    validated
+                ));
+            }
+            Ok(validated)
+        }
+
+        #[inline(always)]
+        fn to_v2text(&self, repeat_delimiter: char) -> V2Result<V2TX> {
+            let input: &str = self.as_str();
+            let validated = input.replace(repeat_delimiter, "\r\n");
+            Ok(CompactString::from(validated))
+        }
+
+        #[inline(always)]
+        fn to_v2formattedtext(&self, repeat_delimiter: char) -> V2Result<V2FT> {
+            let input: &str = self.as_str();
+            let truncated_input = input.truncate(TRUNCATE_FT as usize);
+            let validated = truncated_input.replace(repeat_delimiter, "\r\n");
+            Ok(V2FT::from(validated))
+        }
+
+        #[inline(always)]
+        fn to_v2id(&self) -> V2Result<V2ID> {
+            Ok(V2ID::from(self.as_str()))
+        }
+
+        #[inline(always)]
+        fn to_v2string(&self) -> V2Result<V2String> {
+            Ok(V2String::from(self.as_str()))
+        }
+
+        #[inline(always)]
+        fn to_v2stringdata(&self) -> V2Result<V2ST> {
+            let input: &str = self.as_str();
+            let validated: &str = input.trim();
+            if input.len() > TRUNCATE_ST as usize {
+                // Returning error for now, maybe in the future we should cheat and simply call to_v2formattedtext() automatically.
+                return Err(format_compact!("Error parsing string into string data type V2ST/V2IS. The string is longer than {} characters. Consider using V2FT or V2TX data type casting methods for input: {}",
+                    validated
+                ));
+            }
+            Ok(V2ST::from(validated))
+        }
+
+        #[inline(always)]
+        fn to_v2is(&self) -> V2Result<V2IS> {
+            self.to_v2stringdata()
         }
     }
 
