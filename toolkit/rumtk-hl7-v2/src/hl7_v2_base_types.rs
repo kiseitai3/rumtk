@@ -662,7 +662,7 @@ pub mod v2_primitives {
 
     pub trait V2PrimitiveCasting: AsStr {
         #[inline(always)]
-        fn to_datetime(&self) -> V2Result<V2DateTime> {
+        fn to_v2datetime(&self) -> V2Result<V2DateTime> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_DATETIME as usize);
             let validated = validate_type(
@@ -676,7 +676,7 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_date(&self) -> V2Result<V2Date> {
+        fn to_v2date(&self) -> V2Result<V2Date> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_DATE as usize);
             let validated = validate_type(
@@ -690,7 +690,7 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_time(&self) -> V2Result<V2Time> {
+        fn to_v2time(&self) -> V2Result<V2Time> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_TIME as usize);
             let validated = validate_type(
@@ -704,7 +704,7 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_number(&self) -> V2Result<V2NM> {
+        fn to_v2number(&self) -> V2Result<V2NM> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_NM as usize);
 

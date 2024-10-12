@@ -564,7 +564,7 @@ mod tests {
                 "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
                 i, input, expected_utc
             );
-            let date = input.to_datetime().unwrap();
+            let date = input.to_v2datetime().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
@@ -573,19 +573,21 @@ mod tests {
 
     #[test]
     fn test_cast_component_to_datetime_validation() {
-        let input = "200";
-        match input.to_datetime() {
-            Ok(date) => {
-                panic!(
-                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
-                    input,
-                    date.as_utc_string()
-                );
+        let inputs = ["200"];
+        for input in inputs {
+            match input.to_v2datetime() {
+                Ok(date) => {
+                    panic!(
+                        "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                        input,
+                        date.as_utc_string()
+                    );
+                }
+                Err(e) => println!(
+                    "Validation correctly identified malformed input with message => [{}] ✅",
+                    e.as_str()
+                ),
             }
-            Err(e) => println!(
-                "Validation correctly identified malformed input with message => [{}] ✅",
-                e.as_str()
-            ),
         }
     }
 
@@ -596,7 +598,7 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
-        let date = component.to_datetime().unwrap();
+        let date = component.to_v2datetime().unwrap();
         let expected_utc = "2007-08-18T11:23:00.0000";
         let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
@@ -617,7 +619,7 @@ mod tests {
                 "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
                 i, input, expected_utc
             );
-            let date = input.to_date().unwrap();
+            let date = input.to_v2date().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
@@ -626,19 +628,21 @@ mod tests {
 
     #[test]
     fn test_cast_component_to_date_validation() {
-        let input = "200";
-        match input.to_date() {
-            Ok(date) => {
-                panic!(
-                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
-                    input,
-                    date.as_utc_string()
-                );
+        let inputs = ["200"];
+        for input in inputs {
+            match input.to_v2date() {
+                Ok(date) => {
+                    panic!(
+                        "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                        input,
+                        date.as_utc_string()
+                    );
+                }
+                Err(e) => println!(
+                    "Validation correctly identified malformed input with message => [{}] ✅",
+                    e.as_str()
+                ),
             }
-            Err(e) => println!(
-                "Validation correctly identified malformed input with message => [{}] ✅",
-                e.as_str()
-            ),
         }
     }
 
@@ -649,7 +653,7 @@ mod tests {
         let message = v2_parse_message!(tests::VXU_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
-        let date = component.to_date().unwrap();
+        let date = component.to_v2date().unwrap();
         let expected_utc = "2015-06-25T00:00:00.0000";
         let err_msg = format_compact!("The expected date string does not match the date string generated from the V2Component [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
@@ -671,7 +675,7 @@ mod tests {
                 "Testing input #{} \"{}\". Expected output is \"{}\". Casting to datetime type.",
                 i, input, expected_utc
             );
-            let date = input.to_time().unwrap();
+            let date = input.to_v2time().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
@@ -680,19 +684,21 @@ mod tests {
 
     #[test]
     fn test_cast_component_to_time_validation() {
-        let input = "2";
-        match input.to_time() {
-            Ok(date) => {
-                panic!(
-                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
-                    input,
-                    date.as_utc_string()
-                );
+        let inputs = ["2"];
+        for input in inputs {
+            match input.to_v2time() {
+                Ok(date) => {
+                    panic!(
+                        "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                        input,
+                        date.as_utc_string()
+                    );
+                }
+                Err(e) => println!(
+                    "Validation correctly identified malformed input with message => [{}] ✅",
+                    e.as_str()
+                ),
             }
-            Err(e) => println!(
-                "Validation correctly identified malformed input with message => [{}] ✅",
-                e.as_str()
-            ),
         }
     }
 
@@ -727,7 +733,7 @@ mod tests {
                 "Testing input #{} \"{}\". Expected output is \"{}\". Casting to NM type.",
                 i, input, expected_val
             );
-            let val = input.to_number().unwrap();
+            let val = input.to_v2number().unwrap();
             let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, val);
             assert_eq!(expected_val, val, "{}", &err_msg);
             println!(" ... Got: {} ✅ ", val);
@@ -736,18 +742,20 @@ mod tests {
 
     #[test]
     fn test_cast_component_to_number_validation() {
-        let input = ".2";
-        match input.to_number() {
-            Ok(val) => {
-                panic!(
-                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
-                    input, val
-                );
+        let inputs = [".2"];
+        for input in inputs {
+            match input.to_v2number() {
+                Ok(val) => {
+                    panic!(
+                        "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                        input, val
+                    );
+                }
+                Err(e) => println!(
+                    "Validation correctly identified malformed input with message => [{}] ✅",
+                    e.as_str()
+                ),
             }
-            Err(e) => println!(
-                "Validation correctly identified malformed input with message => [{}] ✅",
-                e.as_str()
-            ),
         }
     }
 
