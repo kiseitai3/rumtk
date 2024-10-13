@@ -29,9 +29,7 @@ pub mod v2_base_types {
         string_search, string_search_named_captures, SearchGroups,
     };
     use rumtk_core::strings::RUMString;
-    use rumtk_core::strings::{
-        format_compact, ToCompactString,
-    };
+    use rumtk_core::strings::{format_compact, ToCompactString};
 
     /**************************** Constants**************************************/
     // Regex
@@ -651,13 +649,13 @@ pub mod v2_primitives {
 
     /**************************** Constants**************************************/
     //Truncation limits
-    const TRUNCATE_DATETIME: u8 = 24;
-    const TRUNCATE_DATE: u8 = 8;
-    const TRUNCATE_TIME: u8 = 16;
-    const TRUNCATE_NM: u8 = 16;
-    const TRUNCATE_SI: u8 = 4;
-    const TRUNCATE_FT: u32 = 65536;
-    const TRUNCATE_ST: u16 = 1000;
+    pub const TRUNCATE_DATETIME: u8 = 24;
+    pub const TRUNCATE_DATE: u8 = 8;
+    pub const TRUNCATE_TIME: u8 = 16;
+    pub const TRUNCATE_NM: u8 = 16;
+    pub const TRUNCATE_SI: u8 = 4;
+    pub const TRUNCATE_FT: u32 = 65536;
+    pub const TRUNCATE_ST: u16 = 1000;
 
     // Regex
     const REGEX_VALIDATE_NM: &str = r"\+|\-|\d+\.\d+e\d+|\d+e\d+|\d+\.\d+|\d+";
@@ -799,7 +797,7 @@ pub mod v2_primitives {
             if input.len() > TRUNCATE_ST as usize {
                 // Returning error for now, maybe in the future we should cheat and simply call to_v2formattedtext() automatically.
                 return Err(format_compact!("Error parsing string into string data type V2ST/V2IS. The string is longer than {} characters. Consider using V2FT or V2TX data type casting methods for input: {}",
-                    validated
+                    TRUNCATE_ST, validated
                 ));
             }
             Ok(V2ST::from(validated))

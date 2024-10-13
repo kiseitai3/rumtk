@@ -17,7 +17,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
 use encoding_rs::Encoding;
@@ -54,43 +53,67 @@ pub trait UTFStringExtensions {
     ///
     ///     If the grapheme requested does not exists, this method will return a blank string.
     ///
+    ///
+    /// Instead of just retrieving a codepoint as character, I decided to take it a step further and
+    /// have support for grapheme selection such that characters in written language like sanskrit
+    /// can be properly selected and evaluated.
+    ///
+    /// [!CAUTION]
+    /// This can be an extremely slow operation over large strings since each call to this method
+    /// will need to rescan the input string every time we need to look up a grapheme. Unfortunately,
+    /// this is a side effect of convenience. To improve performance, call .get_graphemes() once and
+    /// then call take_grapheme() over that iterator.
+    ///
+    #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str;
+
+    #[inline(always)]
+    fn get_graphemes(&self) -> Vec<&str>;
+
+    #[inline(always)]
+    fn get_grapheme_chunk(&self, offset: usize) -> Vec<&str>;
+
+    #[inline(always)]
+    fn take_grapheme<'a>(&self, graphemes: &Vec<&'a str>, index: usize) -> RUMString {
+        if index >= graphemes.len() {
+            return RUMString::from(EMPTY_STRING);
+        }
+        RUMString::from(graphemes[index])
+    }
 
     #[inline(always)]
     fn get_grapheme_window(&self, min: usize, max: usize, offset: usize) -> RUMString {
         let mut window: RUMString = RUMString::with_capacity(max - min);
         let start = min + offset;
         let end = max + offset;
+        let graphemes = self.get_graphemes();
         for i in start..end {
-            window += self.get_grapheme(i);
+            window += &self.take_grapheme(&graphemes, i);
         }
         window
     }
 
     #[inline(always)]
     fn get_grapheme_string(&self, end_pattern: &str, offset: usize) -> RUMString {
-        let grapheme_count = self.count_graphemes();
-        let mut window: String = String::with_capacity(ESCAPED_STRING_WINDOW);
-        for i in offset..grapheme_count {
-            let g = self.get_grapheme(i);
-            if g == end_pattern {
+        let mut window: RUMString = RUMString::with_capacity(ESCAPED_STRING_WINDOW);
+        for grapheme in self.get_grapheme_chunk(offset) {
+            if grapheme == end_pattern {
                 return RUMString::from(window);
             } else {
-                window += g;
+                window += grapheme;
             }
         }
         RUMString::from(window)
     }
 
     #[inline(always)]
-    fn find_grapheme(&self, pattern: &str, offset: usize) -> usize {
-        let grapheme_count = self.count_graphemes();
-        for i in offset..grapheme_count {
-            if self.get_grapheme(i) == pattern {
-                return i;
+    fn find_grapheme(&self, pattern: &str, offset: usize) -> &str {
+        for grapheme in self.get_grapheme_chunk(offset) {
+            if grapheme == pattern {
+                return grapheme;
             }
         }
-        grapheme_count
+        EMPTY_STRING
     }
 
     #[inline(always)]
@@ -109,6 +132,17 @@ pub trait RUMStringConversions: ToString {
     }
 }
 
+pub trait StringUtils: AsStr {
+    #[inline(always)]
+    fn duplicate(&self, count: usize) -> RUMString {
+        let mut duplicated = RUMString::with_capacity(count);
+        for i in 0..count {
+            duplicated += &self.as_str();
+        }
+        duplicated
+    }
+}
+
 impl UTFStringExtensions for RUMString {
     #[inline(always)]
     fn count_graphemes(&self) -> usize {
@@ -122,6 +156,16 @@ impl UTFStringExtensions for RUMString {
             .or(EMPTY_STRING_OPTION)
             .unwrap()
     }
+
+    #[inline(always)]
+    fn get_graphemes(&self) -> Vec<&str> {
+        self.graphemes(true).collect::<Vec<&str>>()
+    }
+
+    #[inline(always)]
+    fn get_grapheme_chunk(&self, offset: usize) -> Vec<&str> {
+        self.graphemes(true).skip(offset).collect::<Vec<&str>>()
+    }
 }
 
 impl RUMStringConversions for RUMString {}
@@ -130,6 +174,7 @@ impl AsStr for RUMString {
         self.as_str()
     }
 }
+impl StringUtils for RUMString {}
 
 impl UTFStringExtensions for str {
     #[inline(always)]
@@ -144,6 +189,16 @@ impl UTFStringExtensions for str {
             .or(EMPTY_STRING_OPTION)
             .unwrap()
     }
+
+    #[inline(always)]
+    fn get_graphemes(&self) -> Vec<&str> {
+        self.graphemes(true).collect::<Vec<&str>>()
+    }
+
+    #[inline(always)]
+    fn get_grapheme_chunk(&self, offset: usize) -> Vec<&str> {
+        self.graphemes(true).skip(offset).collect::<Vec<&str>>()
+    }
 }
 
 impl RUMStringConversions for str {}
@@ -153,6 +208,8 @@ impl AsStr for str {
         self
     }
 }
+
+impl StringUtils for str {}
 
 impl RUMStringConversions for char {}
 

@@ -36,7 +36,7 @@ mod tests {
     use hl7_v2_base_types::v2_primitives::*;
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::{format_compact, AsStr, RUMString};
+    use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils};
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -565,7 +565,7 @@ mod tests {
                 i, input, expected_utc
             );
             let date = input.to_v2datetime().unwrap();
-            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
         }
@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
         let date = component.to_v2datetime().unwrap();
         let expected_utc = "2007-08-18T11:23:00.0000";
-        let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [{}]", component.as_str());
+        let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [{}]", component.as_str());
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
     }
 
@@ -620,7 +620,7 @@ mod tests {
                 i, input, expected_utc
             );
             let date = input.to_v2date().unwrap();
-            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
         }
@@ -655,7 +655,10 @@ mod tests {
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
         let date = component.to_v2date().unwrap();
         let expected_utc = "2015-06-25T00:00:00.0000";
-        let err_msg = format_compact!("The expected date string does not match the date string generated from the V2Component [{}]", component.as_str());
+        let err_msg = format_compact!(
+            "The expected date string does not match the date string generated from the input [{}]",
+            component.as_str()
+        );
         assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg)
     }
 
@@ -676,7 +679,7 @@ mod tests {
                 i, input, expected_utc
             );
             let date = input.to_v2time().unwrap();
-            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, date.as_utc_string());
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [In: {}, Got: {}]", input, date.as_utc_string());
             assert_eq!(expected_utc, date.as_utc_string().as_str(), "{}", &err_msg);
             println!(" ... Got: {} ✅ ", date.as_utc_string());
         }
@@ -734,7 +737,7 @@ mod tests {
                 i, input, expected_val
             );
             let val = input.to_v2number().unwrap();
-            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the V2Component [In: {}, Got: {}]", input, val);
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [In: {}, Got: {}]", input, val);
             assert_eq!(expected_val, val, "{}", &err_msg);
             println!(" ... Got: {} ✅ ", val);
         }
@@ -756,6 +759,61 @@ mod tests {
                     e.as_str()
                 ),
             }
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_st_expected_functionality() {
+        let inputs = [" Hello World!"];
+        let expected_outputs = ["Hello World!"];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_val = expected_outputs[i];
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to ST type.",
+                i, input, expected_val
+            );
+            let val = input.to_v2stringdata().unwrap();
+            let err_msg = format_compact!("The expected date time string does not match the date time string generated from the input [In: {}, Got: {}]", input, val);
+            assert_eq!(expected_val, val, "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", val);
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_st_validation() {
+        let input = "2".duplicate(1001);
+        println!("{}", input);
+        match input.to_v2stringdata() {
+            Ok(val) => {
+                panic!(
+                    "Validation failed [In: {} Got: {} Expected: None] ... ✕",
+                    input, val
+                );
+            }
+            Err(e) => println!(
+                "Validation correctly identified malformed input with message => [{}] ✅",
+                e.as_str()
+            ),
+        }
+    }
+
+    #[test]
+    fn test_cast_component_to_ft_expected_functionality() {
+        let inputs = ["H", &"e".duplicate(120000)];
+        let expected_outputs = ["H", &"e".duplicate(TRUNCATE_FT as usize)];
+        for i in 0..inputs.len() {
+            let input = inputs[i];
+            let expected_val = expected_outputs[i];
+            print!(
+                "Testing input #{} \"{}\". Expected output is \"{}\". Casting to FT type.",
+                i, input, expected_val
+            );
+            let val = input.to_v2formattedtext('~').unwrap();
+            println!("{}", val.len());
+            let err_msg = format_compact!("The expected formatted string does not match the formatted string generated from the input [In: {}, Got: {}]", input, val);
+            assert_eq!(expected_val, val, "{}", &err_msg);
+            println!(" ... Got: {} ✅ ", val);
         }
     }
 
