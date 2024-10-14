@@ -20,12 +20,12 @@
 
 extern crate rumtk_core;
 mod hl7_v2_base_types;
+mod hl7_v2_complex_types;
 mod hl7_v2_constants;
 pub mod hl7_v2_interpreter;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
 pub mod hl7_v2_types;
-
 /*****************************************Tests****************************************/
 #[cfg(test)]
 mod tests {
@@ -817,5 +817,6 @@ mod tests {
         }
     }
 
+    // TODO: Add tests for sequenceid and telephonestring
     // TODO: Add fuzzing test for to_datetime().
 }

@@ -811,4 +811,6 @@ pub mod v2_primitives {
 
     impl V2PrimitiveCasting for str {}
     impl V2PrimitiveCasting for V2String {}
+
+    pub enum V2PrimitiveTypes {}
 }
