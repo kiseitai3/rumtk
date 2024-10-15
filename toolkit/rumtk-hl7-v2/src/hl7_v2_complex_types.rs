@@ -21,13 +21,13 @@
 pub mod hl7_v2_complex_types {
     use crate::hl7_v2_base_types::v2_primitives::*;
 
-    type V2StrField = Vec<str>;
+    type V2StrField<'a> = Vec<&'a str>;
 
     ///
     /// Interface for ensuring we get a vector of strings instead of components.
     /// This ensures we keep this module independent of the parser module.
     ///
-    pub trait V2FieldToString {
+    pub trait V2FieldToString: Sized {
         fn to_component_list(&self) -> V2StrField;
     }
 
@@ -41,12 +41,12 @@ pub mod hl7_v2_complex_types {
         truncate: bool,
     }
 
-    pub const fn validate_and_cast_component<T>(
+    pub fn validate_and_cast_component<T: Default>(
         component: &str,
         component_type: &V2ComponentType,
     ) -> V2Result<T> {
         if component_type.optional && component.len() == 0 {
-            //return
+            return Ok(T::default());
         }
         match component_type.data_type {}
     }

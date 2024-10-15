@@ -301,15 +301,18 @@ pub mod v2_base_types {
     impl V2DateTime {
         pub fn new() -> V2DateTime {
             V2DateTime {
-                year: 0,
-                month: 0,
-                day: 0,
+                year: 1970,
+                month: 1,
+                day: 1,
                 hour: 0,
                 minute: 0,
                 second: 0,
                 microsecond: 0,
                 offset: V2String::from("0"),
             }
+        }
+        pub fn default() -> V2DateTime {
+            V2DateTime::new()
         }
 
         ///
@@ -630,13 +633,6 @@ pub mod v2_base_types {
     ///     SNM is used for telephone numbers, so it is never appropriate to truncate values of type SNM.
     ///
     pub type V2SNM = V2String;
-    pub enum V2TypeIDs {
-        V2DT,
-        BOOL,
-        INTEGER,
-        DECIMAL,
-        V2STRING,
-    }
 }
 
 pub mod v2_primitives {

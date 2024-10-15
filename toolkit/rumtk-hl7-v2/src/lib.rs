@@ -605,6 +605,14 @@ mod tests {
     }
 
     #[test]
+    fn test_datetime_default() {
+        let input = V2DateTime::default().as_utc_string();
+        let expected_val = V2String::from("1970-01-01T00:00:00.00000");
+        let err_msg = format_compact!("The expected formatted string does not match the formatted string generated from the input [In: {}, Got: {}]", input, input);
+        assert_eq!(expected_val, input, "{}", &err_msg);
+    }
+
+    #[test]
     fn test_cast_component_to_date_expected_functionality() {
         let inputs = ["2007", "200708", "20070818"];
         let expected_outputs = [
