@@ -34,16 +34,16 @@
 
 pub mod v2_parser {
     use crate::hl7_v2_base_types::v2_primitives::{
-        V2DateTime, V2PrimitiveCasting, V2Result, V2SearchIndex, V2String,
+        V2DateTime, V2ParserCharacters, V2PrimitiveCasting, V2Result, V2SearchIndex, V2String,
     };
     use crate::hl7_v2_constants::{
-        V2_DELETE_FIELD, V2_EMPTY_STRING, V2_MSHEADER_PATTERN,
-        V2_SEGMENT_DESC, V2_SEGMENT_IDS, V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER,
+        V2_DELETE_FIELD, V2_EMPTY_STRING, V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_SEGMENT_IDS,
+        V2_SEGMENT_TERMINATOR,
     };
     use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
     use rumtk_core::strings::{
-        format_compact, try_decode_with, unescape_string, AsStr, RUMString,
-        RUMStringConversions, UTFStringExtensions,
+        format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions
+        ,
     };
     use std::collections::VecDeque;
     use std::ops::{Index, IndexMut};
@@ -429,70 +429,6 @@ pub mod v2_parser {
     /// We collect segment groups in a map thus yielding the core of a message.
     ///
     pub type SegmentMap = AHashMap<u8, V2SegmentGroup>;
-
-    #[derive(Debug)]
-    pub struct V2ParserCharacters {
-        pub segment_terminator: RUMString,
-        pub field_separator: RUMString,
-        pub component_separator: RUMString,
-        pub repetition_separator: RUMString,
-        pub escape_character: RUMString,
-        pub subcomponent_separator: RUMString,
-        pub truncation_character: RUMString,
-    }
-
-    impl V2ParserCharacters {
-        pub fn new() -> V2ParserCharacters {
-            V2ParserCharacters {
-                segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
-                field_separator: RUMString::from("|"),
-                component_separator: RUMString::from("^"),
-                repetition_separator: RUMString::from("~"),
-                escape_character: RUMString::from("\\"),
-                subcomponent_separator: RUMString::from("&"),
-                truncation_character: RUMString::from("#"),
-            }
-        }
-        pub fn from_str(msg_key_chars: &str) -> V2Result<Self> {
-            let field_separator: &str = msg_key_chars.get_grapheme(0);
-            let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
-            let parser_chars: &str = encoding_field[1];
-
-            match parser_chars.count_graphemes() {
-                5 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
-                    field_separator: field_separator.to_rumstring(),
-                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
-                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
-                    truncation_character: parser_chars.get_grapheme(4).to_rumstring(),
-                }),
-                4 => Ok(V2ParserCharacters {
-                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
-                    field_separator: field_separator.to_rumstring(),
-                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
-                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
-                    truncation_character: V2_TRUNCATION_CHARACTER.to_rumstring(),
-                }),
-                _ => Err("Wrong count of parsing characters in message header!".to_rumstring()),
-            }
-        }
-
-        pub fn from_msh(msh_segment: &str) -> V2Result<Self> {
-            if V2ParserCharacters::is_msh(msh_segment) {
-                V2ParserCharacters::from_str(&msh_segment[3..])
-            } else {
-                Err("The segment is not an MSH segment! This message is malformed!".to_rumstring())
-            }
-        }
-
-        fn is_msh(msh_segment_token: &str) -> bool {
-            &msh_segment_token[0..3] == V2_MSHEADER_PATTERN
-        }
-    }
 
     pub struct V2Message {
         separators: V2ParserCharacters,

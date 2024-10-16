@@ -20,6 +20,7 @@
 
 pub mod hl7_v2_complex_types {
     use crate::hl7_v2_base_types::v2_primitives::*;
+    use rumtk_core::strings::RUMStringConversions;
 
     type V2StrField<'a> = Vec<&'a str>;
 
@@ -31,9 +32,10 @@ pub mod hl7_v2_complex_types {
         fn to_component_list(&self) -> V2StrField;
     }
 
+    #[derive(Debug, Default)]
     pub struct V2ComponentType {
         name: V2String,
-        data_type: V2PrimitiveTypes,
+        data_type: V2PrimitiveType,
         max_input_len: u32,
         seq: u16,
         valid_table: u16,
@@ -41,13 +43,42 @@ pub mod hl7_v2_complex_types {
         truncate: bool,
     }
 
+    impl V2ComponentType {
+        pub fn new(
+            name: V2String,
+            data_type: V2PrimitiveType,
+            max_input_len: u32,
+            seq: u16,
+            valid_table: u16,
+            optional: bool,
+            truncate: bool,
+        ) -> V2ComponentType {
+            V2ComponentType {
+                name,
+                data_type,
+                max_input_len,
+                seq,
+                valid_table,
+                optional,
+                truncate,
+            }
+        }
+    }
+
     pub fn validate_and_cast_component<T: Default>(
         component: &str,
         component_type: &V2ComponentType,
+        characters: &V2ParserCharacters,
     ) -> V2Result<T> {
         if component_type.optional && component.len() == 0 {
             return Ok(T::default());
         }
-        match component_type.data_type {}
+        match component_type.data_type {
+            V2PrimitiveType::V2DateTime => Ok(component.to_v2datetime()),
+            V2PrimitiveType::V2FT => {
+                Ok(component.to_v2formattedtext(&characters.repetition_separator))
+            }
+            _ => Err("Error".to_rumstring()),
+        }
     }
 }

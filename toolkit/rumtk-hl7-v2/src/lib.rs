@@ -34,6 +34,9 @@ mod tests {
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
+    use hl7_v2_complex_types::hl7_v2_complex_types::{
+        validate_and_cast_component, V2ComponentType,
+    };
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils};
@@ -823,6 +826,25 @@ mod tests {
             assert_eq!(expected_val, val, "{}", &err_msg);
             println!(" ... Got: {} ✅ ", val);
         }
+    }
+
+    #[test]
+    fn test_validated_cast_component_to_type() {
+        let message = tests::DEFAULT_HL7_V2_MESSAGE;
+        let sanitized_message = V2Message::sanitize(message);
+        let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
+        let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
+        let v2_component = V2ComponentType::new(
+            V2String::from("Date"),
+            V2PrimitiveType::V2Date,
+            1,
+            1,
+            1,
+            true,
+            true,
+        );
+        let input = validate_and_cast_component::<V2Date>(&"2007", &v2_component, &encode_chars);
+        println!("{:#?}", encode_chars);
     }
 
     // TODO: Add tests for sequenceid and telephonestring

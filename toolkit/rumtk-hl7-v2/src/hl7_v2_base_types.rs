@@ -20,7 +20,8 @@
 
 pub mod v2_base_types {
     use crate::hl7_v2_constants::{
-        V2_DATETIME_MICRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS,
+        V2_DATETIME_MICRO_LENGTH, V2_DATETIME_THOUSAND_TICK, V2_MSHEADER_PATTERN,
+        V2_SEARCH_EXPR_TYPE, V2_SEGMENT_IDS, V2_SEGMENT_TERMINATOR, V2_TRUNCATION_CHARACTER,
     };
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use chrono::prelude::*;
@@ -28,8 +29,8 @@ pub mod v2_base_types {
     use rumtk_core::search::rumtk_search::{
         string_search, string_search_named_captures, SearchGroups,
     };
-    use rumtk_core::strings::RUMString;
     use rumtk_core::strings::{format_compact, ToCompactString};
+    use rumtk_core::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
 
     /**************************** Constants**************************************/
     // Regex
@@ -45,6 +46,69 @@ pub mod v2_base_types {
     /// Basic type used to derive other types for the standard implementation.
     ///
     pub type V2String = RUMString;
+    #[derive(Debug)]
+    pub struct V2ParserCharacters {
+        pub segment_terminator: RUMString,
+        pub field_separator: RUMString,
+        pub component_separator: RUMString,
+        pub repetition_separator: RUMString,
+        pub escape_character: RUMString,
+        pub subcomponent_separator: RUMString,
+        pub truncation_character: RUMString,
+    }
+
+    impl V2ParserCharacters {
+        pub fn new() -> V2ParserCharacters {
+            V2ParserCharacters {
+                segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                field_separator: RUMString::from("|"),
+                component_separator: RUMString::from("^"),
+                repetition_separator: RUMString::from("~"),
+                escape_character: RUMString::from("\\"),
+                subcomponent_separator: RUMString::from("&"),
+                truncation_character: RUMString::from("#"),
+            }
+        }
+        pub fn from_str(msg_key_chars: &str) -> V2Result<Self> {
+            let field_separator: &str = msg_key_chars.get_grapheme(0);
+            let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
+            let parser_chars: &str = encoding_field[1];
+
+            match parser_chars.count_graphemes() {
+                5 => Ok(V2ParserCharacters {
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                    field_separator: field_separator.to_rumstring(),
+                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
+                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
+                    truncation_character: parser_chars.get_grapheme(4).to_rumstring(),
+                }),
+                4 => Ok(V2ParserCharacters {
+                    segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
+                    field_separator: field_separator.to_rumstring(),
+                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
+                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
+                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
+                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
+                    truncation_character: V2_TRUNCATION_CHARACTER.to_rumstring(),
+                }),
+                _ => Err("Wrong count of parsing characters in message header!".to_rumstring()),
+            }
+        }
+
+        pub fn from_msh(msh_segment: &str) -> V2Result<Self> {
+            if V2ParserCharacters::is_msh(msh_segment) {
+                V2ParserCharacters::from_str(&msh_segment[3..])
+            } else {
+                Err("The segment is not an MSH segment! This message is malformed!".to_rumstring())
+            }
+        }
+
+        fn is_msh(msh_segment_token: &str) -> bool {
+            &msh_segment_token[0..3] == V2_MSHEADER_PATTERN
+        }
+    }
     ///
     /// Object representing the exact indices needed to search for a field or component.
     ///
@@ -287,6 +351,7 @@ pub mod v2_base_types {
     ///         + use of the plus sign (+0000) represents the civil time zone offset is known to be zero,
     ///         + use of the minus sign (-0000) represents UTC (without offset)
     ///
+    #[derive(Default)]
     pub struct V2DateTime {
         year: u16,
         month: u8,
@@ -769,7 +834,7 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_v2formattedtext(&self, repeat_delimiter: char) -> V2Result<V2FT> {
+        fn to_v2formattedtext(&self, repeat_delimiter: &str) -> V2Result<V2FT> {
             let input: &str = self.as_str();
             let truncated_input = input.truncate(TRUNCATE_FT as usize);
             let validated = truncated_input.replace(repeat_delimiter, "\r\n");
@@ -808,5 +873,20 @@ pub mod v2_primitives {
     impl V2PrimitiveCasting for str {}
     impl V2PrimitiveCasting for V2String {}
 
-    pub enum V2PrimitiveTypes {}
+    #[derive(Debug, Default)]
+    pub enum V2PrimitiveType {
+        #[default]
+        V2String,
+        V2DateTime,
+        V2Date,
+        V2Time,
+        V2FT,
+        V2SNM,
+        V2NM,
+        V2ID,
+        V2IS,
+        V2ST,
+        V2Text,
+        V2SI,
+    }
 }
