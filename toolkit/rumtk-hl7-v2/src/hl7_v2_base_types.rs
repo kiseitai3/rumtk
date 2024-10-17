@@ -827,7 +827,7 @@ pub mod v2_primitives {
         }
 
         #[inline(always)]
-        fn to_v2text(&self, repeat_delimiter: char) -> V2Result<V2TX> {
+        fn to_v2text(&self, repeat_delimiter: &str) -> V2Result<V2TX> {
             let input: &str = self.as_str();
             let validated = input.replace(repeat_delimiter, "\r\n");
             Ok(CompactString::from(validated))

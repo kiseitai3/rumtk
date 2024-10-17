@@ -20,7 +20,7 @@
 
 pub mod hl7_v2_complex_types {
     use crate::hl7_v2_base_types::v2_primitives::*;
-    use rumtk_core::strings::RUMStringConversions;
+    use rumtk_core::strings::format_compact;
 
     type V2StrField<'a> = Vec<&'a str>;
 
@@ -31,54 +31,84 @@ pub mod hl7_v2_complex_types {
     pub trait V2FieldToString: Sized {
         fn to_component_list(&self) -> V2StrField;
     }
+    #[repr(C)]
+    pub enum V2ComponentType {
+        V2String(V2Result<V2String>),
+        V2DateTime(V2Result<V2DateTime>),
+        V2Date(V2Result<V2Date>),
+        V2Time(V2Result<V2Time>),
+        V2FT(V2Result<V2FT>),
+        V2SNM(V2Result<V2SNM>),
+        V2NM(V2Result<V2NM>),
+        V2ID(V2Result<V2ID>),
+        V2IS(V2Result<V2IS>),
+        V2ST(V2Result<V2ST>),
+        V2Text(V2Result<V2TX>),
+        V2SI(V2Result<V2SI>),
+        Err(V2String),
+    }
 
     #[derive(Debug, Default)]
-    pub struct V2ComponentType {
+    pub struct V2ComponentTypeDescriptor {
         name: V2String,
         data_type: V2PrimitiveType,
         max_input_len: u32,
         seq: u16,
         valid_table: u16,
-        optional: bool,
+        required: bool,
         truncate: bool,
     }
 
-    impl V2ComponentType {
+    impl V2ComponentTypeDescriptor {
         pub fn new(
             name: V2String,
             data_type: V2PrimitiveType,
             max_input_len: u32,
             seq: u16,
             valid_table: u16,
-            optional: bool,
+            required: bool,
             truncate: bool,
-        ) -> V2ComponentType {
-            V2ComponentType {
+        ) -> V2ComponentTypeDescriptor {
+            V2ComponentTypeDescriptor {
                 name,
                 data_type,
                 max_input_len,
                 seq,
                 valid_table,
-                optional,
+                required,
                 truncate,
             }
         }
     }
 
-    pub fn validate_and_cast_component<T: Default>(
+    pub fn cast_component<T: Default>(
         component: &str,
-        component_type: &V2ComponentType,
+        component_type: &V2ComponentTypeDescriptor,
         characters: &V2ParserCharacters,
-    ) -> V2Result<T> {
-        if component_type.optional && component.len() == 0 {
-            return Ok(T::default());
+    ) -> V2ComponentType {
+        if component_type.required && component.len() == 0 {
+            return V2ComponentType::Err(format_compact!(
+                "Required data in seq {} is missing!",
+                component_type.seq
+            ));
         }
         match component_type.data_type {
-            V2PrimitiveType::V2DateTime => Ok(component.to_v2datetime()),
-            V2PrimitiveType::V2FT => {
-                Ok(component.to_v2formattedtext(&characters.repetition_separator))
+            V2PrimitiveType::V2DateTime => V2ComponentType::V2DateTime(component.to_v2datetime()),
+            V2PrimitiveType::V2Date => V2ComponentType::V2Date(component.to_v2date()),
+            V2PrimitiveType::V2Time => V2ComponentType::V2Time(component.to_v2time()),
+            V2PrimitiveType::V2FT => V2ComponentType::V2FT(
+                component.to_v2formattedtext(&characters.repetition_separator),
+            ),
+            V2PrimitiveType::V2Text => {
+                V2ComponentType::V2Text(component.to_v2text(&characters.repetition_separator))
             }
-            _ => Err("Error".to_rumstring()),
+            V2PrimitiveType::V2String => V2ComponentType::V2String(component.to_v2string()),
+            V2PrimitiveType::V2SNM => V2ComponentType::V2SNM(component.to_v2telephonestring()),
+            V2PrimitiveType::V2ID => V2ComponentType::V2ID(component.to_v2id()),
+            V2PrimitiveType::V2IS => V2ComponentType::V2IS(component.to_v2is()),
+            V2PrimitiveType::V2NM => V2ComponentType::V2NM(component.to_v2number()),
+            V2PrimitiveType::V2ST => V2ComponentType::V2ST(component.to_v2stringdata()),
+            V2PrimitiveType::V2SI => V2ComponentType::V2SI(component.to_v2sequenceid()),
         }
     }
 }

@@ -34,9 +34,7 @@ mod tests {
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
-    use hl7_v2_complex_types::hl7_v2_complex_types::{
-        validate_and_cast_component, V2ComponentType,
-    };
+    use hl7_v2_complex_types::hl7_v2_complex_types::{cast_component, V2ComponentTypeDescriptor};
     use hl7_v2_parser::v2_parser::*;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils};
@@ -820,7 +818,7 @@ mod tests {
                 "Testing input #{} \"{}\". Expected output is \"{}\". Casting to FT type.",
                 i, input, expected_val
             );
-            let val = input.to_v2formattedtext('~').unwrap();
+            let val = input.to_v2formattedtext("~").unwrap();
             println!("{}", val.len());
             let err_msg = format_compact!("The expected formatted string does not match the formatted string generated from the input [In: {}, Got: {}]", input, val);
             assert_eq!(expected_val, val, "{}", &err_msg);
@@ -834,16 +832,16 @@ mod tests {
         let sanitized_message = V2Message::sanitize(message);
         let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
         let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
-        let v2_component = V2ComponentType::new(
+        let v2_component = V2ComponentTypeDescriptor::new(
             V2String::from("Date"),
             V2PrimitiveType::V2Date,
             1,
             1,
             1,
-            true,
+            false,
             true,
         );
-        let input = validate_and_cast_component::<V2Date>(&"2007", &v2_component, &encode_chars);
+        let input = cast_component::<V2Date>(&"2007", &v2_component, &encode_chars);
         println!("{:#?}", encode_chars);
     }
 
