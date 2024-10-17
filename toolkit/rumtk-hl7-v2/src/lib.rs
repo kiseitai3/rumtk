@@ -841,7 +841,7 @@ mod tests {
             false,
             true,
         );
-        let input = cast_component::<V2Date>(&"2007", &v2_component, &encode_chars);
+        let input = cast_component(&"2007", &v2_component, &encode_chars);
         println!("{:#?}", encode_chars);
     }
 

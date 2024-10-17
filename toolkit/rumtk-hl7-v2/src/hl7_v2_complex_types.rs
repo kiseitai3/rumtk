@@ -81,7 +81,7 @@ pub mod hl7_v2_complex_types {
         }
     }
 
-    pub fn cast_component<T: Default>(
+    pub fn cast_component(
         component: &str,
         component_type: &V2ComponentTypeDescriptor,
         characters: &V2ParserCharacters,
