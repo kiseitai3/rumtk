@@ -20,6 +20,7 @@
 
 pub mod hl7_v2_complex_types {
     use crate::hl7_v2_base_types::v2_primitives::*;
+    use crate::hl7_v2_field_descriptors::v2_field_descriptor::*;
     use rumtk_core::strings::format_compact;
 
     type V2StrField<'a> = Vec<&'a str>;
@@ -46,39 +47,6 @@ pub mod hl7_v2_complex_types {
         V2Text(V2Result<V2TX>),
         V2SI(V2Result<V2SI>),
         Err(V2String),
-    }
-
-    #[derive(Debug, Default)]
-    pub struct V2ComponentTypeDescriptor {
-        name: V2String,
-        data_type: V2PrimitiveType,
-        max_input_len: u32,
-        seq: u16,
-        valid_table: u16,
-        required: bool,
-        truncate: bool,
-    }
-
-    impl V2ComponentTypeDescriptor {
-        pub fn new(
-            name: V2String,
-            data_type: V2PrimitiveType,
-            max_input_len: u32,
-            seq: u16,
-            valid_table: u16,
-            required: bool,
-            truncate: bool,
-        ) -> V2ComponentTypeDescriptor {
-            V2ComponentTypeDescriptor {
-                name,
-                data_type,
-                max_input_len,
-                seq,
-                valid_table,
-                required,
-                truncate,
-            }
-        }
     }
 
     pub fn cast_component(

@@ -22,6 +22,7 @@ extern crate rumtk_core;
 mod hl7_v2_base_types;
 mod hl7_v2_complex_types;
 mod hl7_v2_constants;
+mod hl7_v2_field_descriptors;
 pub mod hl7_v2_interpreter;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
