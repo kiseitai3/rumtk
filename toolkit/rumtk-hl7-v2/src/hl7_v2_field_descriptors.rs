@@ -19,25 +19,25 @@
  */
 
 pub mod v2_field_descriptor {
-    use crate::hl7_v2_base_types::v2_base_types::V2String;
     use crate::hl7_v2_base_types::v2_primitives::V2PrimitiveType;
+    pub use once_cell::unsync::Lazy;
     use ::phf::Map;
     use ::phf_macros::phf_map;
 
     #[derive(Debug, Default)]
     pub struct V2ComponentTypeDescriptor {
-        name: V2String,
-        data_type: V2PrimitiveType,
-        max_input_len: u32,
-        seq: u16,
-        valid_table: u16,
-        required: bool,
-        truncate: bool,
+        pub name: &'static str,
+        pub data_type: V2PrimitiveType,
+        pub max_input_len: u32,
+        pub seq: u16,
+        pub valid_table: u16,
+        pub required: bool,
+        pub truncate: bool,
     }
 
     impl V2ComponentTypeDescriptor {
-        pub fn new(
-            name: V2String,
+        pub const fn new(
+            name: &'static str,
             data_type: V2PrimitiveType,
             max_input_len: u32,
             seq: u16,
@@ -57,14 +57,14 @@ pub mod v2_field_descriptor {
         }
     }
 
-    pub type V2FieldDescriptor = Vec<&'static V2ComponentTypeDescriptor>;
+    pub type V2FieldDescriptor = [&'static V2ComponentTypeDescriptor];
     pub type V2FieldDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
 
     #[macro_export]
     macro_rules! v2_component_descriptor {
         ( $name:expr, $data_type:expr, $max_input_len:expr, $seq:expr, $valid_table:expr, $required:expr, $truncate:expr ) => {{
             &V2ComponentTypeDescriptor::new(
-                V2String::from($name),
+                $name,
                 $data_type,
                 $max_input_len,
                 $seq,
@@ -75,7 +75,7 @@ pub mod v2_field_descriptor {
         }};
     }
     pub static V2_FIELD_DESCRIPTORS: V2FieldDescriptors = phf_map! {
-        "AD" => &vec![
+        "AD" => &[
             v2_component_descriptor!("Street Address", V2PrimitiveType::V2ST, 120, 1, 0, false, true),
             v2_component_descriptor!("Other Designation", V2PrimitiveType::V2ST, 120, 2, 0, false, true),
             v2_component_descriptor!("City", V2PrimitiveType::V2ST, 50, 3, 0, false, true),
@@ -86,4 +86,14 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("Other Geographic Designation", V2PrimitiveType::V2ST, 50, 8, 0, false, true),
         ]
     };
+
+    pub enum V2ComplexType {
+        AD,
+    }
+
+    pub fn complex_type_to_str(complex_type: &V2ComplexType) -> &str {
+        match complex_type {
+            V2ComplexType::AD => "AD",
+        }
+    }
 }

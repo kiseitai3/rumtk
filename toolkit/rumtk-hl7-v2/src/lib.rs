@@ -19,10 +19,10 @@
  */
 
 extern crate rumtk_core;
-mod hl7_v2_base_types;
-mod hl7_v2_complex_types;
-mod hl7_v2_constants;
-mod hl7_v2_field_descriptors;
+pub mod hl7_v2_base_types;
+pub mod hl7_v2_complex_types;
+pub mod hl7_v2_constants;
+pub mod hl7_v2_field_descriptors;
 pub mod hl7_v2_interpreter;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
@@ -31,12 +31,13 @@ pub mod hl7_v2_types;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
-    use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
-    use hl7_v2_complex_types::hl7_v2_complex_types::{cast_component, V2ComponentTypeDescriptor};
+    use hl7_v2_complex_types::hl7_v2_complex_types::cast_component;
+    use hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
+    use hl7_v2_field_descriptors::v2_field_descriptor::V2ComponentTypeDescriptor;
     use hl7_v2_parser::v2_parser::*;
+    use hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils};
     /**********************************Constants**************************************/
@@ -833,15 +834,8 @@ mod tests {
         let sanitized_message = V2Message::sanitize(message);
         let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
         let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
-        let v2_component = V2ComponentTypeDescriptor::new(
-            V2String::from("Date"),
-            V2PrimitiveType::V2Date,
-            1,
-            1,
-            1,
-            false,
-            true,
-        );
+        let v2_component =
+            V2ComponentTypeDescriptor::new("Date", V2PrimitiveType::V2Date, 1, 1, 1, false, true);
         let input = cast_component(&"2007", &v2_component, &encode_chars);
         println!("{:#?}", encode_chars);
     }
