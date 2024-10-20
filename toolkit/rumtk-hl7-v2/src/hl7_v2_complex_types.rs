@@ -32,8 +32,8 @@ pub mod hl7_v2_complex_types {
     pub trait V2FieldToString: Sized {
         fn to_component_list(&self) -> V2StrField;
     }
-    #[repr(C)]
-    pub enum V2ComponentType {
+
+    pub enum V2Type {
         V2String(V2Result<V2String>),
         V2DateTime(V2Result<V2DateTime>),
         V2Date(V2Result<V2Date>),
@@ -51,32 +51,37 @@ pub mod hl7_v2_complex_types {
 
     pub fn cast_component(
         component: &str,
-        component_type: &V2ComponentTypeDescriptor,
+        component_type: &V2FieldTypeDescriptor,
         characters: &V2ParserCharacters,
-    ) -> V2ComponentType {
+    ) -> V2Type {
         if component_type.required && component.len() == 0 {
-            return V2ComponentType::Err(format_compact!(
+            return V2Type::Err(format_compact!(
                 "Required data in seq {} is missing!",
                 component_type.seq
             ));
         }
-        match component_type.data_type {
-            V2PrimitiveType::V2DateTime => V2ComponentType::V2DateTime(component.to_v2datetime()),
-            V2PrimitiveType::V2Date => V2ComponentType::V2Date(component.to_v2date()),
-            V2PrimitiveType::V2Time => V2ComponentType::V2Time(component.to_v2time()),
-            V2PrimitiveType::V2FT => V2ComponentType::V2FT(
-                component.to_v2formattedtext(&characters.repetition_separator),
-            ),
-            V2PrimitiveType::V2Text => {
-                V2ComponentType::V2Text(component.to_v2text(&characters.repetition_separator))
-            }
-            V2PrimitiveType::V2String => V2ComponentType::V2String(component.to_v2string()),
-            V2PrimitiveType::V2SNM => V2ComponentType::V2SNM(component.to_v2telephonestring()),
-            V2PrimitiveType::V2ID => V2ComponentType::V2ID(component.to_v2id()),
-            V2PrimitiveType::V2IS => V2ComponentType::V2IS(component.to_v2is()),
-            V2PrimitiveType::V2NM => V2ComponentType::V2NM(component.to_v2number()),
-            V2PrimitiveType::V2ST => V2ComponentType::V2ST(component.to_v2stringdata()),
-            V2PrimitiveType::V2SI => V2ComponentType::V2SI(component.to_v2sequenceid()),
+        match &component_type.data_type {
+            V2FieldType::Primitive(primitive) => match primitive {
+                V2PrimitiveType::DateTime => V2Type::V2DateTime(component.to_v2datetime()),
+                V2PrimitiveType::Date => V2Type::V2Date(component.to_v2date()),
+                V2PrimitiveType::Time => V2Type::V2Time(component.to_v2time()),
+                V2PrimitiveType::FT => {
+                    V2Type::V2FT(component.to_v2formattedtext(&characters.repetition_separator))
+                }
+                V2PrimitiveType::Text => {
+                    V2Type::V2Text(component.to_v2text(&characters.repetition_separator))
+                }
+                V2PrimitiveType::String => V2Type::V2String(component.to_v2string()),
+                V2PrimitiveType::SNM => V2Type::V2SNM(component.to_v2telephonestring()),
+                V2PrimitiveType::ID => V2Type::V2ID(component.to_v2id()),
+                V2PrimitiveType::IS => V2Type::V2IS(component.to_v2is()),
+                V2PrimitiveType::NM => V2Type::V2NM(component.to_v2number()),
+                V2PrimitiveType::ST => V2Type::V2ST(component.to_v2stringdata()),
+                V2PrimitiveType::SI => V2Type::V2SI(component.to_v2sequenceid()),
+            },
+            V2FieldType::Complex(complex) => match complex {
+                _ => V2Type::Err(format_compact!("Unknown requested type!")),
+            },
         }
     }
 }

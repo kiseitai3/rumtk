@@ -24,105 +24,12 @@ pub mod v2_field_descriptor {
     use ::phf::Map;
     use ::phf_macros::phf_map;
 
-    #[derive(Debug, Default)]
-    pub struct V2ComponentTypeDescriptor {
-        pub name: &'static str,
-        pub description: &'static str,
-        pub data_type: V2PrimitiveType,
-        pub max_input_len: u32,
-        pub seq: u16,
-        pub valid_table: u16,
-        pub required: bool,
-        pub truncate: bool,
-    }
-
-    impl V2ComponentTypeDescriptor {
-        pub const fn new(
-            name: &'static str,
-            description: &'static str,
-            data_type: V2PrimitiveType,
-            max_input_len: u32,
-            seq: u16,
-            valid_table: u16,
-            required: bool,
-            truncate: bool,
-        ) -> V2ComponentTypeDescriptor {
-            V2ComponentTypeDescriptor {
-                name,
-                description,
-                data_type,
-                max_input_len,
-                seq,
-                valid_table,
-                required,
-                truncate,
-            }
-        }
-    }
-
-    pub type V2FieldDescriptor = [&'static V2ComponentTypeDescriptor];
-    pub type V2FieldDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
-
-    ///
-    /// Generates instance of V2ComponentDescriptor which defines how we should cast a field.
-    ///
-    /// ## Arguments
-    /// * `name` - String representing the component name.
-    /// * `description` - String describing the component as given in the data type table.
-    /// * `data_type` - Appropriate [`V2PrimitiveType`] enumerator item describing the type we should target when casting the component
-    /// * `max_input_len` - Length to truncate value of component if `truncate` is True
-    /// * `seq` - Number of component/sequence in field.
-    /// * `valid_table` - Validation table used for additional validation of input. It's a number now, but may be changed to an enumerator in the future.
-    /// * `required` - Boolean flag for marking component as required. If a required component is missing, emit error.
-    /// * `truncate` - Boolean flag for marking the component as one that needs to be truncated to `max_input_len`.
-    ///
-    #[macro_export]
-    macro_rules! v2_component_descriptor {
-        ( $name:expr, $description:expr, $data_type:expr, $max_input_len:expr, $seq:expr, $valid_table:expr, $required:expr, $truncate:expr ) => {{
-            &V2ComponentTypeDescriptor::new(
-                $name,
-                $description,
-                $data_type,
-                $max_input_len,
-                $seq,
-                $valid_table,
-                $required,
-                $truncate,
-            )
-        }};
-    }
-    pub static V2_FIELD_DESCRIPTORS: V2FieldDescriptors = phf_map! {
-        "AD" => &[
-            v2_component_descriptor!("street_address", "Street Address", V2PrimitiveType::V2ST, 120, 1, 0, false, true),
-            v2_component_descriptor!("second_address", "Other Designation", V2PrimitiveType::V2ST, 120, 2, 0, false, true),
-            v2_component_descriptor!("city", "City", V2PrimitiveType::V2ST, 50, 3, 0, false, true),
-            v2_component_descriptor!("state", "State or Province", V2PrimitiveType::V2ST, 50, 4, 0, false, true),
-            v2_component_descriptor!("zip", "Zip or Postal Code", V2PrimitiveType::V2ST, 12, 5, 0, false, false),
-            v2_component_descriptor!("country", "Country", V2PrimitiveType::V2ID, 0, 6, 399, false, false),
-            v2_component_descriptor!("address_type", "Address Type", V2PrimitiveType::V2ID, 0, 7, 190, false, false),
-            v2_component_descriptor!("county", "Other Geographic Designation", V2PrimitiveType::V2ST, 50, 8, 0, false, true)
-        ],
-        "AUI" => &[
-            v2_component_descriptor!("auth_number", "Authorization Number", V2PrimitiveType::V2ST, 30, 1, 0, false, false),
-            v2_component_descriptor!("date", "Date", V2PrimitiveType::V2Date, 0, 2, 0, false, false),
-            v2_component_descriptor!("source", "Source", V2PrimitiveType::V2ST, 199, 3, 0, false, true)
-        ],
-        "CCD" => &[
-            v2_component_descriptor!("event", "Invocation Event", V2PrimitiveType::V2ID, 0, 1, 0, true, false),
-            v2_component_descriptor!("date", "Date/time", V2PrimitiveType::V2DateTime, 0, 2, 100, false, false)
-        ],
-        "CCP" => &[
-            v2_component_descriptor!("cc_factor", "Channel Calibration Sensitivity Correction Factor", V2PrimitiveType::V2NM, 6, 1, 0, false, true),
-            v2_component_descriptor!("cc_baseline", "Channel Calibration Baseline", V2PrimitiveType::V2NM, 6, 2, 0, false, true),
-            v2_component_descriptor!("cc_time_skew", "Channel Calibration Time Skew", V2PrimitiveType::V2NM, 6, 3, 0, false, true)
-        ]
-    };
-
     ///
     /// Enumerator listing every complex type we have defined so far. Complex type definitions here
     /// will be used to guide type casting of the string components of a field into the proper primitive
     /// component types and overall field structure.
     ///
+    #[derive(Debug)]
     pub enum V2ComplexType {
         ///
         /// # 2A.3.1AD - address
@@ -245,7 +152,187 @@ pub mod v2_field_descriptor {
         ///     frequency (t < 1/f).
         ///
         CCP,
+        ///
+        /// # 2A.3.5 CD - channel definition
+        ///
+        /// **Attention: Retained for backward compatibility onlyas of v 2.7.** This is used only in the
+        /// waveform message, CHM category, which has been retained for backward compatibility only in v
+        /// 2.7.
+        ///
+        /// Definition: This data type is used for labeling of digital waveform data. It defines a recording
+        /// channel, which is associated with one of the values in each time sample of waveform data. Each
+        /// channel has a number (which generally defines its position in a multichannel display) and an
+        /// optional name or label (also used in displays). One or two named waveform sources may also be
+        /// associated with a channel (providing for the use of differential amplifiers with two inputs). The
+        /// other components of the channel definition data type are optional. The individual components are
+        /// defined as follows:
+        ///
+        /// ## 2A.3.5.1 Channel Identifier (WVI)
+        ///     Definition: This component specifies the number and name of the recording channel where
+        ///     waveform data is transmitted.
+        ///
+        /// ## 2A.3.5.2 Waveform Source (WVS)
+        ///     Definition: This component identifies the source of the waveform connected to the channel. Two
+        ///     names may be specified if it is necessary to individually identify the two inputs for a waveform.
+        ///     Only one name need be specified if the channel is connected to a single input. For example, in
+        ///     EKG recordings typically only one name is used (such as I or II); in electroencephalography, two
+        ///     names are typically used, one for each input of the differential amplifier (such as F3 and C3).
+        ///
+        /// ## 2A.3.5.3 Channel Sensitivity and Units (CSU)
+        ///     Definition: This component defines the channel sensitivity (gain) and the units in which it is
+        ///     measured.
+        ///
+        /// ## 2A.3.5.4 Channel Calibration Parameters (CCP)
+        ///     Definition: This component identifies the corrections to channel sensitivity, the baseline, and the
+        ///     channel time skew.
+        ///
+        /// ## 2A.3.5.5 Channel Sampling Frequency (NM)
+        ///     Definition: This component defines the sampling frequency in hertz of the channel, that is, the
+        ///     reciprocal of the time in seconds between successive samples
+        ///
+        /// ## 2A.3.5.6 Minimum and Maximum Data Values (NR)
+        /// **Note:** this is the frequency of transmitted data, which may or may not be the actual frequency at which the
+        /// data was acquired by an analog-to-digital converter or other digital data source (i.e. the data transmitted
+        /// may be subsampled, or interpolated, from the originally acquired data.)
+        ///
+        ///     Definition: This component defines the minimum and maximum data values which can occur in
+        ///     this channel in the digital waveform data, that is, the range of the ADC. , and also specifies
+        ///     whether or not non-integral data values may occur in this channel in the waveform data. If the
+        ///     minimum and maximum values are both integers (or not present), only integral data values may be
+        ///     used in this channel. If either the minimum or the maximum value contains a decimal point, then
+        ///     non-integral as well as integral data values may be used in this channel. For an n-bit signed ADC,
+        ///     the nominal baseline B = 0, and the minimum (L) and maximum (H) values may be calculated as
+        ///     follows:
+        ///         L = -2n-1
+        ///         H = 2n-1 - 1
+        ///
+        ///     For an unsigned n-bit ADC, the minimum value L = 0, and the nominal baseline value (B) and
+        ///     maximum value (H) may be calculated from the formulas,
+        ///         B = 2n-1
+        ///         H = 2n - 1
+        ///
+        ///     The actual signal amplitude A (for differentially amplified potential measurements, the potential at
+        ///     electrode number one minus that at electrode number two) may be calculated from the value D
+        ///     (range L to H) in the waveform data using the actual baseline value B and the nominal sensitivity
+        ///     S and actual sensitivity correction factor C by the formula,
+        ///
+        ///         A = SC(D-B)
+        ///
+        CD,
+        CSU,
+        NR,
+        WVI,
+        WVS,
     }
+
+    #[derive(Debug)]
+    pub enum V2FieldType {
+        Primitive(V2PrimitiveType),
+        Complex(V2ComplexType),
+    }
+
+    #[derive(Debug)]
+    pub struct V2FieldTypeDescriptor {
+        pub name: &'static str,
+        pub description: &'static str,
+        pub data_type: V2FieldType,
+        pub max_input_len: u32,
+        pub seq: u16,
+        pub valid_table: u16,
+        pub required: bool,
+        pub truncate: bool,
+    }
+
+    impl V2FieldTypeDescriptor {
+        pub const fn new(
+            name: &'static str,
+            description: &'static str,
+            data_type: V2FieldType,
+            max_input_len: u32,
+            seq: u16,
+            valid_table: u16,
+            required: bool,
+            truncate: bool,
+        ) -> V2FieldTypeDescriptor {
+            V2FieldTypeDescriptor {
+                name,
+                description,
+                data_type,
+                max_input_len,
+                seq,
+                valid_table,
+                required,
+                truncate,
+            }
+        }
+    }
+
+    pub type V2FieldDescriptor = [&'static V2FieldTypeDescriptor];
+    pub type V2FieldDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
+
+    ///
+    /// Generates instance of V2ComponentDescriptor which defines how we should cast a field.
+    ///
+    /// ## Arguments
+    /// * `name` - String representing the component name.
+    /// * `description` - String describing the component as given in the data type table.
+    /// * `data_type` - Appropriate [`V2PrimitiveType`] enumerator item describing the type we should target when casting the component
+    /// * `max_input_len` - Length to truncate value of component if `truncate` is True
+    /// * `seq` - Number of component/sequence in field.
+    /// * `valid_table` - Validation table used for additional validation of input. It's a number now, but may be changed to an enumerator in the future.
+    /// * `required` - Boolean flag for marking component as required. If a required component is missing, emit error.
+    /// * `truncate` - Boolean flag for marking the component as one that needs to be truncated to `max_input_len`.
+    ///
+    #[macro_export]
+    macro_rules! v2_field_descriptor {
+        ( $name:expr, $description:expr, $data_type:expr, $max_input_len:expr, $seq:expr, $valid_table:expr, $required:expr, $truncate:expr ) => {{
+            &V2FieldTypeDescriptor::new(
+                $name,
+                $description,
+                $data_type,
+                $max_input_len,
+                $seq,
+                $valid_table,
+                $required,
+                $truncate,
+            )
+        }};
+    }
+
+    pub static V2_FIELD_DESCRIPTORS: V2FieldDescriptors = phf_map! {
+        "AD" => &[
+            v2_field_descriptor!("street_address", "Street Address", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 1, 0, false, true),
+            v2_field_descriptor!("second_address", "Other Designation", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 2, 0, false, true),
+            v2_field_descriptor!("city", "City", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 3, 0, false, true),
+            v2_field_descriptor!("state", "State or Province", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 4, 0, false, true),
+            v2_field_descriptor!("zip", "Zip or Postal Code", V2FieldType::Primitive(V2PrimitiveType::ST), 12, 5, 0, false, false),
+            v2_field_descriptor!("country", "Country", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 6, 399, false, false),
+            v2_field_descriptor!("address_type", "Address Type", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 7, 190, false, false),
+            v2_field_descriptor!("county", "Other Geographic Designation", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 8, 0, false, true)
+        ],
+        "AUI" => &[
+            v2_field_descriptor!("auth_number", "Authorization Number", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 1, 0, false, false),
+            v2_field_descriptor!("date", "Date", V2FieldType::Primitive(V2PrimitiveType::Date), 0, 2, 0, false, false),
+            v2_field_descriptor!("source", "Source", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 3, 0, false, true)
+        ],
+        "CCD" => &[
+            v2_field_descriptor!("event", "Invocation Event", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 1, 0, true, false),
+            v2_field_descriptor!("date", "Date/time", V2FieldType::Primitive(V2PrimitiveType::DateTime), 0, 2, 100, false, false)
+        ],
+        "CCP" => &[
+            v2_field_descriptor!("cc_factor", "Channel Calibration Sensitivity Correction Factor", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 1, 0, false, true),
+            v2_field_descriptor!("cc_baseline", "Channel Calibration Baseline", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 2, 0, false, true),
+            v2_field_descriptor!("cc_time_skew", "Channel Calibration Time Skew", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 3, 0, false, true)
+        ],
+        "CD" => &[
+            v2_field_descriptor!("channel_id", "Channel Identifier", V2FieldType::Complex(V2ComplexType::WVI), 0, 1, 0, false, false),
+            v2_field_descriptor!("waveform_source", "Waveform Source", V2FieldType::Complex(V2ComplexType::WVS), 0, 2, 0, false, false),
+            v2_field_descriptor!("channel_sensitivity_units", "Channel Sensitivity and Units", V2FieldType::Complex(V2ComplexType::CSU), 0, 3, 0, false, false),
+            v2_field_descriptor!("channel_calibration_parameters", "Channel Calibration Parameters", V2FieldType::Complex(V2ComplexType::CCP), 0, 4, 0, false, false),
+            v2_field_descriptor!("channel_sampling_frequency", "Channel Sampling Frequency", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 5, 0, false, true),
+            v2_field_descriptor!("min_max_values", "Minimum and Maximum Data Values", V2FieldType::Complex(V2ComplexType::NR), 0, 6, 0, false, false)
+        ]
+    };
 
     ///
     /// Return string key corresponding to enumerator key.
@@ -256,6 +343,8 @@ pub mod v2_field_descriptor {
             V2ComplexType::AUI => "AUI",
             V2ComplexType::CCD => "CCD",
             V2ComplexType::CCP => "CCP",
+            V2ComplexType::CD => "CD",
+            _ => "Error",
         }
     }
 }

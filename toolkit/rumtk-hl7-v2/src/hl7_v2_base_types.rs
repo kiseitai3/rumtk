@@ -873,20 +873,19 @@ pub mod v2_primitives {
     impl V2PrimitiveCasting for str {}
     impl V2PrimitiveCasting for V2String {}
 
-    #[derive(Debug, Default)]
+    #[derive(Debug)]
     pub enum V2PrimitiveType {
-        #[default]
-        V2String,
-        V2DateTime,
-        V2Date,
-        V2Time,
-        V2FT,
-        V2SNM,
-        V2NM,
-        V2ID,
-        V2IS,
-        V2ST,
-        V2Text,
-        V2SI,
+        String,
+        DateTime,
+        Date,
+        Time,
+        FT,
+        SNM,
+        NM,
+        ID,
+        IS,
+        ST,
+        Text,
+        SI,
     }
 }
