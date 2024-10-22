@@ -31,12 +31,14 @@ pub mod hl7_v2_types;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hl7_v2_field_descriptors::v2_field_descriptor::V2FieldType;
+    use crate::hl7_v2_field_descriptors::v2_field_descriptor::{
+        V2FieldType, V2FieldTypeDescriptor,
+    };
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
     use hl7_v2_complex_types::hl7_v2_complex_types::cast_component;
+    use hl7_v2_complex_types::hl7_v2_complex_types::V2Type;
     use hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
-    use hl7_v2_field_descriptors::v2_field_descriptor::V2FieldTypeDescriptor;
     use hl7_v2_parser::v2_parser::*;
     use hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use rumtk_core::search::rumtk_search::*;
@@ -845,9 +847,17 @@ mod tests {
             false,
             true,
         );
-        let input = cast_component(&"2007", &v2_component, &encode_chars);
-        println!("{:#?}", encode_chars);
-        // TODO: Complete unit test
+        let input = "2007";
+        let val = cast_component(&input, &v2_component, &encode_chars);
+        let expected = "2007-01-01T00:00:00.0000";
+        let err_msg = format_compact!("The expected formatted string does not match the formatted string generated from the input [In: {}, Got: {}]", input, expected);
+
+        match val {
+            V2Type::V2Date(result) => {
+                assert_eq!(expected, result.unwrap().as_utc_string(), "{}", &err_msg)
+            }
+            _ => panic!("Wrong type received!"),
+        }
     }
 
     // TODO: Add tests for sequenceid and telephonestring

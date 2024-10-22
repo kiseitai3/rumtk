@@ -31,6 +31,7 @@ pub mod v2_base_types {
     };
     use rumtk_core::strings::{format_compact, ToCompactString};
     use rumtk_core::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
+    use std::fmt::Debug;
 
     /**************************** Constants**************************************/
     // Regex
@@ -351,7 +352,6 @@ pub mod v2_base_types {
     ///         + use of the plus sign (+0000) represents the civil time zone offset is known to be zero,
     ///         + use of the minus sign (-0000) represents UTC (without offset)
     ///
-    #[derive(Default)]
     pub struct V2DateTime {
         year: u16,
         month: u8,
@@ -541,6 +541,22 @@ pub mod v2_base_types {
             )
         }
     }
+
+    impl Debug for V2DateTime {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("V2DateTime")
+                .field("year", &self.year)
+                .field("month", &self.month)
+                .field("day", &self.day)
+                .field("hour", &self.hour)
+                .field("minute", &self.minute)
+                .field("second", &self.second)
+                .field("microsecond", &self.microsecond)
+                .field("offset", &self.offset)
+                .finish()
+        }
+    }
+
     ///
     /// We can just use the V2DateTime type to represent this type.
     ///

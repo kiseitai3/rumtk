@@ -33,6 +33,7 @@ pub mod hl7_v2_complex_types {
         fn to_component_list(&self) -> V2StrField;
     }
 
+    #[derive(Debug)]
     pub enum V2Type {
         V2String(V2Result<V2String>),
         V2DateTime(V2Result<V2DateTime>),
