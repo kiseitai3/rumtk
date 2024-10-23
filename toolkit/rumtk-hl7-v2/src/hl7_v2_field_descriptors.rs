@@ -233,163 +233,166 @@ pub mod v2_field_descriptor {
         /// Additionally, 3 new components were added to each tuple such that each tuple now has a total of 7
         /// components. The Original Text component applies to the CF as a whole.
         ///
-        ///Note: The Vocabulary TC is the steward of the CF data type.
-        // Definition: This data type transmits codes and the formatted text associated with the code. This
-        // data type can be used to transmit for the first time the formatted text for the canned text portion of
-        // a report, for example, a standard radiological description for a normal chest X-ray. The receiving
-        // system can store this information and in subsequent messages only the identifier need be sent.
-        // Another potential use of this data type is transmitting master file records that contain formatted
-        // text. This data type has six components as follows:
-        // The components, primary and alternate, are defined exactly as in the CE data type with the
-        // exception of the second and fifth components, which are of the formatted text data type.
-        // Example:
-        // OBX||CF|71020^CXR^99CPMC||79989^\H\Description:\N\\.sp\\ti+4\Heart is not
-        // enlarged. There is no evidence of pneumonia, effusion, pneumothorax or
-        // any masses. \.sp+3\\H\Impression:\N\\.sp\\.ti+4\Negative chest.^99CPMC
-        // 2A.3.7.1
-        // Identifier (ST)
-        // Definition: Sequence of characters (the code) that uniquely identifies the item being referenced by
-        // the <text>. Different coding schemes will have different elements here.
-        // 2A.3.7.2
-        // Formatted Text (FT)
-        // Definition: Name or description of the item in question with the addition of embedded formatting
-        // instructions.
-        // 2A.3.7.3
-        // Name of Coding System (ID)
-        // Definition: Contains the name of the coding system employed.
-        // Refer to HL7 Table 0396 - Coding System in Chapter 2C, Code Tables, for valid values.
-        // As of v2.7 this component is required when CF.1 is populated and CF.14 is not populated. Both
-        // CF.3 and CF.14 may be populated. Receivers should not identify a code based on its position
-        // within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
-        // a repeating field. Instead, the receiver should always examine the coding system as specified in
-        // CF.3 and/or CF.14, the Coding System component or the Coding System OID, for the tuple.
-        // 2A.3.7.4
-        // Alternate Identifier (ST)
-        // Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF-1
-        // Identifier.
-        // Usage Notes: The Alternate Identifier is used to represent the local or user seen code as described.
-        // If present, it obeys the same rules of use and interpretation as described for component 1. If both
-        // are present, the identifiers in component 4 and component 1 should have exactly the same
-        // meaning, i.e., they should be exact synonyms.
-        ///2A.3.7.5
-        // Alternate Formatted Text (FT)
-        // Definition: Name or description of the alternate identifier in question with the addition of
-        // embedded formatting instructions. Analogous to CF.2 Formatted Text.
-        // 2A.3.7.6
-        // Name of Alternate Coding System (ID)
-        // Definition: Contains the name of the coding system employed for the alternate identifier.
-        // Analogous to CF.3 Name of Coding System.
-        // Refer to HL7 Table 0396 - Coding System in Chapter 2C, Code Tables, for valid values.
-        // As of v2.7 this component is required when CF.4 is populated and CF.17 is not populated. Both
-        // CF.6 and CF.17 may be populated. Receivers should not identify a code based on its position
-        // within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
-        // a repeating field. Instead, the receiver should always examine the coding ystem as specified in
-        // CF.6 and/or CF.17, the Coding System component or the Coding System OID, for the tuple.
-        // 2A.3.7.7
-        // Coding System Version ID (ST)
-        // Definition: This component carries the version for the coding system identified by components 1-
-        // 3. If CF.3 is populated with a value other than HL7nnnn or is of table type user-defined, version
-        // ID must be valued with an actual version ID. If CF.3 is populated with a value of HL7nnnn and
-        // nnnn is of table type HL7, version ID may have an actual value or it may be absent. If version ID
-        // is absent, it will be interpreted to have the same value as the HL7 version number in the message
-        // header.
-        // 2A.3.7.8
-        // Alternate Coding System Version ID (ST)
-        // Definition: This component carries the version for the coding system identified by components 4-
-        // 6. Analogous To CF.7 Coding System Version ID.
-        // 2A.3.7.9
-        // Original Text (ST)
-        // Definition: The text as seen and/or selected by the user who entered the data. Original text can be
-        // used in a structured user interface to capture what the user saw as a representation of the code on
-        // the data input screen, or in a situation where the user dictates or directly enters text, it is the text
-        // entered or uttered by the user. In a situation where the code is assigned sometime after the text was
-        // entered, original text is the text or phrase used as the basis for assigning the code.
-        // 2A.3.7.10 Second Alternate Identifier (ST)
-        // Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF.1
-        // Identifier.
-        // 2A.3.7.11 Second Alternate FormattedText (FT)
-        // Definition: The descriptive or textual name of the Second Alternate Identifier. Analogous to CF.2
-        // Formatted Text.
-        // 2A.3.7.12 Name of Second Alternate Coding System (ID)
-        // Definition: Identifies the coding scheme being used in the Second Alternate Identifier component.
-        // Analogous to CF. Name of Coding System.
-        // This component is required when CF.10 is populated and CF.20 is not populated. Both CF.10 and
-        // CF.20 may be populated. Receivers should not identify a code based on its position within the
-        // tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within a repeating
-        // field. Instead, the receiver should always examine the coding ystem as specified in CF.12 and/or
-        // CF.20 the Coding System component or the Coding System OID for the tuple.
-        // 2A.3.7.13 Second Alternate Coding System Version ID (ST)
-        // Definition: This component carries the version for the coding system identified by components 10-
-        // 12. Analogous To CF.7 Coding System Version ID.
+        /// **Note:** The Vocabulary TC is the steward of the CF data type.
+        ///
+        ///     Definition: This data type transmits codes and the formatted text associated with the code. This
+        ///     data type can be used to transmit for the first time the formatted text for the canned text portion of
+        ///     a report, for example, a standard radiological description for a normal chest X-ray. The receiving
+        ///     system can store this information and in subsequent messages only the identifier need be sent.
+        ///     Another potential use of this data type is transmitting master file records that contain formatted
+        ///     text. This data type has six components as follows:
+        ///     The components, primary and alternate, are defined exactly as in the CE data type with the
+        ///     exception of the second and fifth components, which are of the formatted text data type.
+        ///
+        ///     Example:
+        ///         OBX||CF|71020^CXR^99CPMC||79989^\H\Description:\N\\.sp\\ti+4\Heart is not
+        ///             enlarged. There is no evidence of pneumonia, effusion, pneumothorax or
+        ///             any masses. \.sp+3\\H\Impression:\N\\.sp\\.ti+4\Negative chest.^99CPMC
+        ///
+        /// ## 2A.3.7.1 Identifier (ST)
+        ///     Definition: Sequence of characters (the code) that uniquely identifies the item being referenced by
+        ///     the <text>. Different coding schemes will have different elements here.
+        ///
+        /// ## 2A.3.7.2 Formatted Text (FT)
+        ///     Definition: Name or description of the item in question with the addition of embedded formatting
+        ///     instructions.
+        ///
+        /// ## 2A.3.7.3 Name of Coding System (ID)
+        ///     Definition: Contains the name of the coding system employed.
+        ///     Refer to HL7 Table 0396 - Coding System in Chapter 2C, Code Tables, for valid values.
+        ///     As of v2.7 this component is required when CF.1 is populated and CF.14 is not populated. Both
+        ///     CF.3 and CF.14 may be populated. Receivers should not identify a code based on its position
+        ///     within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
+        ///     a repeating field. Instead, the receiver should always examine the coding system as specified in
+        ///     CF.3 and/or CF.14, the Coding System component or the Coding System OID, for the tuple.
+        ///
+        /// ## 2A.3.7.4 Alternate Identifier (ST)
+        ///     Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF-1
+        ///     Identifier.
+        ///
+        /// **Usage Notes:** The Alternate Identifier is used to represent the local or user seen code as described.
+        /// If present, it obeys the same rules of use and interpretation as described for component 1. If both
+        /// are present, the identifiers in component 4 and component 1 should have exactly the same
+        /// meaning, i.e., they should be exact synonyms.
+        ///
+        /// ## 2A.3.7.5 Alternate Formatted Text (FT)
+        ///     Definition: Name or description of the alternate identifier in question with the addition of
+        ///     embedded formatting instructions. Analogous to CF.2 Formatted Text.
+        ///
+        /// ## 2A.3.7.6 Name of Alternate Coding System (ID)
+        ///     Definition: Contains the name of the coding system employed for the alternate identifier.
+        ///     Analogous to CF.3 Name of Coding System.
+        ///     Refer to HL7 Table 0396 - Coding System in Chapter 2C, Code Tables, for valid values.
+        ///     As of v2.7 this component is required when CF.4 is populated and CF.17 is not populated. Both
+        ///     CF.6 and CF.17 may be populated. Receivers should not identify a code based on its position
+        ///     within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
+        ///     a repeating field. Instead, the receiver should always examine the coding ystem as specified in
+        ///     CF.6 and/or CF.17, the Coding System component or the Coding System OID, for the tuple.
+        ///
+        /// ## 2A.3.7.7 Coding System Version ID (ST)
+        /// Definition: This component carries the version for the coding system identified by components 1-
+        /// 3. If CF.3 is populated with a value other than HL7nnnn or is of table type user-defined, version
+        /// ID must be valued with an actual version ID. If CF.3 is populated with a value of HL7nnnn and
+        /// nnnn is of table type HL7, version ID may have an actual value or it may be absent. If version ID
+        /// is absent, it will be interpreted to have the same value as the HL7 version number in the message
+        /// header.
+        /// 2A.3.7.8
+        /// Alternate Coding System Version ID (ST)
+        /// Definition: This component carries the version for the coding system identified by components 4-
+        /// 6. Analogous To CF.7 Coding System Version ID.
+        /// 2A.3.7.9
+        /// Original Text (ST)
+        /// Definition: The text as seen and/or selected by the user who entered the data. Original text can be
+        /// used in a structured user interface to capture what the user saw as a representation of the code on
+        /// the data input screen, or in a situation where the user dictates or directly enters text, it is the text
+        /// entered or uttered by the user. In a situation where the code is assigned sometime after the text was
+        /// entered, original text is the text or phrase used as the basis for assigning the code.
+        /// 2A.3.7.10 Second Alternate Identifier (ST)
+        /// Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF.1
+        /// Identifier.
+        /// 2A.3.7.11 Second Alternate FormattedText (FT)
+        /// Definition: The descriptive or textual name of the Second Alternate Identifier. Analogous to CF.2
+        /// Formatted Text.
+        /// 2A.3.7.12 Name of Second Alternate Coding System (ID)
+        /// Definition: Identifies the coding scheme being used in the Second Alternate Identifier component.
+        /// Analogous to CF. Name of Coding System.
+        /// This component is required when CF.10 is populated and CF.20 is not populated. Both CF.10 and
+        /// CF.20 may be populated. Receivers should not identify a code based on its position within the
+        /// tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within a repeating
+        /// field. Instead, the receiver should always examine the coding ystem as specified in CF.12 and/or
+        /// CF.20 the Coding System component or the Coding System OID for the tuple.
+        /// 2A.3.7.13 Second Alternate Coding System Version ID (ST)
+        /// Definition: This component carries the version for the coding system identified by components 10-
+        /// 12. Analogous To CF.7 Coding System Version ID.
         ///2A.3.7.14 Coding System OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) for the coding system or
-        // value set named in CNE.3. The value for this component is 2.16.840.1.113883.12.#### where
-        // "####" is to be replaced by the HL7 table number in the case of an HL7 defined or user defined
-        // table. For externally defined code systems the OID registered in the HL7 OID registry SHALL be
-        // used.
-        // This component is required when CF.1 is populated and CF.3 is not populated. Both CF.3 and
-        // CF.14 may be populated.
-        // 2A.3.7.15 Value Set OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
-        // value set from which the value in CWE.1 is obtained. The value for this component is
-        // 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
-        // an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
-        // HL7 OID registry SHALL be used. A value set may or need not be present irrespective of other
-        // fields.
-        // 2A.3.7.16 Value Set Version ID (DTM)
-        // Definition: This component carries the version for the value set identified by CF.15. The version is
-        // a date. The date is the date/time that the value set being used was published.
-        // Value set version ID is required if CF.15 is populated.
-        // Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
-        // system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
-        // required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
-        // the presence or absence of any or a particular value set/ value set version ID.
-        // 2A.3.7.17 Alternate Coding System OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) for the coding system or
-        // value set named in CF.6. Analogous To CF.14 Coding System OID.
-        // The value for this component is 2.16.840.1.113883.12.#### where "####" is to be replaced by the
-        // HL7 table number in the case of an HL7 defined or user defined table. For externally defined code
-        // systems the OID registered in the HL7 OID registry SHALL be used.
-        // This component is required when CF.4 is populated and CF.6 is not populated. Both CF.6 and
-        // CF.17 may be populated.
-        // 2A.3.7.18 Alternate Value Set OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
-        // value set from which the value in CF.4 is obtained. The value for this component is
-        // 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
-        // an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
-        // HL7 OID registry SHALL be used.
-        // Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
-        // system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
-        // required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
-        // the presence or absence of any or a particular value set/ value set version ID.
-        // A value set may or need not be present irrespective of other fields.
-        // 2A.3.7.19 Alternate Value Set Version ID (DTM)
-        // Definition: This component carries the version for the value set identified by CF.18. The version is
-        // a date. The date is the date/time that the value set being used was published.
-        // Value set version ID is required if CF.18 is populated.
+        /// Definition: This component contains the ISO Object Identifier (OID) for the coding system or
+        /// value set named in CNE.3. The value for this component is 2.16.840.1.113883.12.#### where
+        /// "####" is to be replaced by the HL7 table number in the case of an HL7 defined or user defined
+        /// table. For externally defined code systems the OID registered in the HL7 OID registry SHALL be
+        /// used.
+        /// This component is required when CF.1 is populated and CF.3 is not populated. Both CF.3 and
+        /// CF.14 may be populated.
+        /// 2A.3.7.15 Value Set OID (ST)
+        /// Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
+        /// value set from which the value in CWE.1 is obtained. The value for this component is
+        /// 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
+        /// an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
+        /// HL7 OID registry SHALL be used. A value set may or need not be present irrespective of other
+        /// fields.
+        /// 2A.3.7.16 Value Set Version ID (DTM)
+        /// Definition: This component carries the version for the value set identified by CF.15. The version is
+        /// a date. The date is the date/time that the value set being used was published.
+        /// Value set version ID is required if CF.15 is populated.
+        /// Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
+        /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
+        /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
+        /// the presence or absence of any or a particular value set/ value set version ID.
+        /// 2A.3.7.17 Alternate Coding System OID (ST)
+        /// Definition: This component contains the ISO Object Identifier (OID) for the coding system or
+        /// value set named in CF.6. Analogous To CF.14 Coding System OID.
+        /// The value for this component is 2.16.840.1.113883.12.#### where "####" is to be replaced by the
+        /// HL7 table number in the case of an HL7 defined or user defined table. For externally defined code
+        /// systems the OID registered in the HL7 OID registry SHALL be used.
+        /// This component is required when CF.4 is populated and CF.6 is not populated. Both CF.6 and
+        /// CF.17 may be populated.
+        /// 2A.3.7.18 Alternate Value Set OID (ST)
+        /// Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
+        /// value set from which the value in CF.4 is obtained. The value for this component is
+        /// 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
+        /// an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
+        /// HL7 OID registry SHALL be used.
+        /// Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
+        /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
+        /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
+        /// the presence or absence of any or a particular value set/ value set version ID.
+        /// A value set may or need not be present irrespective of other fields.
+        /// 2A.3.7.19 Alternate Value Set Version ID (DTM)
+        /// Definition: This component carries the version for the value set identified by CF.18. The version is
+        /// a date. The date is the date/time that the value set being used was published.
+        /// Value set version ID is required if CF.18 is populated.
         ///2A.3.7.20 Second Alternate Coding System OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) for the coding system or
-        // value set named in CF.12. Analogous To CF.14 Coding System OID.
-        // The value for this component is 2.16.840.1.113883.12.#### where "####" is to be replaced by the
-        // HL7 table number in the case of an HL7 defined or user defined table. For externally defined code
-        // systems the OID registered in the HL7 OID registry SHALL be used.
-        // This component is required when CF.10 is populated and CF.12 is not populated. Both CF.12 and
-        // CF.20 may be populated.
-        // 2A.3.7.21 Second Alternate Value Set OID (ST)
-        // Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
-        // value set from which the value in CF.10 is obtained. The value for this component is
-        // 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
-        // an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
-        // HL7 OID registry SHALL be used.
-        // Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
-        // system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
-        // required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
-        // the presence or absence of any or a particular value set/ value set version ID.
-        // A value set may or need not be present irrespective of other fields.
-        // 2A.3.7.22 Second Alternate Value Set Version ID (DTM)
-        // Definition: This component carries the version for the value set identified by CF.21. The version is
-        // a date. The date is the date/time that the value set being used was published.
-        // Value set version ID is required if CF.21 is populated.
+        /// Definition: This component contains the ISO Object Identifier (OID) for the coding system or
+        /// value set named in CF.12. Analogous To CF.14 Coding System OID.
+        /// The value for this component is 2.16.840.1.113883.12.#### where "####" is to be replaced by the
+        /// HL7 table number in the case of an HL7 defined or user defined table. For externally defined code
+        /// systems the OID registered in the HL7 OID registry SHALL be used.
+        /// This component is required when CF.10 is populated and CF.12 is not populated. Both CF.12 and
+        /// CF.20 may be populated.
+        /// 2A.3.7.21 Second Alternate Value Set OID (ST)
+        /// Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
+        /// value set from which the value in CF.10 is obtained. The value for this component is
+        /// 2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
+        /// an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
+        /// HL7 OID registry SHALL be used.
+        /// Note: If a code is provided, the meaning of the code must come from the definition of the code in the code
+        /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
+        /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
+        /// the presence or absence of any or a particular value set/ value set version ID.
+        /// A value set may or need not be present irrespective of other fields.
+        /// 2A.3.7.22 Second Alternate Value Set Version ID (DTM)
+        /// Definition: This component carries the version for the value set identified by CF.21. The version is
+        /// a date. The date is the date/time that the value set being used was published.
+        /// Value set version ID is required if CF.21 is populated.
         CF,
         CSU,
         NR,
