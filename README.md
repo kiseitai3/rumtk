@@ -5,12 +5,14 @@ communication and automation in medicine.
 
 # Goal
 
-+ To create a simple toolkit with the necessary libraries, dependencies, and utilities for managing standard tasks in
-  Medical IT.
-+ Also, I would like the project to make it more accessible for hospital to enable interoperability between systems.
++ To create a simple toolkit with the necessary libraries, dependencies, and utilities for managing bridging HL7 V2
+  Medical IT infrastructure to FHIR based systems.
++ Also, I would like the project to be accessible to hospitals to enable interoperability between systems. I plan to
+  package it for package managers and containers.
 + The toolkit will focus on increasing security and simplicity with the first step taken by starting the project using
   Rust.
-+ The toolkit shall foster reliability and will make attempts to be standards compliant.
++ The toolkit shall foster reliability and will make attempts to be as strictly standards compliant as possible.
+  Strictness may be relaxed later once the project sees use in the wild.
 
 # Features
 
@@ -20,6 +22,9 @@ communication and automation in medicine.
     - [ ] Commandline Standard Argument Interface
     - [ ] Enable STDIN|Pipe Functionality
     - [ ] Toolkit Core Tests
+    - [ ] Async support
+    - [ ] Multithreaded support
+    - [ ] SIMD support?? [Maybe]
 - [ ] HL7 v2 Interface Protocol
     - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
     - [x] HL7 v2 Escape Sequences Support
@@ -28,12 +33,14 @@ communication and automation in medicine.
     - [x] HL7 v2 Encodings to UTF-8 Conversion
     - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
     - [x] HL7 v2 Primitive Types
-    - [ ] HL7 v2 Complex Types (aka structs/classes)
+    - [ ] HL7 v2 Complex Types (aka structs)
+    - [ ] HL7 v2 Tables + Validation
+    - [ ] HL7 v2 Complex traits
     - [ ] HL7 v2 Base Message to HL7 Type casting
     - [ ] HL7 v2 Custom Message Overrides
     - [ ] HL7 v2 Message Validator
     - [ ] HL7 v2 Message to ASCII Message Generation
-    - [ ] HL7 v2 MLLP
+- [ ] HL7 v2 MLLP
     - [ ] HL7 v2 Endpoint Interface utility
     - [ ] HL7 v2 Client Interface utility
     - [ ] HL7 v2 Tests
@@ -56,6 +63,11 @@ communication and automation in medicine.
     - [ ] HL7 FHIR Client utility
     - [ ] HL7 FHIR Tests
 - [ ] HIFLAMES utility => HL7 Interface - FHIR Loader And Message Exporter System
+- [ ] Package [Maybe]
+    - [ ] Fedora
+    - [ ] Ubuntu
+    - [ ] Arch
+    - [ ] Docker
 
 # Contributing
 
