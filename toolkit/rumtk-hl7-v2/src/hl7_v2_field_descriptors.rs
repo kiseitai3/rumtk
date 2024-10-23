@@ -470,7 +470,7 @@ pub mod v2_field_descriptor {
     }
 
     pub type V2FieldDescriptor = [&'static V2FieldTypeDescriptor];
-    pub type V2FieldDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
+    pub type V2SegmentDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
 
     ///
     /// Generates instance of V2ComponentDescriptor which defines how we should cast a field.
@@ -501,7 +501,7 @@ pub mod v2_field_descriptor {
         }};
     }
 
-    pub static V2_FIELD_DESCRIPTORS: V2FieldDescriptors = phf_map! {
+    pub static V2_SEGMENT_DESCRIPTORS: V2SegmentDescriptors = phf_map! {
         "AD" => &[
             v2_field_descriptor!("street_address", "Street Address", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 1, 0, false, true),
             v2_field_descriptor!("second_address", "Other Designation", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 2, 0, false, true),
