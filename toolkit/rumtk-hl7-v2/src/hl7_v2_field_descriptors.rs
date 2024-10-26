@@ -19,7 +19,7 @@
  */
 
 pub mod v2_field_descriptor {
-    use crate::hl7_v2_base_types::v2_primitives::V2PrimitiveType;
+    use crate::hl7_v2_base_types::v2_primitives::{V2PrimitiveType, V2String};
     pub use once_cell::unsync::Lazy;
     use ::phf::Map;
     use ::phf_macros::phf_map;
@@ -725,6 +725,22 @@ pub mod v2_field_descriptor {
         NR,
         WVI,
         WVS,
+    }
+
+    ///
+    pub enum Optionality {
+        /// Required
+        R,
+        /// Required but may be empty
+        RE,
+        /// Undeclared Conditional if None, Declared Conditional if filled vector (C(a|b)).
+        C(Option<Vec<V2String>>),
+        /// Not supported
+        X,
+        /// Optional
+        O,
+        /// Backwards Compatible
+        B,
     }
 
     #[derive(Debug)]
