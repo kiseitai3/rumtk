@@ -658,6 +658,69 @@ pub mod v2_field_descriptor {
         ///     Value set version ID is required if CNE.21 is populated.
         ///
         CNE,
+        ///
+        /// # 2A.3.9 CNN - composite ID number and name simplified
+        ///
+        /// **Attention: Retained for backward compatibility only in version 2.6. Fields associated with this
+        /// data type have been replaced by the ROL segment.**
+        ///
+        ///     Definition: Specifies a person using both an identifier and the person’s name. Retained for
+        ///     backward compatibility only as of v2.6.
+        ///
+        /// **Note:** Restores the original data type CN as was initially implementable in the CM used in sections
+        /// 4.5.3.32 and 7.4.1.32 - (OBR-32), 4.5.3.33 and 7.4.1.33 - ( OBR-33), 4.5.3.34 and 7.4.1.34 - ( OBR-34),
+        /// 4.5.3.35 and 7.4.1.35 - (OBR-35). Components 7 and 8, however, have been promoted to data type IS to be
+        /// consistent with current practice without violating backward compatibility.
+        ///
+        /// ## 2A.3.9.1 ID Number (ST)
+        ///     Coded ID according to a user-defined table. If the first component is present, either CNN.8 or
+        ///     CNN.9, or both CNN.10 and CNN.11, must be valued.
+        ///
+        /// ## 2A.3.9.2 Family Name (ST)
+        ///     This component contains the person's family name in a string format.
+        ///
+        /// ## 2A.3.9.3 Given Name (ST)
+        ///     Used to specify a first name.
+        ///
+        /// ## 2A.3.9.4Second and Further Given Names or Initials Thereof (ST)
+        ///
+        /// ## 2A.3.9.5Suffix (ST)
+        ///     Used to specify a name suffix (e.g., Jr. or III).
+        ///
+        /// ## 2A.3.9.6 Prefix (ST)
+        ///     Used to specify a name prefix (e.g., Dr.).
+        ///
+        /// ## 2A.3.9.7 Degree (IS)
+        ///     Used to specify an educational degree (e.g., MD). Refer to User-defined Table 0360 –
+        ///     Degree/license/certificate in Chapter 2C, Code Tables, for suggested values.
+        ///
+        /// ## 2A.3.9.8 Source Table (IS)
+        ///     Refer to User-defined Table 0297 - CN ID source in Chapter 2C, Code Tables, for suggested
+        ///     values. Used to delineate the first component. If component 1 is valued, either CNN.8 or CNN.9,
+        ///     or both CNN.10 and CNN.11, must be valued.
+        ///
+        /// ## 2A.3.9.9 Assigning Authority - Namespace ID (IS)
+        ///     See section, 2.A.14.4, "Assigning Authority (HD)" for definition. Refer to User-defined Table 0363
+        ///     – Assigning Authority in Chapter 2C, Code Tables, for suggested values. Assigning Authority is
+        ///     normally expressed as an HD data type, but has been flattened to 3 components here (CNN.9,
+        ///     CNN.10 and CNN.11) in this data type so that it may be fully expressed. Also note that if
+        ///     additional components are added to the HD data type in the future, adjustment will need to be
+        ///     made accordingly to this data type.
+        ///
+        ///     If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
+        ///
+        /// ## 2A.3.9.10 Assigning Authority - Universal ID (ST)
+        ///     See section, 2.A.14.4, "Assigning Authority (HD)" for definition.
+        ///     If CNN.11 is valued, this component must be valued. If component 1 is valued, either CNN.8 or
+        ///     CNN.9, or both CNN.10 and CNN.11, must be valued.
+        ///
+        /// ## 2A.3.9.11 Assigning Authority - Universal ID Type (ID)
+        ///     See section, 2.A.14.4, "Assigning Authority (HD)" for definition. If this component is a known
+        ///     UID refer to HL7 Table 0301 - Universal ID type in Chapter 2C, Code Tables, for valid values.
+        ///     If CNN.10 is valued, this component must be valued. If component 1 is valued, either CNN.8 or
+        ///     CNN.9, or both CNN.10 and CNN.11, must be valued.
+        ///
+        CNN,
         CSU,
         NR,
         WVI,
@@ -819,6 +882,19 @@ pub mod v2_field_descriptor {
             v2_field_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 20, 0, false, false),
             v2_field_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 21, 0, false, false),
             v2_field_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, false, false)
+        ],
+        "CNN" => &[
+            v2_field_descriptor!("id", "ID Number", V2FieldType::Primitive(V2PrimitiveType::ST), 15, 1, 0, false, false),
+            v2_field_descriptor!("family_name", "Family Name", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 2, 0, false, true),
+            v2_field_descriptor!("given_name", "Given Name", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 3, 0, false, true),
+            v2_field_descriptor!("second_given_name", "Second and Further Given Names or Initials Thereof", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 4, 0, false, true),
+            v2_field_descriptor!("suffix", "Suffix (e.g. JR or III)", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 5, 0, false, true),
+            v2_field_descriptor!("prefix", "Prefix (e.g. DR)", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 6, 0, false, true),
+            v2_field_descriptor!("degree", "Degree (e.g. MD)", V2FieldType::Primitive(V2PrimitiveType::IS), 6, 7, 360, false, false),
+            v2_field_descriptor!("source_table", "Source Table", V2FieldType::Primitive(V2PrimitiveType::IS), 4, 8, 297, false, false),
+            v2_field_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2FieldType::Primitive(V2PrimitiveType::IS), 20, 9, 363, false, false),
+            v2_field_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 10, 0, false, false),
+            v2_field_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 11, 301, false, false)
         ]
     };
 
@@ -835,6 +911,7 @@ pub mod v2_field_descriptor {
             V2ComplexType::CE => "CE",
             V2ComplexType::CF => "CF",
             V2ComplexType::CNE => "CNE",
+            V2ComplexType::CNN => "CNN",
             _ => "Error",
         }
     }
