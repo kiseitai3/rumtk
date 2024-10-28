@@ -19,7 +19,8 @@
  */
 
 pub mod v2_field_descriptor {
-    use crate::hl7_v2_base_types::v2_primitives::{V2PrimitiveType, V2String};
+    use crate::hl7_v2_base_types::v2_base_types::V2Result;
+    use crate::hl7_v2_base_types::v2_primitives::V2PrimitiveType;
     pub use once_cell::unsync::Lazy;
     use ::phf::Map;
     use ::phf_macros::phf_map;
@@ -728,13 +729,14 @@ pub mod v2_field_descriptor {
     }
 
     ///
+    #[derive(Debug)]
     pub enum Optionality {
         /// Required
         R,
         /// Required but may be empty
         RE,
         /// Undeclared Conditional if None, Declared Conditional if filled vector (C(a|b)).
-        C(Option<Vec<V2String>>),
+        C(Option<fn(field: &Vec<&str>) -> V2Result<bool>>),
         /// Not supported
         X,
         /// Optional
@@ -743,174 +745,205 @@ pub mod v2_field_descriptor {
         B,
     }
 
+    impl Optionality {
+        pub fn is_required(&self) -> bool {
+            match &self {
+                Optionality::R => true,
+                _ => false,
+            }
+        }
+
+        pub fn meets_condition(&self, field: &Vec<&str>) -> V2Result<bool> {
+            Ok(match &self {
+                Optionality::C(opt) => match opt {
+                    Some(f) => f(&field)?,
+                    None => true,
+                },
+                _ => true,
+            })
+        }
+    }
+
     #[derive(Debug)]
-    pub enum V2FieldType {
+    pub enum V2ComponentType {
         Primitive(V2PrimitiveType),
         Complex(V2ComplexType),
     }
 
     #[derive(Debug)]
-    pub struct V2FieldTypeDescriptor {
+    pub struct V2ComponentTypeDescriptor {
         pub name: &'static str,
         pub description: &'static str,
-        pub data_type: V2FieldType,
+        pub data_type: V2ComponentType,
         pub max_input_len: u32,
         pub seq: u16,
         pub valid_table: u16,
-        pub required: bool,
+        pub optionality: Optionality,
         pub truncate: bool,
     }
 
-    impl V2FieldTypeDescriptor {
+    impl V2ComponentTypeDescriptor {
         pub const fn new(
             name: &'static str,
             description: &'static str,
-            data_type: V2FieldType,
+            data_type: V2ComponentType,
             max_input_len: u32,
             seq: u16,
             valid_table: u16,
-            required: bool,
+            optionality: Optionality,
             truncate: bool,
-        ) -> V2FieldTypeDescriptor {
-            V2FieldTypeDescriptor {
+        ) -> V2ComponentTypeDescriptor {
+            V2ComponentTypeDescriptor {
                 name,
                 description,
                 data_type,
                 max_input_len,
                 seq,
                 valid_table,
-                required,
+                optionality,
                 truncate,
             }
         }
     }
 
-    pub type V2FieldDescriptor = [&'static V2FieldTypeDescriptor];
-    pub type V2SegmentDescriptors = Map<&'static str, &'static V2FieldDescriptor>;
+    pub type V2ComponentDescriptor = [&'static V2ComponentTypeDescriptor];
+    pub type V2FieldDescriptors = Map<&'static str, &'static V2ComponentDescriptor>;
 
     ///
     /// Generates instance of V2ComponentDescriptor which defines how we should cast a field.
     ///
     /// ## Arguments
-    /// * `name` - String representing the component name.
+    /// * `name` - String representing the field name.
     /// * `description` - String describing the component as given in the data type table.
-    /// * `data_type` - Appropriate [`V2PrimitiveType`] enumerator item describing the type we should target when casting the component
-    /// * `max_input_len` - Length to truncate value of component if `truncate` is True
-    /// * `seq` - Number of component/sequence in field.
-    /// * `valid_table` - Validation table used for additional validation of input. It's a number now, but may be changed to an enumerator in the future.
-    /// * `required` - Boolean flag for marking component as required. If a required component is missing, emit error.
+    /// * `data_type` - Appropriate [`V2PrimitiveType`] enumerator item describing the type we should
+    ///     target when casting the field
+    /// * `max_input_len` - Length to truncate value of field if `truncate` is True
+    /// * `seq` - Number of field/sequence in segment.
+    /// * `valid_table` - Validation table used for additional validation of input. It's a number now,
+    ///     but may be changed to an enumerator in the future.
+    /// * `optionality` - Option allowing marking the field as required. If a required field is missing,
+    ///     emit error. If a field is flagged as conditional, we expect an Option passed to be passed
+    ///     with None or a tuple of conditions.
     /// * `truncate` - Boolean flag for marking the component as one that needs to be truncated to `max_input_len`.
     ///
     #[macro_export]
-    macro_rules! v2_field_descriptor {
-        ( $name:expr, $description:expr, $data_type:expr, $max_input_len:expr, $seq:expr, $valid_table:expr, $required:expr, $truncate:expr ) => {{
-            &V2FieldTypeDescriptor::new(
+    macro_rules! v2_component_descriptor {
+        (
+            $name:expr,
+            $description:expr,
+            $data_type:expr,
+            $max_input_len:expr,
+            $seq:expr,
+            $valid_table:expr,
+            $optionality:expr,
+            $truncate:expr ) => {{
+            &V2ComponentTypeDescriptor::new(
                 $name,
                 $description,
                 $data_type,
                 $max_input_len,
                 $seq,
                 $valid_table,
-                $required,
+                $optionality,
                 $truncate,
             )
         }};
     }
 
-    pub static V2_SEGMENT_DESCRIPTORS: V2SegmentDescriptors = phf_map! {
+    pub static V2_FIELD_DESCRIPTORS: V2FieldDescriptors = phf_map! {
         "AD" => &[
-            v2_field_descriptor!("street_address", "Street Address", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 1, 0, false, true),
-            v2_field_descriptor!("second_address", "Other Designation", V2FieldType::Primitive(V2PrimitiveType::ST), 120, 2, 0, false, true),
-            v2_field_descriptor!("city", "City", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 3, 0, false, true),
-            v2_field_descriptor!("state", "State or Province", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 4, 0, false, true),
-            v2_field_descriptor!("zip", "Zip or Postal Code", V2FieldType::Primitive(V2PrimitiveType::ST), 12, 5, 0, false, false),
-            v2_field_descriptor!("country", "Country", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 6, 399, false, false),
-            v2_field_descriptor!("address_type", "Address Type", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 7, 190, false, false),
-            v2_field_descriptor!("county", "Other Geographic Designation", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 8, 0, false, true)
+            v2_component_descriptor!("street_address", "Street Address", V2ComponentType::Primitive(V2PrimitiveType::ST), 120, 1, 0, Optionality::O, true),
+            v2_component_descriptor!("second_address", "Other Designation", V2ComponentType::Primitive(V2PrimitiveType::ST), 120, 2, 0, Optionality::O, true),
+            v2_component_descriptor!("city", "City", V2ComponentType::Primitive(V2PrimitiveType::ST), 50, 3, 0, Optionality::O, true),
+            v2_component_descriptor!("state", "State or Province", V2ComponentType::Primitive(V2PrimitiveType::ST), 50, 4, 0, Optionality::O, true),
+            v2_component_descriptor!("zip", "Zip or Postal Code", V2ComponentType::Primitive(V2PrimitiveType::ST), 12, 5, 0, Optionality::O, false),
+            v2_component_descriptor!("country", "Country", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 399, Optionality::O, false),
+            v2_component_descriptor!("address_type", "Address Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 7, 190, Optionality::O, false),
+            v2_component_descriptor!("county", "Other Geographic Designation", V2ComponentType::Primitive(V2PrimitiveType::ST), 50, 8, 0, Optionality::O, true)
         ],
         "AUI" => &[
-            v2_field_descriptor!("auth_number", "Authorization Number", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 1, 0, false, false),
-            v2_field_descriptor!("date", "Date", V2FieldType::Primitive(V2PrimitiveType::Date), 0, 2, 0, false, false),
-            v2_field_descriptor!("source", "Source", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 3, 0, false, true)
+            v2_component_descriptor!("auth_number", "Authorization Number", V2ComponentType::Primitive(V2PrimitiveType::ST), 30, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("date", "Date", V2ComponentType::Primitive(V2PrimitiveType::Date), 0, 2, 0, Optionality::O, false),
+            v2_component_descriptor!("source", "Source", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 3, 0, Optionality::O, true)
         ],
         "CCD" => &[
-            v2_field_descriptor!("event", "Invocation Event", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 1, 0, true, false),
-            v2_field_descriptor!("date", "Date/time", V2FieldType::Primitive(V2PrimitiveType::DateTime), 0, 2, 100, false, false)
+            v2_component_descriptor!("event", "Invocation Event", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 1, 0, Optionality::R, false),
+            v2_component_descriptor!("date", "Date/time", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 0, 2, 100, Optionality::O, false)
         ],
         "CCP" => &[
-            v2_field_descriptor!("cc_factor", "Channel Calibration Sensitivity Correction Factor", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 1, 0, false, true),
-            v2_field_descriptor!("cc_baseline", "Channel Calibration Baseline", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 2, 0, false, true),
-            v2_field_descriptor!("cc_time_skew", "Channel Calibration Time Skew", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 3, 0, false, true)
+            v2_component_descriptor!("cc_factor", "Channel Calibration Sensitivity Correction Factor", V2ComponentType::Primitive(V2PrimitiveType::NM), 6, 1, 0, Optionality::O, true),
+            v2_component_descriptor!("cc_baseline", "Channel Calibration Baseline", V2ComponentType::Primitive(V2PrimitiveType::NM), 6, 2, 0, Optionality::O, true),
+            v2_component_descriptor!("cc_time_skew", "Channel Calibration Time Skew", V2ComponentType::Primitive(V2PrimitiveType::NM), 6, 3, 0, Optionality::O, true)
         ],
         "CD" => &[
-            v2_field_descriptor!("channel_id", "Channel Identifier", V2FieldType::Complex(V2ComplexType::WVI), 0, 1, 0, false, false),
-            v2_field_descriptor!("waveform_source", "Waveform Source", V2FieldType::Complex(V2ComplexType::WVS), 0, 2, 0, false, false),
-            v2_field_descriptor!("channel_sensitivity_units", "Channel Sensitivity and Units", V2FieldType::Complex(V2ComplexType::CSU), 0, 3, 0, false, false),
-            v2_field_descriptor!("channel_calibration_parameters", "Channel Calibration Parameters", V2FieldType::Complex(V2ComplexType::CCP), 0, 4, 0, false, false),
-            v2_field_descriptor!("channel_sampling_frequency", "Channel Sampling Frequency", V2FieldType::Primitive(V2PrimitiveType::NM), 6, 5, 0, false, true),
-            v2_field_descriptor!("min_max_values", "Minimum and Maximum Data Values", V2FieldType::Complex(V2ComplexType::NR), 0, 6, 0, false, false)
+            v2_component_descriptor!("channel_id", "Channel Identifier", V2ComponentType::Complex(V2ComplexType::WVI), 0, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("waveform_source", "Waveform Source", V2ComponentType::Complex(V2ComplexType::WVS), 0, 2, 0, Optionality::O, false),
+            v2_component_descriptor!("channel_sensitivity_units", "Channel Sensitivity and Units", V2ComponentType::Complex(V2ComplexType::CSU), 0, 3, 0, Optionality::O, false),
+            v2_component_descriptor!("channel_calibration_parameters", "Channel Calibration Parameters", V2ComponentType::Complex(V2ComplexType::CCP), 0, 4, 0, Optionality::O, false),
+            v2_component_descriptor!("channel_sampling_frequency", "Channel Sampling Frequency", V2ComponentType::Primitive(V2PrimitiveType::NM), 6, 5, 0, Optionality::O, true),
+            v2_component_descriptor!("min_max_values", "Minimum and Maximum Data Values", V2ComponentType::Complex(V2ComplexType::NR), 0, 6, 0, Optionality::O, false)
         ],
         "CE" => &[  ],
         "CF" => &[
-            v2_field_descriptor!("id", "Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 1, 0, false, false),
-            v2_field_descriptor!("formatted_text", "Formatted Text", V2FieldType::Primitive(V2PrimitiveType::FT), 0, 2, 0, false, false),
-            v2_field_descriptor!("coding_system", "Name of Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 3, 396, false, false),
-            v2_field_descriptor!("alt_id", "Alternate Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 4, 0, false, false),
-            v2_field_descriptor!("alt_formatted_text", "Alternate Formatted Text", V2FieldType::Primitive(V2PrimitiveType::FT), 0, 5, 0, false, false),
-            v2_field_descriptor!("alt_coding_system", "Name of Alternate Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 6, 396, false, false),
-            v2_field_descriptor!("version_id", "Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 7, 0, false, false),
-            v2_field_descriptor!("alt_version_id", "Alternate Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 8, 0, false, false),
-            v2_field_descriptor!("original_text", "Original Text", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 9, 0, false, false),
-            v2_field_descriptor!("second_alt_id", "Second Alternate Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 10, 0, false, false),
-            v2_field_descriptor!("second_alt_formatted_text", "Second Alternate Formatted Text", V2FieldType::Primitive(V2PrimitiveType::FT), 199, 11, 0, false, false),
-            v2_field_descriptor!("second_alt_coding_system", "Name of Second Alternate Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 12, 396, false, false),
-            v2_field_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 13, 0, false, false),
-            v2_field_descriptor!("coding_system_oid", "Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 14, 0, false, false),
-            v2_field_descriptor!("valueset_oid", "Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 15, 0, false, false),
-            v2_field_descriptor!("valueset_version_id", "Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, false, false),
-            v2_field_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 17, 0, false, false),
-            v2_field_descriptor!("alt_valueset_oid", "Alternate Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 18, 0, false, false),
-            v2_field_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, false, false),
-            v2_field_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 20, 0, false, false),
-            v2_field_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 21, 0, false, false),
-            v2_field_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, false, false)
+            v2_component_descriptor!("id", "Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("formatted_text", "Formatted Text", V2ComponentType::Primitive(V2PrimitiveType::FT), 0, 2, 0, Optionality::O, false),
+            v2_component_descriptor!("coding_system", "Name of Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 3, 396, Optionality::C(None), false),
+            v2_component_descriptor!("alt_id", "Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 4, 0, Optionality::O, false),
+            v2_component_descriptor!("alt_formatted_text", "Alternate Formatted Text", V2ComponentType::Primitive(V2PrimitiveType::FT), 0, 5, 0, Optionality::O, false),
+            v2_component_descriptor!("alt_coding_system", "Name of Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 396, Optionality::C(None), false),
+            v2_component_descriptor!("version_id", "Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 7, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_version_id", "Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 8, 0, Optionality::O, false),
+            v2_component_descriptor!("original_text", "Original Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 9, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_id", "Second Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 10, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_formatted_text", "Second Alternate Formatted Text", V2ComponentType::Primitive(V2PrimitiveType::FT), 199, 11, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_coding_system", "Name of Second Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 12, 396, Optionality::O, false),
+            v2_component_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 13, 0, Optionality::C(None), false),
+            v2_component_descriptor!("coding_system_oid", "Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 14, 0, Optionality::C(None), false),
+            v2_component_descriptor!("valueset_oid", "Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 15, 0, Optionality::O, false),
+            v2_component_descriptor!("valueset_version_id", "Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 17, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_valueset_oid", "Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 18, 0, Optionality::O, false),
+            v2_component_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, Optionality::C(None), false),
+            v2_component_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 20, 0, Optionality::C(None), false),
+            v2_component_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 21, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, Optionality::C(None), false)
         ],
         "CNE" => &[
-            v2_field_descriptor!("id", "Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 1, 0, false, false),
-            v2_field_descriptor!("text", "Text", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 2, 0, false, true),
-            v2_field_descriptor!("coding_system", "Name of Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 3, 396, false, false),
-            v2_field_descriptor!("alt_id", "Alternate Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 4, 0, false, false),
-            v2_field_descriptor!("alt_text", "Alternate Text", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 5, 0, false, true),
-            v2_field_descriptor!("alt_coding_system", "Name of Alternate Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 6, 396, false, false),
-            v2_field_descriptor!("version_id", "Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 7, 0, false, false),
-            v2_field_descriptor!("alt_version_id", "Alternate Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 8, 0, false, false),
-            v2_field_descriptor!("original_text", "Original Text", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 9, 0, false, true),
-            v2_field_descriptor!("second_alt_id", "Second Alternate Identifier", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 10, 0, false, false),
-            v2_field_descriptor!("second_alt_text", "Second Alternate Text", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 11, 0, false, true),
-            v2_field_descriptor!("second_alt_coding_system", "Name of Second Alternate Coding System", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 12, 396, false, false),
-            v2_field_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2FieldType::Primitive(V2PrimitiveType::ST), 10, 13, 0, false, false),
-            v2_field_descriptor!("coding_system_oid", "Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 14, 0, false, false),
-            v2_field_descriptor!("valueset_oid", "Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 15, 0, false, false),
-            v2_field_descriptor!("valueset_version_id", "Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, false, false),
-            v2_field_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 17, 0, false, false),
-            v2_field_descriptor!("alt_valueset_oid", "Alternate Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 18, 0, false, false),
-            v2_field_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, false, false),
-            v2_field_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 20, 0, false, false),
-            v2_field_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 21, 0, false, false),
-            v2_field_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2FieldType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, false, false)
+            v2_component_descriptor!("id", "Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 1, 0, Optionality::R, false),
+            v2_component_descriptor!("text", "Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 2, 0, Optionality::O, true),
+            v2_component_descriptor!("coding_system", "Name of Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 3, 396, Optionality::O, false),
+            v2_component_descriptor!("alt_id", "Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 4, 0, Optionality::O, false),
+            v2_component_descriptor!("alt_text", "Alternate Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 5, 0, Optionality::O, true),
+            v2_component_descriptor!("alt_coding_system", "Name of Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 396, Optionality::O, false),
+            v2_component_descriptor!("version_id", "Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 7, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_version_id", "Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 8, 0, Optionality::O, false),
+            v2_component_descriptor!("original_text", "Original Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 9, 0, Optionality::O, true),
+            v2_component_descriptor!("second_alt_id", "Second Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 10, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_text", "Second Alternate Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 11, 0, Optionality::O, true),
+            v2_component_descriptor!("second_alt_coding_system", "Name of Second Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 12, 396, Optionality::O, false),
+            v2_component_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 13, 0, Optionality::C(None), false),
+            v2_component_descriptor!("coding_system_oid", "Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 14, 0, Optionality::C(None), false),
+            v2_component_descriptor!("valueset_oid", "Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 15, 0, Optionality::O, false),
+            v2_component_descriptor!("valueset_version_id", "Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 17, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_valueset_oid", "Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 18, 0, Optionality::O, false),
+            v2_component_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, Optionality::C(None), false),
+            v2_component_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 20, 0, Optionality::C(None), false),
+            v2_component_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 21, 0, Optionality::O, false),
+            v2_component_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, Optionality::C(None), false)
         ],
         "CNN" => &[
-            v2_field_descriptor!("id", "ID Number", V2FieldType::Primitive(V2PrimitiveType::ST), 15, 1, 0, false, false),
-            v2_field_descriptor!("family_name", "Family Name", V2FieldType::Primitive(V2PrimitiveType::ST), 50, 2, 0, false, true),
-            v2_field_descriptor!("given_name", "Given Name", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 3, 0, false, true),
-            v2_field_descriptor!("second_given_name", "Second and Further Given Names or Initials Thereof", V2FieldType::Primitive(V2PrimitiveType::ST), 30, 4, 0, false, true),
-            v2_field_descriptor!("suffix", "Suffix (e.g. JR or III)", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 5, 0, false, true),
-            v2_field_descriptor!("prefix", "Prefix (e.g. DR)", V2FieldType::Primitive(V2PrimitiveType::ST), 20, 6, 0, false, true),
-            v2_field_descriptor!("degree", "Degree (e.g. MD)", V2FieldType::Primitive(V2PrimitiveType::IS), 6, 7, 360, false, false),
-            v2_field_descriptor!("source_table", "Source Table", V2FieldType::Primitive(V2PrimitiveType::IS), 4, 8, 297, false, false),
-            v2_field_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2FieldType::Primitive(V2PrimitiveType::IS), 20, 9, 363, false, false),
-            v2_field_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2FieldType::Primitive(V2PrimitiveType::ST), 199, 10, 0, false, false),
-            v2_field_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2FieldType::Primitive(V2PrimitiveType::ID), 0, 11, 301, false, false)
+            v2_component_descriptor!("id", "ID Number", V2ComponentType::Primitive(V2PrimitiveType::ST), 15, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("family_name", "Family Name", V2ComponentType::Primitive(V2PrimitiveType::ST), 50, 2, 0, Optionality::O, true),
+            v2_component_descriptor!("given_name", "Given Name", V2ComponentType::Primitive(V2PrimitiveType::ST), 30, 3, 0, Optionality::O, true),
+            v2_component_descriptor!("second_given_name", "Second and Further Given Names or Initials Thereof", V2ComponentType::Primitive(V2PrimitiveType::ST), 30, 4, 0, Optionality::O, true),
+            v2_component_descriptor!("suffix", "Suffix (e.g. JR or III)", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 5, 0, Optionality::O, true),
+            v2_component_descriptor!("prefix", "Prefix (e.g. DR)", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 6, 0, Optionality::O, true),
+            v2_component_descriptor!("degree", "Degree (e.g. MD)", V2ComponentType::Primitive(V2PrimitiveType::IS), 6, 7, 360, Optionality::O, false),
+            v2_component_descriptor!("source_table", "Source Table", V2ComponentType::Primitive(V2PrimitiveType::IS), 4, 8, 297, Optionality::C(None), false),
+            v2_component_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2ComponentType::Primitive(V2PrimitiveType::IS), 20, 9, 363, Optionality::C(None), false),
+            v2_component_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 10, 0, Optionality::C(None), false),
+            v2_component_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 11, 301, Optionality::C(None), false)
         ]
     };
 

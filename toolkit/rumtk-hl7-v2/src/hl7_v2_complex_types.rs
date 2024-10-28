@@ -51,36 +51,48 @@ pub mod hl7_v2_complex_types {
     }
 
     pub fn cast_component(
-        component: &str,
-        component_type: &V2FieldTypeDescriptor,
+        component: Vec<&str>,
+        component_type: &V2ComponentTypeDescriptor,
         characters: &V2ParserCharacters,
     ) -> V2Type {
-        if component_type.required && component.len() == 0 {
+        if component_type.optionality.is_required() && component.len() == 0 {
             return V2Type::Err(format_compact!(
                 "Required data in seq {} is missing!",
                 component_type.seq
             ));
         }
         match &component_type.data_type {
-            V2FieldType::Primitive(primitive) => match primitive {
-                V2PrimitiveType::DateTime => V2Type::V2DateTime(component.to_v2datetime()),
-                V2PrimitiveType::Date => V2Type::V2Date(component.to_v2date()),
-                V2PrimitiveType::Time => V2Type::V2Time(component.to_v2time()),
-                V2PrimitiveType::FT => {
-                    V2Type::V2FT(component.to_v2formattedtext(&characters.repetition_separator))
+            V2ComponentType::Primitive(primitive) => {
+                if component.len() > 1 {
+                    V2Type::Err(
+                        format_compact!(
+                            "Received a tuple as component but components flagged with a primitive type \
+                            expect only one string. Got [{:?}]", &component
+                        )
+                    )
+                } else {
+                    let c = component[0];
+                    match primitive {
+                        V2PrimitiveType::DateTime => V2Type::V2DateTime(c.to_v2datetime()),
+                        V2PrimitiveType::Date => V2Type::V2Date(c.to_v2date()),
+                        V2PrimitiveType::Time => V2Type::V2Time(c.to_v2time()),
+                        V2PrimitiveType::FT => {
+                            V2Type::V2FT(c.to_v2formattedtext(&characters.repetition_separator))
+                        }
+                        V2PrimitiveType::Text => {
+                            V2Type::V2Text(c.to_v2text(&characters.repetition_separator))
+                        }
+                        V2PrimitiveType::String => V2Type::V2String(c.to_v2string()),
+                        V2PrimitiveType::SNM => V2Type::V2SNM(c.to_v2telephonestring()),
+                        V2PrimitiveType::ID => V2Type::V2ID(c.to_v2id()),
+                        V2PrimitiveType::IS => V2Type::V2IS(c.to_v2is()),
+                        V2PrimitiveType::NM => V2Type::V2NM(c.to_v2number()),
+                        V2PrimitiveType::ST => V2Type::V2ST(c.to_v2stringdata()),
+                        V2PrimitiveType::SI => V2Type::V2SI(c.to_v2sequenceid()),
+                    }
                 }
-                V2PrimitiveType::Text => {
-                    V2Type::V2Text(component.to_v2text(&characters.repetition_separator))
-                }
-                V2PrimitiveType::String => V2Type::V2String(component.to_v2string()),
-                V2PrimitiveType::SNM => V2Type::V2SNM(component.to_v2telephonestring()),
-                V2PrimitiveType::ID => V2Type::V2ID(component.to_v2id()),
-                V2PrimitiveType::IS => V2Type::V2IS(component.to_v2is()),
-                V2PrimitiveType::NM => V2Type::V2NM(component.to_v2number()),
-                V2PrimitiveType::ST => V2Type::V2ST(component.to_v2stringdata()),
-                V2PrimitiveType::SI => V2Type::V2SI(component.to_v2sequenceid()),
-            },
-            V2FieldType::Complex(complex) => match complex {
+            }
+            V2ComponentType::Complex(complex) => match complex {
                 _ => V2Type::Err(format_compact!("Unknown requested type!")),
             },
         }

@@ -32,7 +32,7 @@ pub mod hl7_v2_types;
 mod tests {
     use super::*;
     use crate::hl7_v2_field_descriptors::v2_field_descriptor::{
-        V2FieldType, V2FieldTypeDescriptor,
+        Optionality, V2ComponentType, V2ComponentTypeDescriptor,
     };
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
@@ -837,18 +837,18 @@ mod tests {
         let sanitized_message = V2Message::sanitize(message);
         let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
         let encode_chars = V2ParserCharacters::from_msh(tokens[0]).unwrap();
-        let v2_component = V2FieldTypeDescriptor::new(
+        let v2_component = V2ComponentTypeDescriptor::new(
             "date",
             "Date",
-            V2FieldType::Primitive(V2PrimitiveType::Date),
+            V2ComponentType::Primitive(V2PrimitiveType::Date),
             4,
             1,
             1,
-            false,
+            Optionality::O,
             true,
         );
         let input = "2007";
-        let val = cast_component(&input, &v2_component, &encode_chars);
+        let val = cast_component(vec![&input], &v2_component, &encode_chars);
         let expected = "2007-01-01T00:00:00.0000";
         let err_msg = format_compact!("The expected formatted string does not match the formatted string generated from the input [In: {}, Got: {}]", input, expected);
 
