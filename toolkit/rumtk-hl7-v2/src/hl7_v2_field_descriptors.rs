@@ -19,8 +19,8 @@
  */
 
 pub mod v2_field_descriptor {
-    use crate::hl7_v2_base_types::v2_base_types::V2Result;
     use crate::hl7_v2_base_types::v2_primitives::V2PrimitiveType;
+    use crate::hl7_v2_optionality_rules::*;
     pub use once_cell::unsync::Lazy;
     use ::phf::Map;
     use ::phf_macros::phf_map;
@@ -728,42 +728,6 @@ pub mod v2_field_descriptor {
         WVS,
     }
 
-    ///
-    #[derive(Debug)]
-    pub enum Optionality {
-        /// Required
-        R,
-        /// Required but may be empty
-        RE,
-        /// Undeclared Conditional if None, Declared Conditional if filled vector (C(a|b)).
-        C(Option<fn(field: &Vec<&str>) -> V2Result<bool>>),
-        /// Not supported
-        X,
-        /// Optional
-        O,
-        /// Backwards Compatible
-        B,
-    }
-
-    impl Optionality {
-        pub fn is_required(&self) -> bool {
-            match &self {
-                Optionality::R => true,
-                _ => false,
-            }
-        }
-
-        pub fn meets_condition(&self, field: &Vec<&str>) -> V2Result<bool> {
-            Ok(match &self {
-                Optionality::C(opt) => match opt {
-                    Some(f) => f(&field)?,
-                    None => true,
-                },
-                _ => true,
-            })
-        }
-    }
-
     #[derive(Debug)]
     pub enum V2ComponentType {
         Primitive(V2PrimitiveType),
@@ -940,10 +904,10 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("suffix", "Suffix (e.g. JR or III)", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 5, 0, Optionality::O, true),
             v2_component_descriptor!("prefix", "Prefix (e.g. DR)", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 6, 0, Optionality::O, true),
             v2_component_descriptor!("degree", "Degree (e.g. MD)", V2ComponentType::Primitive(V2PrimitiveType::IS), 6, 7, 360, Optionality::O, false),
-            v2_component_descriptor!("source_table", "Source Table", V2ComponentType::Primitive(V2PrimitiveType::IS), 4, 8, 297, Optionality::C(None), false),
-            v2_component_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2ComponentType::Primitive(V2PrimitiveType::IS), 20, 9, 363, Optionality::C(None), false),
-            v2_component_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 10, 0, Optionality::C(None), false),
-            v2_component_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 11, 301, Optionality::C(None), false)
+            v2_component_descriptor!("source_table", "Source Table", V2ComponentType::Primitive(V2PrimitiveType::IS), 4, 8, 297, Optionality::C(CONDITION_CNN1), false),
+            v2_component_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2ComponentType::Primitive(V2PrimitiveType::IS), 20, 9, 363, Optionality::C(CONDITION_CNN2), false),
+            v2_component_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 10, 0, Optionality::C(CONDITION_CNN3), false),
+            v2_component_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 11, 301, Optionality::C(CONDITION_CNN4), false)
         ]
     };
 

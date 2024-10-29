@@ -24,6 +24,7 @@ pub mod hl7_v2_complex_types;
 pub mod hl7_v2_constants;
 pub mod hl7_v2_field_descriptors;
 pub mod hl7_v2_interpreter;
+mod hl7_v2_optionality_rules;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
 pub mod hl7_v2_types;

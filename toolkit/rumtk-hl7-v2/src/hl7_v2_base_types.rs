@@ -165,6 +165,16 @@ pub mod v2_base_types {
         }
     }
     ///
+    /// Raw component list or vector of German strings. This list is structured as a  vector of
+    /// subcomponents. Most V2 Components should be composed of a vector of one string.
+    ///
+    pub type V2SubComponentList = Vec<V2String>;
+    ///
+    /// Component list in the form of string views. Used when passing access to components present
+    /// in field to casting functions.
+    ///
+    pub type V2ComponentList<'a> = Vec<Vec<&'a str>>;
+    ///
     /// Type used for propagating error messages.
     ///
     pub type V2Result<T> = Result<T, RUMString>;
