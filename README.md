@@ -33,6 +33,7 @@ communication and automation in medicine.
     - [x] HL7 v2 Encodings to UTF-8 Conversion
     - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
     - [x] HL7 v2 Primitive Types
+    - [ ] HL7 v2 Component Optionality
     - [ ] HL7 v2 Complex Types (aka structs)
     - [ ] HL7 v2 Tables + Validation
     - [ ] HL7 v2 Complex traits
