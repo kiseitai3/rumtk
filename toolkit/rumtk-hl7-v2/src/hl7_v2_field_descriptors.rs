@@ -879,7 +879,7 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("alt_id", "Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 4, 0, Optionality::O, false),
             v2_component_descriptor!("alt_text", "Alternate Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 5, 0, Optionality::O, true),
             v2_component_descriptor!("alt_coding_system", "Name of Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 396, Optionality::O, false),
-            v2_component_descriptor!("version_id", "Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 7, 0, Optionality::C(None), false),
+            v2_component_descriptor!("version_id", "Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 7, 0, Optionality::C(CONDITION_CNE1), false),
             v2_component_descriptor!("alt_version_id", "Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 8, 0, Optionality::O, false),
             v2_component_descriptor!("original_text", "Original Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 9, 0, Optionality::O, true),
             v2_component_descriptor!("second_alt_id", "Second Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 10, 0, Optionality::O, false),

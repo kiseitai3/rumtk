@@ -68,7 +68,23 @@ impl Optionality {
 
 /******************************* Conditions ********************************/
 
+const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| false;
+
 /***************CNE Conditions*************/
+
+///
+/// **Usage Note:** If the coding system is any system other than an "HL7 coding system," version ID
+/// must be valued with an actual version ID. If the coding system is "HL7 coding system," version
+/// ID may have an actual value or it may be absent. If version ID is absent, it will be interpreted to
+/// have the same value as the HL7 version number in the message header. Text description of code is
+/// optional but its use should be encouraged since it makes messages easier to review for accuracy,
+/// especially during interface testing and debugging.
+///
+/// ## Note
+///     ???? Not sure how to implement this one without a lot of global state which I am trying to
+///     avoid. For now, defaulting to a noop.
+///
+pub const CONDITION_CNE1: V2ComponentConditionFn = CONDITION_NOOP;
 
 /***************CNN Conditions*************/
 
