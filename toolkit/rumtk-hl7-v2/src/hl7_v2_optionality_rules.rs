@@ -68,12 +68,16 @@ impl Optionality {
 
 /******************************* Conditions ********************************/
 
+/***************CNE Conditions*************/
+
+/***************CNN Conditions*************/
+
 ///
 /// If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
 ///
 pub const CONDITION_CNN1: V2ComponentConditionFn = |c: &V2ComponentList| {
     let sub_count = c.len();
-    return sub_count > 8 && c[0].len() > 0 && c[8].len() > 0;
+    return (sub_count > 8 && c[0].len() > 0 && c[8].len() > 0) || !CONDITION_CNN2(&c);
 };
 
 ///
@@ -81,7 +85,7 @@ pub const CONDITION_CNN1: V2ComponentConditionFn = |c: &V2ComponentList| {
 ///
 pub const CONDITION_CNN2: V2ComponentConditionFn = |c: &V2ComponentList| {
     let sub_count = c.len();
-    return sub_count > 9 && c[0].len() > 0 && c[9].len() > 0;
+    return (sub_count > 9 && c[0].len() > 0 && c[9].len() > 0) || !CONDITION_CNN1(&c);
 };
 
 ///
