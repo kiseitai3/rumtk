@@ -73,7 +73,7 @@ impl Optionality {
 ///
 pub const CONDITION_CNN1: V2ComponentConditionFn = |c: &V2ComponentList| {
     let sub_count = c.len();
-    return sub_count > 0 && c[0].len() > 0 && !(sub_count >= 9 && c[9].len() > 0);
+    return sub_count > 8 && c[0].len() > 0 && c[8].len() > 0;
 };
 
 ///
@@ -81,7 +81,7 @@ pub const CONDITION_CNN1: V2ComponentConditionFn = |c: &V2ComponentList| {
 ///
 pub const CONDITION_CNN2: V2ComponentConditionFn = |c: &V2ComponentList| {
     let sub_count = c.len();
-    return sub_count > 0 && c[0].len() > 0 && !(sub_count >= 8 && c[8].len() > 0);
+    return sub_count > 9 && c[0].len() > 0 && c[9].len() > 0;
 };
 
 ///
