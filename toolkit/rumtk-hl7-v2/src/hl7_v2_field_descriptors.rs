@@ -885,16 +885,16 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("second_alt_id", "Second Alternate Identifier", V2ComponentType::Primitive(V2PrimitiveType::ST), 20, 10, 0, Optionality::O, false),
             v2_component_descriptor!("second_alt_text", "Second Alternate Text", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 11, 0, Optionality::O, true),
             v2_component_descriptor!("second_alt_coding_system", "Name of Second Alternate Coding System", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 12, 396, Optionality::O, false),
-            v2_component_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 13, 0, Optionality::C(None), false),
-            v2_component_descriptor!("coding_system_oid", "Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 14, 0, Optionality::C(None), false),
+            v2_component_descriptor!("second_alt_version_id", "Second Alternate Coding System Version ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 10, 13, 0, Optionality::C(CONDITION_CNE2), false),
+            v2_component_descriptor!("coding_system_oid", "Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 14, 0, Optionality::C(CONDITION_CNE3), false),
             v2_component_descriptor!("valueset_oid", "Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 15, 0, Optionality::O, false),
-            v2_component_descriptor!("valueset_version_id", "Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, Optionality::C(None), false),
-            v2_component_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 17, 0, Optionality::C(None), false),
+            v2_component_descriptor!("valueset_version_id", "Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 16, 0, Optionality::C(CONDITION_CNE4), false),
+            v2_component_descriptor!("alt_coding_system_oid", "Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 17, 0, Optionality::C(CONDITION_CNE5), false),
             v2_component_descriptor!("alt_valueset_oid", "Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 18, 0, Optionality::O, false),
-            v2_component_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, Optionality::C(None), false),
-            v2_component_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 20, 0, Optionality::C(None), false),
+            v2_component_descriptor!("alt_valueset_version_id", "Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 19, 0, Optionality::C(CONDITION_CNE6), false),
+            v2_component_descriptor!("second_alt_coding_system_oid", "Second Alternate Coding System OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 20, 0, Optionality::C(CONDITION_CNE7), false),
             v2_component_descriptor!("second_alt_valueset_oid", "Second Alternate Value Set OID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 21, 0, Optionality::O, false),
-            v2_component_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, Optionality::C(None), false)
+            v2_component_descriptor!("second_alt_valueset_version_id", "Second Alternate Value Set Version ID", V2ComponentType::Primitive(V2PrimitiveType::DateTime), 8, 22, 0, Optionality::C(CONDITION_CNE8), false)
         ],
         "CNN" => &[
             v2_component_descriptor!("id", "ID Number", V2ComponentType::Primitive(V2PrimitiveType::ST), 15, 1, 0, Optionality::O, false),

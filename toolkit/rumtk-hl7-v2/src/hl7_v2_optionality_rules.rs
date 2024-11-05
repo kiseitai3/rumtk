@@ -85,35 +85,45 @@ const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| false;
 ///     avoid. For now, defaulting to a noop.
 ///
 pub const CONDITION_CNE1: V2ComponentConditionFn = CONDITION_NOOP;
+///
+/// See [CONDITION_CNE1]
+///
+pub const CONDITION_CNE2: V2ComponentConditionFn = CONDITION_NOOP;
+///
+/// This component is required when CNE.1 is populated and CNE.3 is not populated. Both CNE.3
+/// and CNE.14 may be populated.
+///
+pub const CONDITION_CNE3: V2ComponentConditionFn =
+    |c: &V2ComponentList| c[0].len() > 0 && !(c[2].len() > 0);
+///
+/// Value set version ID is required if CNE.15 is populated.
+///
+pub const CONDITION_CNE4: V2ComponentConditionFn = |c: &V2ComponentList| return c[14].len() > 0;
+pub const CONDITION_CNE5: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CNE6: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CNE7: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CNE8: V2ComponentConditionFn = CONDITION_NOOP;
 
 /***************CNN Conditions*************/
 
 ///
 /// If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
 ///
-pub const CONDITION_CNN1: V2ComponentConditionFn = |c: &V2ComponentList| {
-    let sub_count = c.len();
-    return (sub_count > 8 && c[0].len() > 0 && c[8].len() > 0) || !CONDITION_CNN2(&c);
-};
+pub const CONDITION_CNN1: V2ComponentConditionFn =
+    |c: &V2ComponentList| (c[0].len() > 0 && c[8].len() > 0) || !CONDITION_CNN2(&c);
 
 ///
 /// If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
 ///
-pub const CONDITION_CNN2: V2ComponentConditionFn = |c: &V2ComponentList| {
-    let sub_count = c.len();
-    return (sub_count > 9 && c[0].len() > 0 && c[9].len() > 0) || !CONDITION_CNN1(&c);
-};
+pub const CONDITION_CNN2: V2ComponentConditionFn =
+    |c: &V2ComponentList| (c[0].len() > 0 && c[7].len() > 0) || !CONDITION_CNN1(&c);
 
 ///
 /// If CNN.11 is valued, this component must be valued
 ///
-pub const CONDITION_CNN3: V2ComponentConditionFn = |c: &V2ComponentList| {
-    return c.len() >= 11 && c[11].len() > 0;
-};
+pub const CONDITION_CNN3: V2ComponentConditionFn = |c: &V2ComponentList| c[10].len() > 0;
 
 ///
 /// If CNN.10 is valued, this component must be valued.
 ///
-pub const CONDITION_CNN4: V2ComponentConditionFn = |c: &V2ComponentList| {
-    return c.len() >= 10 && c[10].len() > 0;
-};
+pub const CONDITION_CNN4: V2ComponentConditionFn = |c: &V2ComponentList| c[9].len() > 0;
