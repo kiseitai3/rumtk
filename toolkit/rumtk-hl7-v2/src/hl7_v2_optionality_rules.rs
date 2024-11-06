@@ -70,8 +70,47 @@ impl Optionality {
 
 const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| false;
 
-/***************CNE Conditions*************/
+/***************CF Conditions**************/
+///
+/// As of v2.7 this component is required when CF.1 is populated and CF.14 is not populated. Both
+/// CF.3 and CF.14 may be populated. Receivers should not identify a code based on its position
+/// within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
+/// a repeating field. Instead, the receiver should always examine the coding system as specified in
+/// CF.3 and/or CF.14, the Coding System component or the Coding System OID, for the tuple.
+///
+pub const CONDITION_CF1: V2ComponentConditionFn =
+    |c: &V2ComponentList| c[0].len() > 0 && !c[13].len() > 0;
+///
+/// As of v2.7 this component is required when CF.4 is populated and CF.17 is not populated. Both
+/// CF.6 and CF.17 may be populated. Receivers should not identify a code based on its position
+/// within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
+/// a repeating field. Instead, the receiver should always examine the coding system as specified in
+/// CF.6 and/or CF.17, the Coding System component or the Coding System OID, for the tuple.
+///
+pub const CONDITION_CF2: V2ComponentConditionFn =
+    |c: &V2ComponentList| c[3].len() > 0 && !c[16].len() > 0;
+///
+/// Definition: This component carries the version for the coding system identified by components 1-
+/// 3. If CF.3 is populated with a value other than HL7nnnn or is of table type user-defined, version
+/// ID must be valued with an actual version ID. If CF.3 is populated with a value of HL7nnnn and
+/// nnnn is of table type HL7, version ID may have an actual value or it may be absent. If version ID
+/// is absent, it will be interpreted to have the same value as the HL7 version number in the message
+/// header.
+///
+/// ## Note
+///     ??? What. Not quiet implementable or worth the hassle of aborting validation.
+///     Leaving this for a more global rule.
+///
+pub const CONDITION_CF3: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF4: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF5: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF6: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF7: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF8: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF9: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CF10: V2ComponentConditionFn = CONDITION_NOOP;
 
+/***************CNE Conditions*************/
 ///
 /// **Usage Note:** If the coding system is any system other than an "HL7 coding system," version ID
 /// must be valued with an actual version ID. If the coding system is "HL7 coding system," version
@@ -98,11 +137,27 @@ pub const CONDITION_CNE3: V2ComponentConditionFn =
 ///
 /// Value set version ID is required if CNE.15 is populated.
 ///
-pub const CONDITION_CNE4: V2ComponentConditionFn = |c: &V2ComponentList| return c[14].len() > 0;
-pub const CONDITION_CNE5: V2ComponentConditionFn = CONDITION_NOOP;
-pub const CONDITION_CNE6: V2ComponentConditionFn = CONDITION_NOOP;
-pub const CONDITION_CNE7: V2ComponentConditionFn = CONDITION_NOOP;
-pub const CONDITION_CNE8: V2ComponentConditionFn = CONDITION_NOOP;
+pub const CONDITION_CNE4: V2ComponentConditionFn = |c: &V2ComponentList| c[14].len() > 0;
+///
+/// This component is required when CNE.4 is populated and CNE.6 is not populated. Both CNE.6
+/// and CNE.17 may be populated.
+///
+pub const CONDITION_CNE5: V2ComponentConditionFn =
+    |c: &V2ComponentList| c[3].len() > 0 && !(c[5].len() > 0);
+///
+/// Value set version ID is required if CNE.18 is populated.
+///
+pub const CONDITION_CNE6: V2ComponentConditionFn = |c: &V2ComponentList| c[17].len() > 0;
+///
+/// This component is required when CNE.4 is populated and neither CNE.6 nor CNE.18 is populated.
+/// In short either the CNE.6 or the CNE.14 or CNE.17 must be populated when CNE.4 is populated.
+///
+pub const CONDITION_CNE7: V2ComponentConditionFn =
+    |c: &V2ComponentList| c[3].len() > 0 && !(c[5].len() > 0 || c[17].len() > 0);
+///
+/// Value set version ID is required if CNE.21 is populated.
+///
+pub const CONDITION_CNE8: V2ComponentConditionFn = |c: &V2ComponentList| c[20].len() > 0;
 
 /***************CNN Conditions*************/
 
