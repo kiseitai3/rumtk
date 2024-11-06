@@ -20,7 +20,7 @@
 
 pub mod v2_field_descriptor {
     use crate::hl7_v2_base_types::v2_primitives::V2PrimitiveType;
-    use crate::hl7_v2_optionality_rules::*;
+    pub use crate::hl7_v2_optionality_rules::*;
     pub use once_cell::unsync::Lazy;
     use ::phf::Map;
     use ::phf_macros::phf_map;
