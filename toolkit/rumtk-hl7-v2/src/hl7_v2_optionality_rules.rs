@@ -211,3 +211,10 @@ pub const CONDITION_CNN3: V2ComponentConditionFn = |c: &V2ComponentList| { c[10]
 /// If CNN.10 is valued, this component must be valued.
 ///
 pub const CONDITION_CNN4: V2ComponentConditionFn = |c: &V2ComponentList| { c[9].len() > 0 };
+
+/***************CP Conditions**************/
+///
+/// This component is required if CP.3 From Value and/or CP.4 To Value are present.
+///
+pub const CONDITION_CP: V2ComponentConditionFn = |c: &V2ComponentList| { c[2].len() > 0 };
+

@@ -722,7 +722,55 @@ pub mod v2_field_descriptor {
         ///     CNN.9, or both CNN.10 and CNN.11, must be valued.
         ///
         CNN,
+        ///
+        /// # 2A.3.10 CP - composite price
+        ///
+        /// This data type is often used to define a repeating field within a given segment.
+        ///
+        /// Example:
+        ///
+        ///     |100.00&USD^UP^0^9^min^P~50.00&USD^UP^10^59^min^P~10.00&USD^UP^60^999^P~50
+        ///     .00&USD^AP~200.00
+        ///
+        /// ## 2A.3.10.1 Price (MO)
+        ///     Definition: The only required component; usually containing a decimal point.
+        ///
+        /// **Note:** Each component of the MO data type (Section 2.A.41, "MO - money") is a subcomponent here.
+        ///
+        /// ## 2A.3.10.2 Price Type (ID)
+        ///     Definition: A coded value, data type ID. Refer to HL7 Table 0205 – Price Type in Chapter 2C,
+        ///     Code Tables, for valid values.
+        ///
+        /// ## 2A.3.10.3 From Value (NM)
+        ///     Definition: The number specifying the lower limit or boundary of the range. This component,
+        ///     together with the CP.4 component, specifies the "price range". The range can be defined as either
+        ///     time or quantity. For example, the range can indicate that the first 10 minutes of the procedure has
+        ///     one price. Another repetition of the data type can use the range to specify that the following 10 to
+        ///     60 minutes of the procedure is charged at another price per; a final repetition can specify that the
+        ///     final 60 to N minutes of the procedure at a third price.
+        ///
+        /// **Note:** If the CP.2 Price Type component is TP, both CP.3 and CP.4 may be null.
+        ///
+        /// ## 2A.3.10.4 To Value (NM)
+        ///     Definition: The number specifying the high limit or boundary of the range.
+        ///
+        /// ## 2A.3.10.5 Range Units (CWE)
+        /// Definition: This component describes the units associated with the range, e.g., seconds, minutes,
+        /// hours, days, quantity (i.e., count). As of v2.7 the Externally-defined Unified Code for Units of
+        /// Measure (UCUM) case sensitive code is the required code for units of measure. Refer to the
+        /// externally-defined table ["Unified Code for Units of Measure" UCUM](http://aurora.rg.iupui.edu/UCUM)
+        /// for valid values. Local codes may be transmitted in
+        /// addition to UCUM codes.
+        ///
+        /// This component is required if CP.3 From Value and/or CP.4 To Value are present.
+        ///
+        /// ## 2A.3.10.6 Range Type (ID)
+        ///     Definition: Refer to HL7 Table 0298 - CP Range Type for valid values.
+        ///
+        CP,
         CSU,
+        CWE,
+        MO,
         NR,
         WVI,
         WVS,
@@ -908,6 +956,14 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("aa_namespace_id", "Assigning Authority - Namespace ID", V2ComponentType::Primitive(V2PrimitiveType::IS), 20, 9, 363, Optionality::C(CONDITION_CNN2), false),
             v2_component_descriptor!("aa_universal_id", "Assigning Authority - Universal ID", V2ComponentType::Primitive(V2PrimitiveType::ST), 199, 10, 0, Optionality::C(CONDITION_CNN3), false),
             v2_component_descriptor!("aa_universal_id_type", "Assigning Authority - Universal ID Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 11, 301, Optionality::C(CONDITION_CNN4), false)
+        ],
+        "CP" => &[
+            v2_component_descriptor!("price", "Price", V2ComponentType::Complex(V2ComplexType::MO), 0, 1, 0, Optionality::R, false),
+            v2_component_descriptor!("price_type", "Price Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 2, 205, Optionality::O, false),
+            v2_component_descriptor!("from_value", "From Value", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 3, 0, Optionality::O, false),
+            v2_component_descriptor!("to_value", "To Value", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 4, 0, Optionality::O, false),
+            v2_component_descriptor!("range_units", "Range Units", V2ComponentType::Complex(V2ComplexType::CWE), 0, 5, 0, Optionality::C(CONDITION_CP), false),
+            v2_component_descriptor!("range_type", "Range Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 298, Optionality::O, false)
         ]
     };
 
@@ -925,6 +981,7 @@ pub mod v2_field_descriptor {
             V2ComplexType::CF => "CF",
             V2ComplexType::CNE => "CNE",
             V2ComplexType::CNN => "CNN",
+            V2ComplexType::CP => "CP",
             _ => "Error",
         }
     }
