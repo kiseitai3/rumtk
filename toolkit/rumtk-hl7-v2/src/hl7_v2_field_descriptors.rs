@@ -758,7 +758,7 @@ pub mod v2_field_descriptor {
         /// Definition: This component describes the units associated with the range, e.g., seconds, minutes,
         /// hours, days, quantity (i.e., count). As of v2.7 the Externally-defined Unified Code for Units of
         /// Measure (UCUM) case sensitive code is the required code for units of measure. Refer to the
-        /// externally-defined table ["Unified Code for Units of Measure" UCUM](http://aurora.rg.iupui.edu/UCUM)
+        /// externally-defined table ["Unified Code for Units of Measure" (UCUM)](http://aurora.rg.iupui.edu/UCUM)
         /// for valid values. Local codes may be transmitted in
         /// addition to UCUM codes.
         ///
@@ -768,6 +768,29 @@ pub mod v2_field_descriptor {
         ///     Definition: Refer to HL7 Table 0298 - CP Range Type for valid values.
         ///
         CP,
+        ///
+        /// # 2A.3.11 CQ - composite quantity with units
+        ///
+        /// **Note:** CQ cannot be legally expressed when embedded within another data type. Its use is constrained to a
+        /// segment field.
+        ///
+        /// ### Examples:
+        ///     |123.7^kg|          kilograms is an ISO unit
+        ///     |150^lb&&ANSI+|     weight in pounds is a customary US unit defined within ANSI+.
+        ///
+        /// ## 2A.3.11.1 Quantity (NM)
+        ///     Definition: This component specifies the numeric quantity or amount of an entity.
+        ///
+        /// ## 2A.3.11.2 Units (CWE)
+        /// Definition: This component species the units in which the quantity is expressed. As of v2.7 the
+        /// externally-defined Unified Code for Units of Measure (UCUM) case sensitive code is the required
+        /// code for units of measure. Refer to the external table
+        /// ["Unified Code for Units of Measure" (UCUM)](http://aurora.rg.iupui.edu/UCUM) for valid values.
+        /// Local codes may be transmitted in addition to UCUM codes.
+        ///
+        /// Refer to user-defined Table 0794 - Units in Chaper 2C, Code Tables, for valid values.
+        ///
+        CQ,
         CSU,
         CWE,
         MO,
@@ -964,6 +987,10 @@ pub mod v2_field_descriptor {
             v2_component_descriptor!("to_value", "To Value", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 4, 0, Optionality::O, false),
             v2_component_descriptor!("range_units", "Range Units", V2ComponentType::Complex(V2ComplexType::CWE), 0, 5, 0, Optionality::C(CONDITION_CP), false),
             v2_component_descriptor!("range_type", "Range Type", V2ComponentType::Primitive(V2PrimitiveType::ID), 0, 6, 298, Optionality::O, false)
+        ],
+        "CQ" => &[
+            v2_component_descriptor!("quantity", "Quantity", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("units", "Units", V2ComponentType::Complex(V2ComplexType::CWE), 0, 2, 794, Optionality::O, false)
         ]
     };
 
@@ -982,6 +1009,7 @@ pub mod v2_field_descriptor {
             V2ComplexType::CNE => "CNE",
             V2ComplexType::CNN => "CNN",
             V2ComplexType::CP => "CP",
+            V2ComplexType::CQ => "CQ",
             _ => "Error",
         }
     }
