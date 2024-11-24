@@ -791,6 +791,9 @@ pub mod v2_field_descriptor {
         /// Refer to user-defined Table 0794 - Units in Chaper 2C, Code Tables, for valid values.
         ///
         CQ,
+        ///
+        ///
+        ///
         CSU,
         CWE,
         MO,
@@ -991,6 +994,10 @@ pub mod v2_field_descriptor {
         "CQ" => &[
             v2_component_descriptor!("quantity", "Quantity", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 1, 0, Optionality::O, false),
             v2_component_descriptor!("units", "Units", V2ComponentType::Complex(V2ComplexType::CWE), 0, 2, 794, Optionality::O, false)
+        ],
+        "CSU" => &[
+            v2_component_descriptor!("quantity", "Quantity", V2ComponentType::Primitive(V2PrimitiveType::NM), 0, 1, 0, Optionality::O, false),
+            v2_component_descriptor!("units", "Units", V2ComponentType::Complex(V2ComplexType::CWE), 0, 2, 794, Optionality::O, false)
         ]
     };
 
@@ -1010,6 +1017,7 @@ pub mod v2_field_descriptor {
             V2ComplexType::CNN => "CNN",
             V2ComplexType::CP => "CP",
             V2ComplexType::CQ => "CQ",
+            V2ComplexType::CSU => "CSU",
             _ => "Error",
         }
     }
