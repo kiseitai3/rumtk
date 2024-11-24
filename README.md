@@ -17,6 +17,11 @@ communication and automation in medicine.
 # Features
 
 - [ ] Toolkit Core Library
+    - [x] UTF-8 Support
+    - [x] Small String Optimization Support
+    - [x] String Encodings to UTF-8 Support
+    - [x] RegEx Support
+    - [x] Memory Cache Support
     - [ ] Network Core library
     - [ ] Cryptologic Adapters
     - [ ] Commandline Standard Argument Interface
@@ -25,26 +30,27 @@ communication and automation in medicine.
     - [ ] Async support
     - [ ] Multithreaded support
     - [ ] SIMD support?? [Maybe]
-- [ ] HL7 v2 Interface Protocol
-    - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
-    - [x] HL7 v2 Escape Sequences Support
-    - [x] HL7 v2 Repeating Field Support
-    - [x] HL7 v2 UTF-8/Unicode Support
-    - [x] HL7 v2 Encodings to UTF-8 Conversion
-    - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
-    - [x] HL7 v2 Primitive Types
-    - [ ] HL7 v2 Component Optionality
-    - [ ] HL7 v2 Complex Types (aka structs)
-    - [ ] HL7 v2 Tables + Validation
-    - [ ] HL7 v2 Complex traits
-    - [ ] HL7 v2 Base Message to HL7 Type casting
-    - [ ] HL7 v2 Custom Message Overrides
-    - [ ] HL7 v2 Message Validator
-    - [ ] HL7 v2 Message to ASCII Message Generation
-- [ ] HL7 v2 MLLP
-    - [ ] HL7 v2 Endpoint Interface utility
-    - [ ] HL7 v2 Client Interface utility
-    - [ ] HL7 v2 Tests
+- [ ] HL7 v2 Library
+  - [ ] Parser
+      - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
+      - [x] HL7 v2 Escape Sequences Support
+      - [x] HL7 v2 Repeating Field Support
+      - [x] HL7 v2 UTF-8/Unicode Support
+      - [x] HL7 v2 Encodings to UTF-8 Conversion
+      - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
+      - [x] HL7 v2 Primitive Types
+      - [ ] HL7 v2 Component Optionality
+      - [ ] HL7 v2 Complex Types (aka structs)
+      - [ ] HL7 v2 Tables + Validation
+      - [ ] HL7 v2 Complex traits
+      - [ ] HL7 v2 Base Message to HL7 Type casting
+      - [ ] HL7 v2 Custom Message Overrides
+      - [ ] HL7 v2 Message Validator
+      - [ ] HL7 v2 Message to ASCII Message Generation
+  - [ ] MLLP
+      - [ ] HL7 v2 Endpoint Interface utility
+      - [ ] HL7 v2 Client Interface utility
+      - [ ] HL7 v2 Tests
 - [ ] HL7 v2 to FHIR Conversion
     - [ ] HL7 v2 to FHIR Basic Mapping
     - [ ] HL7 v2 to FHIR Custom Mappings
