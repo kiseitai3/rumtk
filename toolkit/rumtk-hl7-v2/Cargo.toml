@@ -2,8 +2,8 @@
 name = "rumtk-hl7-v2"
 description = "HL7 V2 Parser and MLLP Implementation to support building interface utilities."
 version = "0.1.0"
-license-file = "../LICENSE"
-readme = "README.md"
+license-file = "../../LICENSE"
+readme = "../../README.md"
 repository = "https://github.com/kiseitai3/rumtk"
 keywords = ["rumtk", "healthcare", "hl7", "v2"]
 categories = ["parsing", "science", "parser-implementations"]
