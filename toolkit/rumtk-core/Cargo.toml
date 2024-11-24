@@ -8,6 +8,7 @@ repository = "https://github.com/kiseitai3/rumtk"
 keywords = ["rumtk", "healthcare", "hl7", "v2", "core"]
 categories = ["parsing", "science", "parser-implementations"]
 edition = "2021"
+rust-version = "1.69.0"
 
 [dependencies]
 unicode-segmentation = "1.12.0"
