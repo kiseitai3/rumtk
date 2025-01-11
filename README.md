@@ -48,9 +48,15 @@ communication and automation in medicine.
       - [ ] HL7 v2 Message Validator
       - [ ] HL7 v2 Message to ASCII Message Generation
   - [ ] MLLP
-      - [ ] HL7 v2 Endpoint Interface utility
-      - [ ] HL7 v2 Client Interface utility
-      - [ ] HL7 v2 Tests
+    - [ ] Protocol
+    - [ ] Client
+    - [ ] Server
+    - [ ] Tests
+  - [ ] Fuzz Targets
+- [ ] MLLP Interfaces
+    - [ ] HL7 v2 Endpoint Interface utility
+    - [ ] HL7 v2 Client Interface utility
+    - [ ] HL7 v2 Tests
 - [ ] HL7 v2 to FHIR Conversion
     - [ ] HL7 v2 to FHIR Basic Mapping
     - [ ] HL7 v2 to FHIR Custom Mappings
