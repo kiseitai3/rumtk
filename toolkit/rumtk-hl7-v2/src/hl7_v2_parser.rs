@@ -33,15 +33,15 @@
 ///
 
 pub mod v2_parser {
-    use crate::hl7_v2_base_types::v2_primitives::{
+    pub use crate::hl7_v2_base_types::v2_primitives::{
         V2DateTime, V2ParserCharacters, V2PrimitiveCasting, V2Result, V2SearchIndex, V2String,
     };
-    use crate::hl7_v2_constants::{
+    pub use crate::hl7_v2_constants::{
         V2_DELETE_FIELD, V2_EMPTY_STRING, V2_MSHEADER_PATTERN, V2_SEGMENT_DESC, V2_SEGMENT_IDS,
         V2_SEGMENT_TERMINATOR,
     };
-    use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
-    use rumtk_core::strings::{
+    pub use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
+    pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions
         ,
     };
@@ -430,6 +430,7 @@ pub mod v2_parser {
     ///
     pub type SegmentMap = AHashMap<u8, V2SegmentGroup>;
 
+    #[derive(Debug)]
     pub struct V2Message {
         separators: V2ParserCharacters,
         segment_groups: SegmentMap,
@@ -600,6 +601,13 @@ pub mod v2_parser {
         }
     }
 
+    impl TryFrom<&&str> for V2Message {
+        type Error = V2String;
+        fn try_from(input: &&str) -> V2Result<Self> {
+            V2Message::try_from_str(input)
+        }
+    }
+
     impl TryFrom<&String> for V2Message {
         type Error = V2String;
         fn try_from(input: &String) -> V2Result<Self> {
@@ -635,6 +643,7 @@ pub mod v2_parser_interface {
     #[macro_export]
     macro_rules! v2_parse_message {
         ( $msg:expr ) => {{
+            use $crate::hl7_v2_parser::v2_parser::{V2Message, V2Result, RUMString, RUMStringConversions};
             V2Message::try_from($msg)
         }};
     }
@@ -661,6 +670,7 @@ pub mod v2_parser_interface {
     #[macro_export]
     macro_rules! v2_find_component {
         ( $v2_msg:expr, $v2_search_pattern:expr ) => {{
+            use $crate::hl7_v2_parser::v2_parser::{V2Component, V2Result};
             $v2_msg.find_component(&RUMString::from($v2_search_pattern))
         }};
     }

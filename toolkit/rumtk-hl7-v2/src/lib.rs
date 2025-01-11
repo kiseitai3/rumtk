@@ -31,6 +31,7 @@ pub mod hl7_v2_types;
 /*****************************************Tests****************************************/
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
     use super::*;
     use crate::hl7_v2_field_descriptors::v2_field_descriptor::{
         Optionality, V2ComponentType, V2ComponentTypeDescriptor,
@@ -863,4 +864,16 @@ mod tests {
 
     // TODO: Add tests for sequenceid and telephonestring
     // TODO: Add fuzzing test for to_datetime().
+
+    #[test]
+    fn test_fuzzed_garbage_parsing() {
+        let input = "MSH@~��MS";
+        match v2_parse_message!(&input) {
+            Err(e) => println!("Correctly identified input as garbage! => {}", &e),
+            Ok(message) => {
+                println!("Test input [{}] Result => {:?}", &input, message);
+                panic!("Message parsed without errors despite being malformed!")
+            }
+        }
+    }
 }
