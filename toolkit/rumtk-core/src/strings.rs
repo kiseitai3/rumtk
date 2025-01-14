@@ -132,7 +132,7 @@ pub trait RUMStringConversions: ToString {
     }
 }
 
-pub trait StringUtils: AsStr {
+pub trait StringUtils: AsStr + UTFStringExtensions {
     #[inline(always)]
     fn duplicate(&self, count: usize) -> RUMString {
         let mut duplicated = RUMString::with_capacity(count);
@@ -140,6 +140,17 @@ pub trait StringUtils: AsStr {
             duplicated += &self.as_str();
         }
         duplicated
+    }
+
+    fn is_unique(&self) -> bool {
+        let graphemes = self.get_graphemes();
+        let mut keys = ahash::AHashSet::with_capacity(graphemes.len());
+        for g in graphemes {
+            if !keys.insert(g) {
+                return false;
+            }
+        }
+        true
     }
 }
 
