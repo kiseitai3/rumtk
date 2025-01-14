@@ -29,7 +29,7 @@ pub mod v2_base_types {
     use rumtk_core::search::rumtk_search::{
         string_search, string_search_named_captures, SearchGroups,
     };
-    use rumtk_core::strings::{format_compact, ToCompactString};
+    use rumtk_core::strings::{format_compact, StringUtils, ToCompactString};
     use rumtk_core::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
     use std::fmt::Debug;
 
@@ -71,8 +71,9 @@ pub mod v2_base_types {
             }
         }
         pub fn from_str(msg_key_chars: &str) -> V2Result<Self> {
-            let field_separator: &str = msg_key_chars.get_grapheme(0);
-            let encoding_field: Vec<&str> = msg_key_chars.split(&field_separator).collect();
+            let key_chars = Self::validate_msh_key_chars(msg_key_chars)?;
+            let field_separator: &str = key_chars.get_grapheme(0);
+            let encoding_field: Vec<&str> = key_chars.split(&field_separator).collect();
             let parser_chars: &str = encoding_field[1];
 
             match parser_chars.count_graphemes() {
@@ -104,6 +105,19 @@ pub mod v2_base_types {
             } else {
                 Err("The segment is not an MSH segment! This message is malformed!".to_rumstring())
             }
+        }
+
+        pub fn validate_msh_key_chars(msg_key_chars: &str) -> V2Result<&str> {
+            if msg_key_chars.len() < 4 {
+                return Err(format_compact!("Too few parser characters! Is MSH malformed? => {}", &msg_key_chars));
+            }
+            if msg_key_chars.len() > 5 {
+                return Err(format_compact!("Too many parser characters! Is MSH malformed? => {}", &msg_key_chars));
+            }
+            if msg_key_chars.is_unique() {
+                return Ok(msg_key_chars);
+            }
+            Err(format_compact!("Unknown malformed parser characters! Is MSH malformed? => {}", &msg_key_chars))
         }
 
         fn is_msh(msh_segment_token: &str) -> bool {

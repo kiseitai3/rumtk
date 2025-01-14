@@ -397,6 +397,8 @@ pub mod v2_parser {
                 None => Err(format_compact!("Field number {} not found!", indx)),
             }
         }
+
+        pub fn len(&self) -> usize { return self.fields.len(); }
     }
 
     impl Index<isize> for V2Segment {
@@ -444,7 +446,7 @@ pub mod v2_parser {
             let clean_msg = V2Message::sanitize(&raw_msg);
             let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
             let msh_segment = V2Message::find_msh(&segment_tokens)?;
-            let parse_characters = V2ParserCharacters::from_msh(&msh_segment.as_str())?;
+            let parse_characters = V2ParserCharacters::from_msh(&msh_segment)?;
             let segments = V2Message::extract_segments(&segment_tokens, &parse_characters)?;
 
             Ok(V2Message {
@@ -529,10 +531,10 @@ pub mod v2_parser {
         }
 
         // Message parsing operations
-        pub fn find_msh(segments: &Vec<&str>) -> V2Result<RUMString> {
+        pub fn find_msh<'a>(segments: &Vec<&'a str>) -> V2Result<&'a str> {
             for segment in segments {
-                if segment.starts_with(V2_MSHEADER_PATTERN) {
-                    return Ok(segment.to_rumstring());
+                if segment.starts_with(V2_MSHEADER_PATTERN){
+                    return Ok(segment);
                 }
             }
             Err("No MSH segment found! The message is malformed or incomplete!".to_rumstring())
