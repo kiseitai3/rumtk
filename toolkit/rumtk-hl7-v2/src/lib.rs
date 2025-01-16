@@ -28,6 +28,7 @@ mod hl7_v2_optionality_rules;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
 pub mod hl7_v2_types;
+mod hl7_v2_mllp;
 /*****************************************Tests****************************************/
 #[cfg(test)]
 mod tests {

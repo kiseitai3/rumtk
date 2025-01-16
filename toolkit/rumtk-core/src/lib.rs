@@ -25,6 +25,7 @@ pub mod strings;
 pub mod maths;
 pub mod cache;
 pub mod search;
+mod network;
 
 #[cfg(test)]
 mod tests {
