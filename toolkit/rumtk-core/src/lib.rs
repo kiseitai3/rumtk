@@ -1,3 +1,4 @@
+#![feature(unboxed_closures)]
 /*
  * rumtk attempts to implement HL7 and medical protocols for interoperability in medicine.
  * This toolkit aims to be reliable, simple, performant, and standards compliant.
@@ -26,6 +27,7 @@ pub mod maths;
 pub mod cache;
 pub mod search;
 mod network;
+mod queue;
 
 #[cfg(test)]
 mod tests {
