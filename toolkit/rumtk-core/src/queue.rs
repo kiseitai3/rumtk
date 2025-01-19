@@ -20,37 +20,61 @@
 pub mod queue {
     use std::any::Any;
     use std::collections::VecDeque;
-    use tokio::task::JoinHandle as TokioHandle;
+    use std::sync::{Arc, Mutex};
+    use tokio::task::JoinHandle as AsyncHandle;
+    use tokio::task::spawn as async_spawn;
     use std::thread::JoinHandle as ThreadHandle;
-    use std::thread::{spawn, Result, sleep, Duration};
+    use std::thread::spawn as thread_spawn;
+    use std::thread::{Result, sleep, Duration};
     use crate::strings::RUMString;
 
     const SLEEP_DURATION: Duration = Duration::from_millis(1);
 
-    pub type TaskProcessor<T> = fn(buf: T) -> Result<Vec<T>>;
 
+    pub type TaskItems<T> = Vec<T>;
+    /// This type aliases a vector of T elements that will be used for passing arguments to the task processor.
+    pub type TaskArgs<T> = TaskItems<T>;
+    /// Type to use to define how task results are expected to be returned.
+    pub type TaskResult<T> = Result<TaskItems<T>>;
+    /// Function signature defining the interface of task processing logic.
+    pub type TaskProcessor<T> = fn(args: &TaskArgs<T>) -> TaskResult<T>;
+
+    #[derive(Clone, Debug)]
     pub struct Task<T>
     {
         task_processor: TaskProcessor<T>,
-        data: Vec<T>
+        args: TaskArgs<T>,
+        result: TaskResult<T>
     }
 
     impl<T> Task<T>{
-        pub fn new(data: T, task_processor: TaskProcessor<T>) -> Task<T> {
-            Task{task_processor, data}
+        pub fn new(task_processor: TaskProcessor<T>, args: TaskArgs<T>) -> Task<T> {
+            let result = Ok(TaskItems::new());
+            Task{task_processor, args, result}
+        }
+
+        pub fn exec(&mut self) {
+            let processor = &self.task_processor;
+            self.result = processor(&self.args);
         }
     }
 
-    type TaskResult<T> = Result<Vec<T>>;
+    type TaskQueueData<T> = VecDeque<Task<T>>;
+    type AvailableTaskData<T> = VecDeque<Option<Task<T>>>;
 
+    #[derive(Debug)]
     pub struct TaskQueue<T> {
-        tasks: VecDeque<Task<T>>,
+        tasks: TaskQueueData<T>,
         queued: usize
     }
 
     impl<T> TaskQueue<T> {
         pub fn new() -> TaskQueue<T> {
-            TaskQueue{tasks: VecDeque::new(), queued: 0}
+            Self::with_capacity(10)
+        }
+
+        pub fn with_capacity(initial_size: usize) -> TaskQueue<T> {
+            TaskQueue{tasks: VecDeque::with_capacity(initial_size), queued: 0}
         }
 
         pub fn queue(&mut self, task: Task<T>) {
@@ -58,12 +82,21 @@ pub mod queue {
             self.queued += 1;
         }
 
+        pub fn queue_batch(&mut self, tasks: AvailableTaskData<T>) {
+            for task in tasks {
+                match task {
+                    Some(task) => self.queue(task),
+                    None => ()
+                }
+            }
+        }
+
         pub fn dequeue(&mut self) -> Option<Task<T>> {
             self.tasks.pop_front()
         }
 
         pub fn task_done(&mut self) {
-            if self.queued == 0 {
+            if self.queued <= 0 {
                 panic!("TaskQueue::task_done called more times than queued tasks!");
             }
 
@@ -71,44 +104,80 @@ pub mod queue {
         }
 
         pub fn is_empty(&self) -> bool { self.queued > 0 }
+        pub fn queued(&self) -> usize { self.queued }
     }
 
+    impl<T> Iterator for TaskQueue<T> {
+        type Item = Task<T>;
+
+        fn next(&mut self) -> Option<Task<T>> {
+            self.tasks.pop_front()
+        }
+    }
+
+    pub type SafeTaskQueue<T> = Arc<Mutex<TaskQueue<T>>>;
+    pub type SafeTaskResults<T> = Arc<Mutex<TaskQueue<T>>>;
+
     pub struct ThreadedTaskQueue<T> {
-        queue: TaskQueue<T>,
-        results: VecDeque<TaskResult<T>>,
-        workers: Vec<ThreadHandle<TaskProcessor<T>>>
+        queue: SafeTaskQueue<T>,
+        results: SafeTaskResults<T>,
+        workers: Vec<ThreadHandle<TaskProcessor<T>>>,
+        microtask_size: usize
     }
 
     impl<T> ThreadedTaskQueue<T> {
-        pub fn new(worker_num: u8) -> ThreadedTaskQueue<T> {
-            let mut workers = vec![];
+        pub fn new(worker_num: usize, microtask_size: usize) -> ThreadedTaskQueue<T> {
+            Self::with_capacity(worker_num, microtask_size, 10)
+        }
+
+        pub fn with_capacity(worker_num: usize, microtask_size: usize, capacity: usize) -> ThreadedTaskQueue<T> {
+            let mut workers = Vec::with_capacity(worker_num);
 
             for i in 0..worker_num {
-                workers.push(spawn(Self::worker))
+                workers.push(thread_spawn(Self::worker))
             }
 
-            ThreadedTaskQueue{workers, queue: TaskQueue::new(), results: VecDeque::new()}
+            let queue = SafeTaskQueue::new(Mutex::new(TaskQueue::<T>::new()));
+            let results = SafeTaskQueue::new(Mutex::new(TaskQueue::<T>::with_capacity(capacity)));
+            ThreadedTaskQueue{workers, microtask_size, queue, results}
         }
 
         fn worker(&mut self) {
-            loop {
-                let task = self.queue.dequeue();
+            // Init worker
+            let micro_runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let microtask_size = self.microtask_size.clone();
+            let mut microtask_queue = TaskQueue::<T>::with_capacity(microtask_size);
+            let mut async_handles = Vec::<AsyncHandle<T>>::with_capacity(microtask_size);
 
-                match task {
-                    Some(task) => {
-                        let processor = task.task_processor;
-                        self.results.push_back(processor(task.data));
-                        self.queue.task_done();
-                    }
-                    _ => {}
+            // Begin processing
+            loop {
+                microtask_queue.queue_batch(self.take_tasks(microtask_size));
+
+                // Begin scheduling tasks
+                for mut task in microtask_queue {
+
+                    async_handles.push(
+                        micro_runtime.spawn(
+                            async move || {
+                                task.exec();
+                                self.return_result(task);
+                            }
+                        )
+                    );
                 }
+
+                // Wait on all tasks to complete
+                for handle in async_handles {
+                    micro_runtime.block_on(handle).unwrap();
+                }
+
                 // Rest briefly
                 sleep(SLEEP_DURATION);
             }
         }
-        
-        pub fn add_task(&mut self, task: Task<T>) {
-            self.queue.queue(task);
+
+        pub fn add_task(&mut self, processor: TaskProcessor<T>, args: TaskArgs<T>) {
+            self.queue.queue(Task::new(processor, args));
         }
 
         pub fn wait(&mut self) -> VecDeque<TaskResult<T>> {
@@ -120,6 +189,20 @@ pub mod queue {
             let results = self.results.clone();
             self.results.clear();
             results
+        }
+
+        fn take_tasks(&mut self, n: usize) -> AvailableTaskData<T> {
+            let mut tasks = self.queue.lock().unwrap();
+            let mut taken = AvailableTaskData::with_capacity(n);
+            for i in 0..n {
+                taken.push_back(*tasks.dequeue());
+            }
+            taken
+        }
+
+        fn return_result(&mut self, task: Task<T>) {
+            let mut results = self.results.lock().unwrap();
+            *results.queue(task);
         }
     }
 }
