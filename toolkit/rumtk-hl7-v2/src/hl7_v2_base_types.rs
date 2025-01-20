@@ -31,6 +31,7 @@ pub mod v2_base_types {
     };
     use rumtk_core::strings::{format_compact, StringUtils, ToCompactString};
     use rumtk_core::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
+    use rumtk_core::core::RUMResult;
     use std::fmt::Debug;
 
     /**************************** Constants**************************************/
@@ -191,7 +192,7 @@ pub mod v2_base_types {
     ///
     /// Type used for propagating error messages.
     ///
-    pub type V2Result<T> = Result<T, RUMString>;
+    pub type V2Result<T> = RUMResult<T>;
     ///
     /// 2A.3.76 ST - string data
     ///
