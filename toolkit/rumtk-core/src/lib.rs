@@ -26,8 +26,9 @@ pub mod strings;
 pub mod maths;
 pub mod cache;
 pub mod search;
-mod network;
-mod queue;
+pub mod network;
+pub mod queue;
+pub mod core;
 
 #[cfg(test)]
 mod tests {
@@ -201,4 +202,27 @@ mod tests {
         assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
+
+    ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
+    use queue::queue::*;
+    #[test]
+    fn test_queue_data() {
+        let expected = vec!["Hello", "World!", "Overcast", "and", "Sad"];
+        let mut queue = TaskQueue::<str, str>::with_capacity(5);
+        let processor: TaskProcessor<str, str> = |&args| {
+            let mut results = TaskItems::<str>::with_capacity(&args.len());
+            print!("Contents: ");
+            for arg in args {
+                results.push(&arg);
+                print!("{} ", &arg);
+            }
+            Ok(results)
+        };
+        queue.add_task(processor, expected.clone());
+        let mut task = queue.dequeue().unwrap();
+        task.exec();
+        assert_eq!(task.get_result(), expected, "");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
 }
