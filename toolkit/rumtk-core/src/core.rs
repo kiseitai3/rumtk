@@ -23,3 +23,7 @@ use crate::strings::RUMString;
 /// Type used for propagating error messages.
 ///
 pub type RUMResult<T> = Result<T, RUMString>;
+
+pub fn get_default_system_thread_count() -> usize {
+    4
+}

@@ -29,6 +29,7 @@ pub mod search;
 pub mod network;
 pub mod queue;
 pub mod core;
+mod threading;
 
 #[cfg(test)]
 mod tests {
@@ -203,14 +204,22 @@ mod tests {
         println!("Passed!")
     }
 
+    ///////////////////////////////////Threading Tests/////////////////////////////////////////////////
+
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use queue::queue::*;
     #[test]
     fn test_queue_data() {
-        let expected = vec!["Hello", "World!", "Overcast", "and", "Sad"];
-        let mut queue = TaskQueue::<str, str>::with_capacity(5);
-        let processor: TaskProcessor<str, str> = |&args| {
-            let mut results = TaskItems::<str>::with_capacity(&args.len());
+        let expected = vec![
+            &RUMString::from("Hello"),
+            &RUMString::from("World!"),
+            &RUMString::from("Overcast"),
+            &RUMString::from("and"),
+            &RUMString::from("Sad")
+        ];
+        let mut queue = TaskQueue::<&RUMString, &RUMString>::new(5);
+        let processor = |&args: &_| {
+            let mut results = TaskItems::<&RUMString>::with_capacity(&args.len());
             print!("Contents: ");
             for arg in args {
                 results.push(&arg);
@@ -218,10 +227,13 @@ mod tests {
             }
             Ok(results)
         };
-        queue.add_task(processor, expected.clone());
-        let mut task = queue.dequeue().unwrap();
-        task.exec();
-        assert_eq!(task.get_result(), expected, "");
+        queue.add_task(processor, TaskArgs::from(expected.clone()));
+        let results = queue.wait();
+        let mut result_data = Vec::<&RUMString>::with_capacity(5);
+        for r in results {
+            result_data.push(r.unwrap()[0]);
+        }
+        assert_eq!(result_data, expected, "Results do not match expected!");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

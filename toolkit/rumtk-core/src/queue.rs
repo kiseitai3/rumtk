@@ -18,69 +18,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 pub mod queue {
-    use std::any::Any;
+    use std::sync::Mutex;
     use std::time::Duration;
-    use std::collections::VecDeque;
-    use std::sync::{Arc, Mutex, RwLock};
-    use tokio::task::JoinHandle as AsyncHandle;
-    use tokio::task::spawn as async_spawn;
-    use std::thread::JoinHandle as ThreadHandle;
-    use std::thread::spawn as thread_spawn;
     use std::thread::{sleep};
-    use compact_str::format_compact;
-    use crate::core::RUMResult;
-    use crate::strings::RUMString;
+    pub use crate::threading::thread_primitives::*;
 
-    const SLEEP_DURATION: Duration = Duration::from_millis(1);
-
-    //static GLOBAL_Threads: Arc<Mutex<Vec<ThreadHandle<()>>>> = Arc::new(Mutex::new(vec![]));
+    pub const DEFAULT_SLEEP_DURATION: Duration = Duration::from_millis(1);
+    pub const DEFAULT_QUEUE_CAPACITY: usize = 10;
+    pub const DEFAULT_MICROTASK_QUEUE_CAPACITY: usize = 5;
 
 
-    pub type TaskItems<T> = Vec<T>;
-    /// This type aliases a vector of T elements that will be used for passing arguments to the task processor.
-    pub type TaskArgs<T> = TaskItems<T>;
-    /// Type to use to define how task results are expected to be returned.
-    pub type TaskResult<R> = RUMResult<TaskItems<R>>;
-    pub type TaskResults<R> = TaskItems<TaskResult<R>>;
-    /// Function signature defining the interface of task processing logic.
-    pub type TaskProcessor<T, R> = fn(args: &TaskArgs<T>) -> TaskResult<R>;
+    type TaskQueueData<T, R> = SafeTasks<T, R>;
 
-    #[derive(Debug, Clone)]
-    pub struct Task<T, R>
-    {
-        task_processor: TaskProcessor<T, R>,
-        args: TaskArgs<T>,
-        result: TaskResult<R>
-    }
-
-    impl<T, R> Task<T, R>
-    where
-        T: Send + Clone +'static,
-        R: Send + Clone + 'static,
-        Box<T>: Send + Clone + 'static,
-    {
-        pub fn new(task_processor: TaskProcessor<T, R>, args: TaskArgs<T>) -> Task<T, R> {
-            let result = Ok(TaskItems::with_capacity(5));
-            Task{task_processor, args, result}
-        }
-
-        pub fn exec(&mut self) {
-            let processor = &self.task_processor;
-            self.result = processor(&self.args);
-        }
-
-        pub fn get_result(&self) -> &TaskResult<R> {
-            &self.result
-        }
-    }
-
-    type TaskQueueData<T, R> = VecDeque<Task<T, R>>;
-    type AvailableTaskData<T, R> = VecDeque<Option<Task<T, R>>>;
-
-    #[derive(Debug)]
     pub struct TaskQueue<T, R> {
         tasks: TaskQueueData<T, R>,
-        queued: usize
+        threads: ThreadPool<T, R>
     }
 
     impl<T, R> TaskQueue<T, R>
@@ -89,180 +41,104 @@ pub mod queue {
         R: Send + Clone + 'static,
         Box<T>: Send + Clone + 'static,
     {
-        pub fn new() -> TaskQueue<T, R> {
-            Self::with_capacity(10)
+        ///
+        /// This method creates a [`TaskQueue`] instance using sensible defaults.
+        ///
+        /// The `worker_num` parameter is computed from the number of cores present in system.
+        /// The `microtask_queue` is set to [`DEFAULT_MICROTASK_QUEUE_CAPACITY`].
+        /// The `microtask_queue` is set to [`DEFAULT_QUEUE_CAPACITY`].
+        ///
+        pub fn default() -> TaskQueue<T, R> {
+            Self::new(5)
         }
 
-        pub fn with_capacity(initial_size: usize) -> TaskQueue<T, R> {
-            TaskQueue{tasks: VecDeque::with_capacity(initial_size), queued: 0}
+        ///
+        /// Creates an instance of [`ThreadedTaskQueue<T, R>`] in the form of [`SafeThreadedTaskQueue<T, R>`].
+        /// Expects you to provide the count of threads to spawn and the microtask queue size
+        /// allocated by each thread.
+        ///
+        /// This method calls [`Self::with_capacity()`] for the actual object creation.
+        /// The main queue capacity is pre-allocated to [`DEFAULT_QUEUE_CAPACITY`].
+        ///
+        pub fn new(worker_num: usize) -> TaskQueue<T, R> {
+            let tasks = SafeTasks::with_capacity(DEFAULT_QUEUE_CAPACITY);
+            let threads = ThreadPool::<T, R>::new(worker_num);
+            TaskQueue{tasks, threads}
         }
 
+        ///
+        /// Add a task to the processing queue. The idea is that you can queue a processor function
+        /// and list of args that will be picked up by one of the threads for processing.
+        ///
         pub fn add_task(&mut self, processor: TaskProcessor<T, R>, args: TaskArgs<T>) {
-            self.queue(Task::new(processor, args));
+            let task = Task::new(processor, args);
+            let safe_task = SafeTask::new(Mutex::new(task));
+            self.threads.execute(&safe_task);
+            self.tasks.push(safe_task);
         }
 
-        pub fn queue(&mut self, task: Task<T, R>) {
-            self.tasks.push_back(task);
-            self.queued += 1;
-        }
-
-        pub fn queue_batch(&mut self, tasks: AvailableTaskData<T, R>) {
-            for task in tasks {
-                match task {
-                    Some(task) => self.queue(task),
-                    None => ()
-                }
-            }
-        }
-
-        pub fn dequeue(&mut self) -> Option<Task<T, R>> {
-            self.tasks.pop_front()
-        }
-
-        pub fn task_done(&mut self) {
-            if self.queued <= 0 {
-                panic!("TaskQueue::task_done called more times than queued tasks!");
-            }
-
-            self.queued -= 1;
-        }
-
-        pub fn is_empty(&self) -> bool { self.queued > 0 }
-        pub fn queued(&self) -> usize { self.queued }
-
-        pub fn clear(&mut self) {
-            self.tasks.clear();
-        }
-    }
-
-    impl<T, R> Iterator for TaskQueue<T, R>
-    where
-        T: Send + Clone +'static,
-        R: Send + Clone + 'static,
-        Box<T>: Send + Clone + 'static,
-    {
-        type Item = Task<T, R>;
-
-        fn next(&mut self) -> Option<Task<T, R>> {
-            self.tasks.pop_front()
-        }
-    }
-
-    pub type SafeTaskQueue<T, R> = Arc<Mutex<TaskQueue<T, R>>>;
-    pub type SafeTaskResults<R> = Arc<Mutex<TaskResults<R>>>;
-    pub type ThreadPool = Vec<ThreadHandle<()>>;
-    pub type SafeThreadedTaskQueue<T, R> = Arc<Mutex<ThreadedTaskQueue<T, R>>>;
-
-    #[derive(Clone)]
-    pub struct ThreadedTaskQueue<T, R> {
-        queue: SafeTaskQueue<T, R>,
-        results: SafeTaskResults<R>,
-        worker_num: usize,
-        microtask_size: usize
-    }
-
-    impl<T, R> ThreadedTaskQueue<T, R>
-    where
-        T: Send + Clone +'static,
-        R: Send + Clone + 'static,
-        Box<T>: Send + Clone + 'static,
-    {
-        pub fn new(worker_num: usize, microtask_size: usize) -> SafeThreadedTaskQueue<T, R> {
-            Self::with_capacity(worker_num, microtask_size, 10)
-        }
-
-        pub fn with_capacity(worker_num: usize, microtask_size: usize, capacity: usize) -> SafeThreadedTaskQueue<T, R> {
-            let queue = SafeTaskQueue::new(Mutex::new(TaskQueue::new()));
-            let results = SafeTaskResults::new(Mutex::new(TaskResults::with_capacity(capacity)));
-            let ttq = ThreadedTaskQueue{worker_num, microtask_size, queue, results};
-            let mut safe_ttq = SafeThreadedTaskQueue::new(Mutex::new(ttq));
-            Self::start(&mut safe_ttq);
-            safe_ttq
-        }
-
-        pub fn start(this: &mut SafeThreadedTaskQueue<T, R>) -> ThreadPool {
-            let mut safe_self = this.lock().unwrap();
-            let mut handles = ThreadPool::with_capacity(safe_self.worker_num);
-
-            for _ in 0..safe_self.worker_num {
-                let mut copy = this.clone();
-                handles.push(thread_spawn(move || copy.lock().unwrap().worker()));
-            }
-
-            handles
-        }
-
-        fn worker(&mut self) {
-            // Init worker
-            let micro_runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-            let microtask_size = self.microtask_size.clone();
-
-            // Begin processing
-            loop {
-                let mut microtask_queue = TaskQueue::<T, R>::with_capacity(microtask_size);
-                let mut async_handles = Vec::<AsyncHandle<()>>::with_capacity(microtask_size);
-                microtask_queue.queue_batch(self.take_tasks(microtask_size));
-
-                // Begin scheduling tasks
-                for mut task in microtask_queue {
-                    let future =
-                        micro_runtime.spawn(
-                            async move {
-                                task.exec();
-                            }
-                        );
-
-                    async_handles.push(future);
-                }
-
-                // Wait on all tasks to complete
-                for handle in async_handles {
-                    micro_runtime.block_on(handle).unwrap();
-                }
-
-                // Rest briefly
-                sleep(SLEEP_DURATION);
-            }
-        }
-
-        pub fn add_task(&mut self, processor: TaskProcessor<T, R>, args: TaskArgs<T>) {
-            let mut queue  = self.queue.lock().unwrap();
-            queue.add_task(processor, args);
-        }
-
+        ///
+        /// This method waits until all queued tasks have been processed from the main queue.
+        ///
+        /// We poll the status of the main queue every [`DEFAULT_SLEEP_DURATION`] ms.
+        ///
+        /// Upon completion,
+        ///
+        /// 1. We collect the results generated (if any).
+        /// 2. We reset the main task and result internal queue states.
+        /// 3. Return the list of results ([`TaskResults<R>`]).
+        ///
+        /// ### Note:
+        ///
+        ///     Results returned here are not guaranteed to be in the same order as the order in which
+        ///     the tasks were queued for work. You will need to pass a type as T that automatically
+        ///     tracks its own id or has a way for you to resort results.
+        ///
         pub fn wait(&mut self) -> TaskResults<R> {
-            while !self.is_empty() {
-                sleep(SLEEP_DURATION);
+            while !self.is_completed() {
+                sleep(DEFAULT_SLEEP_DURATION);
             }
 
-            let results = self.collect_results();
+            let results = self.gather();
             self.reset();
             results
         }
 
-        pub fn is_empty(&self) -> bool {
-            let queue  = self.queue.lock().unwrap();
-            queue.is_empty()
-        }
-        pub fn reset(&mut self) {
-            let mut queue  = self.queue.lock().unwrap();
-            let mut results  = self.results.lock().unwrap();
-            queue.clear();
-            results.clear();
-        }
-
-        fn take_tasks(&mut self, n: usize) -> AvailableTaskData<T, R> {
-            let mut tasks = self.queue.lock().unwrap();
-            let mut taken = AvailableTaskData::with_capacity(n);
-            for _ in 0..n {
-                taken.push_back(tasks.dequeue());
+        ///
+        /// Check if all work has been completed from the task queue.
+        ///
+        pub fn is_completed(&self) -> bool {
+            for task in self.tasks.iter() {
+                if !task.lock().unwrap().is_completed() {
+                    return false;
+                }
             }
-            taken
+            true
         }
 
-        fn collect_results(&self) -> TaskResults<R> {
-            let result_queue = self.results.lock().unwrap();
-            (*result_queue).as_slice().to_vec()
+        ///
+        /// Reset task queue and results queue states.
+        ///
+        pub fn reset(&mut self) {
+            self.tasks.clear();
         }
+
+        fn gather(&mut self) -> TaskResults<R> {
+            let mut result_queue = TaskResults::<R>::with_capacity(self.tasks.len());
+            for task in self.tasks.iter() {
+                result_queue.push(task.lock().unwrap().get_result().clone());
+            }
+            result_queue
+        }
+    }
+}
+
+pub mod queue_macros {
+    #[macro_export]
+    macro_rules! rumtk_new_task_queue {
+        ( $worker_num:expr ) => {{
+            use $crate::queue::queue::{TaskQueue};
+            TaskQueue::new($worker_num);
+        }};
     }
 }
