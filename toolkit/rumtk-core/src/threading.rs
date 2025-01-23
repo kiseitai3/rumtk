@@ -97,7 +97,7 @@ pub mod thread_primitives {
 
     impl Worker
     {
-        pub fn new<T: Send + Sync, R>(id: usize, receiver: ThreadReceiver<T, R>) -> Worker {
+        pub fn new<T: Send + Sync + Clone + 'static, R: Send + Sync + Clone + 'static>(id: usize, receiver: ThreadReceiver<T, R>) -> Worker {
             let thread = thread::spawn(move ||
                 loop {
                     let locked_receiver = receiver.lock().unwrap();
@@ -129,8 +129,8 @@ pub mod thread_primitives {
 
     impl<T, R> ThreadPool<T, R>
     where
-        T: Send + Sync + 'static,
-        R: Send + 'static,
+        T: Send + Sync + Clone + 'static,
+        R: Send + Sync + Clone + 'static,
     {
         ///
         /// Creates an instance of [`ThreadPool<T, R>`] with a pool of `size` threads pre-running

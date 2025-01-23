@@ -237,7 +237,6 @@ mod tests {
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use queue::queue::*;
 
-    /*
     #[test]
     fn test_queue_data() {
         let expected = vec![
@@ -249,24 +248,26 @@ mod tests {
         ];
         let mut queue = TaskQueue::<RUMString, RUMString>::new(5);
         let processor = |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
-            let mut results = TaskItems::<RUMString>::with_capacity(args.len());
+            let owned_args = args.lock().unwrap();
+            let mut results = TaskItems::<RUMString>::with_capacity(owned_args.len());
             print!("Contents: ");
-            for arg in args.iter() {
-                results.push(arg.as_str().to_rumstring());
+            for arg in owned_args.iter() {
                 print!("{} ", &arg);
+                results.push(RUMString::new(arg));
             }
             Ok(results)
         };
-        let task_args = SafeTaskArgs::<RUMString>::new(expected.clone());
+        let task_args = SafeTaskArgs::<RUMString>::new(Mutex::new(expected.clone()));
         queue.add_task(processor, task_args);
         let results = queue.wait();
         let mut result_data = Vec::<RUMString>::with_capacity(5);
         for r in results {
-            result_data.push(r.unwrap()[0].clone());
+            for v in r.unwrap().iter() {
+                result_data.push(v.clone());
+            }
         }
         assert_eq!(result_data, expected, "Results do not match expected!");
     }
-    */
 
     //////////////////////////////////////////////////////////////////////////////////////////////
 }

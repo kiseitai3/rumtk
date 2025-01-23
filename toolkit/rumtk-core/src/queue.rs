@@ -37,9 +37,9 @@ pub mod queue {
 
     impl<T, R> TaskQueue<T, R>
     where
-        T: Send + Clone +'static,
-        R: Send + Clone + 'static,
-        Box<T>: Send + Clone + 'static,
+        T: Send + Sync + Clone + 'static,
+        R: Send + Sync + Clone + 'static,
+        Box<T>: Send + Sync + Clone + 'static,
     {
         ///
         /// This method creates a [`TaskQueue`] instance using sensible defaults.
@@ -62,7 +62,7 @@ pub mod queue {
         ///
         pub fn new(worker_num: usize) -> TaskQueue<T, R> {
             let tasks = SafeTasks::with_capacity(DEFAULT_QUEUE_CAPACITY);
-            let threads = ThreadPool::<T, R>::new(worker_num);
+            let threads = ThreadPool::new(worker_num);
             TaskQueue{tasks, threads}
         }
 
