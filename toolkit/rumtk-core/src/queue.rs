@@ -70,7 +70,7 @@ pub mod queue {
         /// Add a task to the processing queue. The idea is that you can queue a processor function
         /// and list of args that will be picked up by one of the threads for processing.
         ///
-        pub fn add_task(&mut self, processor: TaskProcessor<T, R>, args: TaskArgs<T>) {
+        pub fn add_task(&mut self, processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) {
             let task = Task::new(processor, args);
             let safe_task = SafeTask::new(Mutex::new(task));
             self.threads.execute(&safe_task);

@@ -23,22 +23,23 @@ pub mod thread_primitives {
     use std::sync::mpsc::{Receiver, Sender};
     use std::thread;
     use std::thread::JoinHandle;
-    use crate::core::RUMResult;
+    use crate::core::{RUMResult, RUMVec};
 
-    pub type TaskItems<T> = Vec<T>;
+    pub type TaskItems<T> = RUMVec<T>;
     /// This type aliases a vector of T elements that will be used for passing arguments to the task processor.
     pub type TaskArgs<T> = TaskItems<T>;
     /// Type to use to define how task results are expected to be returned.
     pub type TaskResult<R> = RUMResult<TaskItems<R>>;
     pub type TaskResults<R> = TaskItems<TaskResult<R>>;
     /// Function signature defining the interface of task processing logic.
-    pub type TaskProcessor<T, R> = fn(args: &TaskArgs<T>) -> TaskResult<R>;
-    pub type MicroTaskQueue<T, R> = Arc<Mutex<Vec<Task<T, R>>>>;
+    pub type MicroTaskQueue<T, R> = Arc<Mutex<RUMVec<Task<T, R>>>>;
     pub type SafeTask<T, R> = Arc<Mutex<Task<T, R>>>;
-    pub type SafeTasks<T, R> = Vec<SafeTask<T, R>>;
+    pub type SafeTasks<T, R> = RUMVec<SafeTask<T, R>>;
+    pub type SafeTaskArgs<T> = Arc<TaskItems<T>>;
     pub type ThreadReceiver<T, R> = Arc<Mutex<Receiver<SafeTask<T, R>>>>;
     pub type ThreadSender<T, R> = Sender<SafeTask<T, R>>;
     pub type AsyncPool = Vec<tokio::task::JoinHandle<()>>;
+    pub type TaskProcessor<T, R> = fn(args: &SafeTaskArgs<T>) -> TaskResult<R>;
 
 
     ///
@@ -49,7 +50,7 @@ pub mod thread_primitives {
     pub struct Task<T, R>
     {
         task_processor: TaskProcessor<T, R>,
-        args: TaskArgs<T>,
+        args: SafeTaskArgs<T>,
         result: TaskResult<R>,
         queued: bool,
         complete: bool,
@@ -67,7 +68,7 @@ pub mod thread_primitives {
         /// A [`Task<T, R>`] is composed of a processing function closure, a list of args of
         /// `T` type and a list of results of `R` type.
         ///
-        pub fn new(task_processor: TaskProcessor<T, R>, args: TaskArgs<T>) -> Task<T, R> {
+        pub fn new(task_processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) -> Task<T, R> {
             let result = Ok(TaskItems::new());
             Task{task_processor, args, result, queued: false, complete: false}
         }
@@ -96,7 +97,7 @@ pub mod thread_primitives {
 
     impl Worker
     {
-        pub fn new<T, R>(id: usize, receiver: ThreadReceiver<T, R>) -> Worker {
+        pub fn new<T: Send + Sync, R>(id: usize, receiver: ThreadReceiver<T, R>) -> Worker {
             let thread = thread::spawn(move ||
                 loop {
                     let locked_receiver = receiver.lock().unwrap();
@@ -127,6 +128,9 @@ pub mod thread_primitives {
     }
 
     impl<T, R> ThreadPool<T, R>
+    where
+        T: Send + Sync + 'static,
+        R: Send + Sync + 'static,
     {
         ///
         /// Creates an instance of [`ThreadPool<T, R>`] with a pool of `size` threads pre-running

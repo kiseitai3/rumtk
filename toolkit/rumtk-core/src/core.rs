@@ -18,11 +18,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 use crate::strings::RUMString;
+pub use smallvec::{SmallVec, smallvec};
 
 ///
 /// Type used for propagating error messages.
 ///
 pub type RUMResult<T> = Result<T, RUMString>;
+
+pub type RUMVec<T> = Vec<T>;
 
 pub fn get_default_system_thread_count() -> usize {
     4
