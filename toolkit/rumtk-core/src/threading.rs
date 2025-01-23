@@ -35,7 +35,7 @@ pub mod thread_primitives {
     pub type MicroTaskQueue<T, R> = Arc<Mutex<RUMVec<Task<T, R>>>>;
     pub type SafeTask<T, R> = Arc<Mutex<Task<T, R>>>;
     pub type SafeTasks<T, R> = RUMVec<SafeTask<T, R>>;
-    pub type SafeTaskArgs<T> = Arc<TaskItems<T>>;
+    pub type SafeTaskArgs<T> = Arc<Mutex<TaskItems<T>>>;
     pub type ThreadReceiver<T, R> = Arc<Mutex<Receiver<SafeTask<T, R>>>>;
     pub type ThreadSender<T, R> = Sender<SafeTask<T, R>>;
     pub type AsyncPool = Vec<tokio::task::JoinHandle<()>>;
@@ -130,7 +130,7 @@ pub mod thread_primitives {
     impl<T, R> ThreadPool<T, R>
     where
         T: Send + Sync + 'static,
-        R: Send + Sync + 'static,
+        R: Send + 'static,
     {
         ///
         /// Creates an instance of [`ThreadPool<T, R>`] with a pool of `size` threads pre-running

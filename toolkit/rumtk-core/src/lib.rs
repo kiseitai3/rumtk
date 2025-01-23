@@ -208,30 +208,29 @@ mod tests {
     ///////////////////////////////////Threading Tests/////////////////////////////////////////////////
     #[test]
     fn test_create_threadpool() {
-        let pool = ThreadPool::<RUMString, RUMString>::new(4);
+        let pool = ThreadPool::<i32, i32>::new(4);
     }
 
     #[test]
     fn test_execute_job() {
         let expected = vec![
-            RUMString::from("Hello"),
-            RUMString::from("World!"),
-            RUMString::from("Overcast"),
-            RUMString::from("and"),
-            RUMString::from("Sad")
+            1,
+            2,
+            3
         ];
-        let task_processor = |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
-            let mut results = TaskItems::<RUMString>::with_capacity(args.len());
+        let task_processor = |args: &SafeTaskArgs<i32>| -> TaskResult<i32> {
+            let owned_args = args.lock().unwrap();
+            let mut results = TaskItems::<i32>::with_capacity(owned_args.len());
             print!("Contents: ");
-            for arg in args.iter() {
-                results.push(arg.as_str().to_rumstring());
-                print!("{} ", &arg);
+            for arg in owned_args.iter() {
+                results.push(arg.clone());
+                println!("{} ", &arg);
             }
             Ok(results)
         };
-        let task_args = SafeTaskArgs::<RUMString>::new(expected.clone());
-        let task = SafeTask::<RUMString, RUMString>::new(Mutex::new(Task::new(task_processor, task_args)));
-        let pool = ThreadPool::<RUMString, RUMString>::new(4);
+        let task_args = SafeTaskArgs::<i32>::new(Mutex::new(expected.clone()));
+        let task = SafeTask::<i32, i32>::new(Mutex::new(Task::new(task_processor, task_args)));
+        let pool = ThreadPool::<i32, i32>::new(4);
         pool.execute(&task);
     }
 
