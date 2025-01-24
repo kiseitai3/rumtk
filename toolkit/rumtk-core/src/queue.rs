@@ -21,6 +21,7 @@ pub mod queue {
     use std::sync::Mutex;
     use std::time::Duration;
     use std::thread::{sleep};
+    use crate::threading;
     pub use crate::threading::thread_primitives::*;
 
     pub const DEFAULT_SLEEP_DURATION: Duration = Duration::from_millis(1);
@@ -44,12 +45,10 @@ pub mod queue {
         ///
         /// This method creates a [`TaskQueue`] instance using sensible defaults.
         ///
-        /// The `worker_num` parameter is computed from the number of cores present in system.
-        /// The `microtask_queue` is set to [`DEFAULT_MICROTASK_QUEUE_CAPACITY`].
-        /// The `microtask_queue` is set to [`DEFAULT_QUEUE_CAPACITY`].
+        /// The `threads` field is computed from the number of cores present in system.
         ///
         pub fn default() -> TaskQueue<T, R> {
-            Self::new(5)
+            Self::new(threading::threading_functions::get_default_system_thread_count())
         }
 
         ///

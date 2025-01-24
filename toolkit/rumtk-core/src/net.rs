@@ -18,3 +18,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+pub mod network_types {
+    pub use tokio::net::{TcpListener, TcpStream};
+
+    pub type RUMNetBuffer<'a> = &'a [u8];
+}
+
+pub mod tcp {
+    use super::network_types::{ RUMNetBuffer, TcpListener, TcpStream };
+
+    
+}
+

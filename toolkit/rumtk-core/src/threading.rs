@@ -133,15 +133,24 @@ pub mod thread_primitives {
         R: Send + Sync + Clone + 'static,
     {
         ///
+        /// Initializes an instance of [`ThreadPool<T, R>`] using the default number of threads available in the system.
+        /// This is biased towards the bigger value between what Rust std reports and the actual cpu count
+        /// reported by num_cpus crate.
+        ///
+        pub fn default() -> ThreadPool<T, R> {
+            ThreadPool::new(super::threading_functions::get_default_system_thread_count())
+        }
+
+        ///
         /// Creates an instance of [`ThreadPool<T, R>`] with a pool of `size` threads pre-running
         /// and waiting for work. When this instance gets dropped, we signal threads to exit.
         ///
-        pub fn new(size: usize) -> ThreadPool<T, R> {
+        pub fn new(threads: usize) -> ThreadPool<T, R> {
             let (sender, receiver) = mpsc::channel();
 
             let receiver = ThreadReceiver::new(Mutex::new(receiver));
-            let mut workers = Vec::with_capacity(size);
-            for id in 0..size {
+            let mut workers = Vec::with_capacity(threads);
+            for id in 0..threads {
                 workers.push(Worker::new(id, Arc::clone(&receiver)));
             }
 
@@ -171,6 +180,25 @@ pub mod thread_primitives {
                     thread.join().unwrap();
                 }
             }
+        }
+    }
+}
+
+pub mod threading_functions {
+    use std::thread::available_parallelism;
+    use num_cpus;
+
+    pub fn get_default_system_thread_count() -> usize {
+        let cpus: usize = num_cpus::get();
+        let parallelism = match available_parallelism() {
+            Ok(n) => n.get(),
+            Err(_) => 0
+        };
+
+        if parallelism >= cpus {
+            parallelism
+        } else {
+            cpus
         }
     }
 }

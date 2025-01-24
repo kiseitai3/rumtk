@@ -20,21 +20,22 @@
  */
 
 
-mod net;
-mod log;
+pub mod net;
+pub mod log;
 pub mod strings;
 pub mod maths;
 pub mod cache;
 pub mod search;
-pub mod network;
 pub mod queue;
 pub mod core;
-mod threading;
+pub mod threading;
 
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
-    use compact_str::CompactString;
+    use std::time::Duration;
+    use compact_str::{format_compact, CompactString};
+    use tokio::time::sleep;
     use crate::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
     use crate::search::rumtk_search::*;
     use crate::cache::RUMCache;
@@ -207,8 +208,20 @@ mod tests {
 
     ///////////////////////////////////Threading Tests/////////////////////////////////////////////////
     #[test]
+    fn test_default_num_threads() {
+        use num_cpus;
+        let threads = threading::threading_functions::get_default_system_thread_count();
+        assert_eq!(threads >= num_cpus::get(), true, "Default thread count is incorrect! We got {}, but expected {}!", threads, num_cpus::get());
+    }
+
+    #[test]
     fn test_create_threadpool() {
         let pool = ThreadPool::<i32, i32>::new(4);
+    }
+
+    #[test]
+    fn test_create_threadpool_default() {
+        let pool = ThreadPool::<i32, i32>::default();
     }
 
     #[test]
@@ -232,6 +245,18 @@ mod tests {
         let task = SafeTask::<i32, i32>::new(Mutex::new(Task::new(task_processor, task_args)));
         let pool = ThreadPool::<i32, i32>::new(4);
         pool.execute(&task);
+        // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
+        std::thread::sleep(Duration::from_millis(1000));
+        let result = task.lock().unwrap();
+        let completed = &result.is_completed();
+        let mut results = TaskItems::<i32>::with_capacity(expected.len());
+        for r in result.get_result() {
+            for v in r {
+                results.push(v.clone());
+            }
+        }
+        assert_eq!(completed, &true, "Task was not processed before finishing test!");
+        assert_eq!(&results, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &results));
     }
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
