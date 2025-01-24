@@ -1,0 +1,28 @@
+[package]
+name = "rumtk-hl7-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.rumtk-hl7-v2-fuzz]
+path = ".."
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "network_packet_processing"
+path = "fuzz_targets/network_packet_processing.rs"
+test = false
+doc = false
+bench = false
