@@ -220,8 +220,18 @@ mod tests {
     }
 
     #[test]
+    fn test_create_threadpool_macro() {
+        let pool = create_thread_pool!(4);
+    }
+
+    #[test]
     fn test_create_threadpool_default() {
         let pool = ThreadPool::default();
+    }
+
+    #[test]
+    fn test_create_threadpool_default_macro() {
+        let pool = create_thread_pool!();
     }
 
     #[test]
@@ -245,6 +255,33 @@ mod tests {
         let task = SafeTask::<i32, i32>::new(Mutex::new(Task::new(task_processor, task_args)));
         let pool = ThreadPool::new(4).unwrap();
         let task_handle = pool.execute(task);
+        // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
+        std::thread::sleep(Duration::from_millis(1000));
+        let results = pool.resolve_task(task_handle).unwrap();
+        assert_eq!(&results, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &results));
+    }
+
+    #[test]
+    fn test_execute_job_macros() {
+        let expected = vec![
+            1,
+            2,
+            3
+        ];
+        let task_processor = |args: &SafeTaskArgs<i32>| -> TaskResult<i32> {
+            let owned_args = args.lock().unwrap();
+            let mut results = TaskItems::<i32>::with_capacity(owned_args.len());
+            print!("Contents: ");
+            for arg in owned_args.iter() {
+                results.push(arg.clone());
+                println!("{} ", &arg);
+            }
+            Ok(results)
+        };
+        let task_args = create_task_args!(expected.clone());
+        let task = create_task!(task_processor, task_args);
+        let pool = create_thread_pool!(4).unwrap();
+        let task_handle = execute_task!(pool, task);
         // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
         std::thread::sleep(Duration::from_millis(1000));
         let results = pool.resolve_task(task_handle).unwrap();

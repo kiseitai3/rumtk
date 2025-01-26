@@ -156,3 +156,55 @@ pub mod threading_functions {
         }
     }
 }
+
+pub mod threading_macros {
+    use std::sync::MutexGuard;
+    use crate::queue::queue::TaskItems;
+    use crate::threading::thread_primitives::TaskProcessor;
+    extern crate proc_macro;
+    use proc_macro::TokenStream;
+
+    #[macro_export]
+    macro_rules! run_quick_async_as_sync {
+        ( $task:expr ) => {{
+            use $crate::threading::thread_primitives::{ThreadPool};
+            let mut init = ThreadPool::new(1)?;
+            init.resolve_task(init.execute($task))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! create_task {
+        ( $processor:expr, $args:expr ) => {{
+            use $crate::threading::thread_primitives::{Task, SafeTask};
+            SafeTask::new(Mutex::new(Task::new($processor, $args)))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! create_task_args {
+        ( $args:expr ) => {{
+            use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs};
+            SafeTaskArgs::new(Mutex::new(TaskArgs::from($args)))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! create_thread_pool {
+        ( $threads:expr ) => {{
+            use $crate::threading::thread_primitives::{ThreadPool};
+            ThreadPool::new($threads)
+        }};
+        ( ) => {{
+            use $crate::threading::thread_primitives::{ThreadPool};
+            ThreadPool::default()
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! execute_task {
+        ( $pool:expr, $task:expr ) => {{
+            $pool.execute($task)
+        }};
+    }
+}
