@@ -17,13 +17,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-pub mod network_types {
-    pub use tokio::net::{TcpListener, TcpStream};
-
-    pub type RUMNetMessage = Vec<u8>;
-}
-
 pub mod tcp {
     use std::collections::VecDeque;
     use std::marker::Tuple;
@@ -34,7 +27,9 @@ pub mod tcp {
     use crate::core::RUMResult;
     use crate::strings::{RUMString, RUMStringConversions};
     use crate::threading::threading_functions::get_default_system_thread_count;
-    pub use super::network_types::{ RUMNetMessage, TcpListener, TcpStream };
+    pub use tokio::net::{TcpListener, TcpStream};
+
+    pub type RUMNetMessage = Vec<u8>;
 
     #[derive(Debug)]
     pub struct RUMClient {
