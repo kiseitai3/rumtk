@@ -216,12 +216,12 @@ mod tests {
 
     #[test]
     fn test_create_threadpool() {
-        let pool = ThreadPool::<i32, i32>::new(4);
+        let pool = ThreadPool::new(4);
     }
 
     #[test]
     fn test_create_threadpool_default() {
-        let pool = ThreadPool::<i32, i32>::default();
+        let pool = ThreadPool::default();
     }
 
     #[test]
@@ -243,19 +243,11 @@ mod tests {
         };
         let task_args = SafeTaskArgs::<i32>::new(Mutex::new(expected.clone()));
         let task = SafeTask::<i32, i32>::new(Mutex::new(Task::new(task_processor, task_args)));
-        let pool = ThreadPool::<i32, i32>::new(4);
-        pool.execute(&task);
+        let pool = ThreadPool::new(4).unwrap();
+        let task_handle = pool.execute(task);
         // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
         std::thread::sleep(Duration::from_millis(1000));
-        let result = task.lock().unwrap();
-        let completed = &result.is_completed();
-        let mut results = TaskItems::<i32>::with_capacity(expected.len());
-        for r in result.get_result() {
-            for v in r {
-                results.push(v.clone());
-            }
-        }
-        assert_eq!(completed, &true, "Task was not processed before finishing test!");
+        let results = pool.resolve_task(task_handle).unwrap();
         assert_eq!(&results, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &results));
     }
 
@@ -271,7 +263,7 @@ mod tests {
             RUMString::from("and"),
             RUMString::from("Sad")
         ];
-        let mut queue = TaskQueue::<RUMString, RUMString>::new(5);
+        let mut queue = TaskQueue::<RUMString>::new(5).unwrap();
         let processor = |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
             let owned_args = args.lock().unwrap();
             let mut results = TaskItems::<RUMString>::with_capacity(owned_args.len());

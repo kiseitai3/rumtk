@@ -19,11 +19,16 @@
  */
 
 pub mod thread_primitives {
+    use std::future::{Future, IntoFuture};
     use std::sync::{mpsc, Arc, Mutex};
     use std::sync::mpsc::{Receiver, Sender};
     use std::thread;
-    use std::thread::JoinHandle;
+    use compact_str::format_compact;
+    use tokio::runtime::Runtime;
+    use tokio::sync::futures;
+    use tokio::task::JoinHandle;
     use crate::core::{RUMResult, RUMVec};
+    use crate::threading::threading_functions::get_default_system_thread_count;
 
     pub type TaskItems<T> = RUMVec<T>;
     /// This type aliases a vector of T elements that will be used for passing arguments to the task processor.
@@ -38,7 +43,8 @@ pub mod thread_primitives {
     pub type SafeTaskArgs<T> = Arc<Mutex<TaskItems<T>>>;
     pub type ThreadReceiver<T, R> = Arc<Mutex<Receiver<SafeTask<T, R>>>>;
     pub type ThreadSender<T, R> = Sender<SafeTask<T, R>>;
-    pub type AsyncPool = Vec<tokio::task::JoinHandle<()>>;
+    pub type AsyncTaskHandle<R> = JoinHandle<TaskResult<R>>;
+    pub type AsyncTaskHandles<R> = Vec<AsyncTaskHandle<R>>;
     pub type TaskProcessor<T, R> = fn(args: &SafeTaskArgs<T>) -> TaskResult<R>;
 
 
@@ -51,9 +57,6 @@ pub mod thread_primitives {
     {
         task_processor: TaskProcessor<T, R>,
         args: SafeTaskArgs<T>,
-        result: TaskResult<R>,
-        queued: bool,
-        complete: bool,
     }
 
     impl<T, R> Task<T, R>
@@ -69,51 +72,15 @@ pub mod thread_primitives {
         /// `T` type and a list of results of `R` type.
         ///
         pub fn new(task_processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) -> Task<T, R> {
-            let result = Ok(TaskItems::new());
-            Task{task_processor, args, result, queued: false, complete: false}
+            Task{task_processor, args}
         }
 
         ///
         /// Run the processor with the args and store the results in task
         ///
-        pub fn execute(&mut self) {
+        pub fn execute(&mut self) -> TaskResult<R> {
             let processor = &self.task_processor;
-            self.result = processor(&self.args);
-            self.complete = true;
-        }
-
-        pub fn is_completed(&self) -> bool { self.complete }
-
-        pub fn get_result(&self) -> &TaskResult<R> {
-            &self.result
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct Worker {
-        id: usize,
-        thread: Option<JoinHandle<()>>,
-    }
-
-    impl Worker
-    {
-        pub fn new<T: Send + Sync + Clone + 'static, R: Send + Sync + Clone + 'static>(id: usize, receiver: ThreadReceiver<T, R>) -> Worker {
-            let thread = thread::spawn(move ||
-                loop {
-                    let locked_receiver = receiver.lock().unwrap();
-                    match locked_receiver.recv() {
-                        Ok(safe_task) => {
-                            let mut task = safe_task.lock().unwrap();
-                            task.execute();
-                        }
-                        Err(_) => {
-                            println!("Worker {id} disconnected; shutting down.");
-                            break;
-                        }
-                    }
-                }
-            );
-            Worker{id, thread: Some(thread)}
+            processor(&self.args)
         }
     }
 
@@ -122,39 +89,35 @@ pub mod thread_primitives {
     /// Task type containing the payload and processing function. A reference is passed to the
     /// worker thread of an instance of [`MicroTaskQueue`].
     ///
-    pub struct ThreadPool<T, R> {
-        workers: Vec<Worker>,
-        sender: Option<ThreadSender<T, R>>,
+    pub struct ThreadPool {
+        runtime: Runtime
     }
 
-    impl<T, R> ThreadPool<T, R>
-    where
-        T: Send + Sync + Clone + 'static,
-        R: Send + Sync + Clone + 'static,
+    impl ThreadPool
     {
         ///
-        /// Initializes an instance of [`ThreadPool<T, R>`] using the default number of threads available in the system.
+        /// Initializes an instance of [`RUMResult<ThreadPool>`] using the default number of threads available in the system.
         /// This is biased towards the bigger value between what Rust std reports and the actual cpu count
         /// reported by num_cpus crate.
         ///
-        pub fn default() -> ThreadPool<T, R> {
-            ThreadPool::new(super::threading_functions::get_default_system_thread_count())
+        pub fn default() -> RUMResult<ThreadPool> {
+            ThreadPool::new(get_default_system_thread_count())
         }
 
         ///
-        /// Creates an instance of [`ThreadPool<T, R>`] with a pool of `size` threads pre-running
+        /// Creates an instance of [`RUMResult<ThreadPool>`] with a pool of `size` threads pre-running
         /// and waiting for work. When this instance gets dropped, we signal threads to exit.
         ///
-        pub fn new(threads: usize) -> ThreadPool<T, R> {
-            let (sender, receiver) = mpsc::channel();
+        pub fn new(threads: usize) -> RUMResult<ThreadPool> {
+            let mut builder = tokio::runtime::Builder::new_multi_thread();
+            builder.worker_threads(threads);
+            builder.enable_all();
+            let handle = match builder.build() {
+                Ok(handle) => handle,
+                Err(e) => return Err(format_compact!("Unable to initialize threading tokio runtime because {}!", &e)),
+            };
 
-            let receiver = ThreadReceiver::new(Mutex::new(receiver));
-            let mut workers = Vec::with_capacity(threads);
-            for id in 0..threads {
-                workers.push(Worker::new(id, Arc::clone(&receiver)));
-            }
-
-            ThreadPool{workers, sender: Some(sender)}
+            Ok(ThreadPool{runtime: handle})
         }
 
         ///
@@ -162,24 +125,15 @@ pub mod thread_primitives {
         /// We actually send a clone of the reference of the microtask queue.
         /// This allows the main thread to poll for results and own the original tasks.
         ///
-        pub fn execute(&self, task: &SafeTask<T, R>) {
-            self.sender.as_ref().unwrap().send(Arc::clone(task)).unwrap()
+        pub fn execute<T: Send + Clone + 'static, R: Clone + Send  + 'static>(&self, task: SafeTask<T, R>) -> AsyncTaskHandle<R> {
+            self.runtime.spawn(async move {
+                let mut task_handle = task.lock().unwrap();
+                task_handle.execute()
+            })
         }
-    }
 
-    impl<T, R> Drop for ThreadPool<T, R> {
-        ///
-        /// Drop the sender and signal threads to exit.
-        /// Then, join the threads until they have all exited.
-        ///
-        fn drop(&mut self) {
-            drop(self.sender.take());
-            for worker in &mut self.workers {
-                println!("Shutting down worker {}", worker.id);
-                if let Some(thread) = worker.thread.take() {
-                    thread.join().unwrap();
-                }
-            }
+        pub fn resolve_task<R: Send + Clone + 'static>(&self, task: AsyncTaskHandle<R>) -> TaskResult<R> {
+            self.runtime.block_on(task).unwrap()
         }
     }
 }

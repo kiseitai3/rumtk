@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 pub mod queue {
+    use std::future::Future;
     use std::sync::Mutex;
     use std::time::Duration;
     use std::thread::{sleep};
+    use crate::core::RUMResult;
     use crate::threading;
     pub use crate::threading::thread_primitives::*;
 
@@ -29,25 +31,21 @@ pub mod queue {
     pub const DEFAULT_MICROTASK_QUEUE_CAPACITY: usize = 5;
 
 
-    type TaskQueueData<T, R> = SafeTasks<T, R>;
-
-    pub struct TaskQueue<T, R> {
-        tasks: TaskQueueData<T, R>,
-        threads: ThreadPool<T, R>
+    pub struct TaskQueue<R> {
+        tasks: AsyncTaskHandles<R>,
+        threads: ThreadPool
     }
 
-    impl<T, R> TaskQueue<T, R>
+    impl<R> TaskQueue<R>
     where
-        T: Send + Sync + Clone + 'static,
-        R: Send + Sync + Clone + 'static,
-        Box<T>: Send + Sync + Clone + 'static,
+        R: Clone + Send + 'static,
     {
         ///
         /// This method creates a [`TaskQueue`] instance using sensible defaults.
         ///
         /// The `threads` field is computed from the number of cores present in system.
         ///
-        pub fn default() -> TaskQueue<T, R> {
+        pub fn default() -> RUMResult<TaskQueue<R>> {
             Self::new(threading::threading_functions::get_default_system_thread_count())
         }
 
@@ -59,21 +57,20 @@ pub mod queue {
         /// This method calls [`Self::with_capacity()`] for the actual object creation.
         /// The main queue capacity is pre-allocated to [`DEFAULT_QUEUE_CAPACITY`].
         ///
-        pub fn new(worker_num: usize) -> TaskQueue<T, R> {
-            let tasks = SafeTasks::with_capacity(DEFAULT_QUEUE_CAPACITY);
-            let threads = ThreadPool::new(worker_num);
-            TaskQueue{tasks, threads}
+        pub fn new(worker_num: usize) -> RUMResult<TaskQueue<R>> {
+            let tasks = AsyncTaskHandles::with_capacity(DEFAULT_QUEUE_CAPACITY);
+            let threads = ThreadPool::new(worker_num)?;
+            Ok(TaskQueue{tasks, threads})
         }
 
         ///
         /// Add a task to the processing queue. The idea is that you can queue a processor function
         /// and list of args that will be picked up by one of the threads for processing.
         ///
-        pub fn add_task(&mut self, processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) {
+        pub fn add_task<T: Send + Sync + Clone + 'static>(&mut self, processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) {
             let task = Task::new(processor, args);
             let safe_task = SafeTask::new(Mutex::new(task));
-            self.threads.execute(&safe_task);
-            self.tasks.push(safe_task);
+            self.tasks.push(self.threads.execute(safe_task));
         }
 
         ///
@@ -106,13 +103,14 @@ pub mod queue {
         ///
         /// Check if all work has been completed from the task queue.
         ///
+        /// This implementation is branchless.
+        ///
         pub fn is_completed(&self) -> bool {
+            let mut accumulator: usize = 0;
             for task in self.tasks.iter() {
-                if !task.lock().unwrap().is_completed() {
-                    return false;
-                }
+                accumulator += task.is_finished() as usize;
             }
-            true
+            (accumulator / self.tasks.len()) > 0
         }
 
         ///
@@ -124,8 +122,9 @@ pub mod queue {
 
         fn gather(&mut self) -> TaskResults<R> {
             let mut result_queue = TaskResults::<R>::with_capacity(self.tasks.len());
-            for task in self.tasks.iter() {
-                result_queue.push(task.lock().unwrap().get_result().clone());
+            for i in 0..self.tasks.len() {
+                let task = self.tasks.pop().unwrap();
+                result_queue.push(self.threads.resolve_task(task));
             }
             result_queue
         }
