@@ -38,7 +38,7 @@ pub mod queue {
 
     impl<R> TaskQueue<R>
     where
-        R: Clone + Send + 'static,
+        R: Send + Clone + 'static,
     {
         ///
         /// This method creates a [`TaskQueue`] instance using sensible defaults.

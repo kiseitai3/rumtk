@@ -19,6 +19,8 @@
  */
 pub mod tcp {
     use std::collections::VecDeque;
+    use std::task::Poll;
+    use tokio::sync::{Mutex as AsyncMutex};
     use std::sync::Mutex;
     use ahash::{HashMap, HashMapExt};
     use compact_str::{format_compact, ToCompactString};
@@ -26,12 +28,16 @@ pub mod tcp {
     use crate::core::RUMResult;
     use crate::strings::{RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
+    use crate::queue::queue::{SafeTaskArgs, TaskItems, TaskProcessor, TaskQueue, TaskResult};
+    use crate::{create_task_args, run_quick_async_as_sync};
 
+    ///*
     pub type RUMNetMessage = Vec<u8>;
+    pub type ConnectionInfo = (RUMString, u16);
 
     #[derive(Debug)]
     pub struct RUMClient {
-        socket: TcpStream,
+        socket: TcpStream
     }
 
     impl RUMClient {
@@ -49,7 +55,7 @@ pub mod tcp {
             Ok(RUMClient{socket})
         }
 
-        pub async fn send(&mut self, msg: &str) -> RUMResult<()> {
+        pub async fn send(&mut self, msg: &RUMString) -> RUMResult<()> {
             match self.socket.write_all(msg.as_bytes()).await {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format_compact!("Unable to send message to {} because {}", &self.socket.local_addr().unwrap().to_compact_string(), &e)),
@@ -79,8 +85,8 @@ pub mod tcp {
         }
     }
 
-    type SafeQueue<T> = Mutex<VecDeque<T>>;
-    type SafeClients = Mutex<Vec<RUMClient>>;
+    type SafeQueue<T> = AsyncMutex<VecDeque<T>>;
+    type SafeClients = AsyncMutex<Vec<RUMClient>>;
 
     pub struct RUMServer {
         tcp_listener: TcpListener,
@@ -102,7 +108,6 @@ pub mod tcp {
             Ok(RUMServer{tcp_listener, tx_in, tx_out, clients})
         }
 
-        #[tokio::main(flavor = "multi_thread")]
         async fn run(&mut self) -> RUMResult<()> {
             loop {
                 self.handle_accept().await;
@@ -111,23 +116,11 @@ pub mod tcp {
             }
         }
 
-        pub fn start(ip: &str, port: u16) -> RUMResult<(tokio::runtime::Handle, RUMServer)> {
-            let handle = tokio::runtime::Handle::current();
-            let mut server = handle.block_on(RUMServer::new(ip, port))?;
-            let task_handle = handle.spawn(async move || -> RUMResult<()> {
-                match server.run().await.unwrap() {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(format_compact!("Failed to run server because {}", &e)),
-                }
-            });
-            Ok((handle, server))
-        }
-
         async fn handle_accept(&mut self) {
             match self.tcp_listener.accept().await {
                 Ok((socket, _)) => {
-                    let mut client_list = self.clients.lock().unwrap();
-                    client_list.push(match RUMClient::accept(socket) {
+                    let mut client_list = self.clients.lock().await;
+                    client_list.push(match RUMClient::accept(socket).await {
                         Ok(client) => client,
                         Err(e) => return (),
                     });
@@ -137,12 +130,13 @@ pub mod tcp {
         }
 
         async fn handle_send(&mut self) {
-            for mut client in self.clients.iter() {
+            let mut client_list = self.clients.lock().await;
+            for mut client in client_list.iter_mut() {
                 client.write_ready().await;
                 let addr = client.socket.peer_addr().unwrap().to_compact_string();
-                let mut queue = self.tx_out[&addr].lock().unwrap();
+                let mut queue = self.tx_out[&addr].lock().await;
                 for msg in queue.iter() {
-                    tokio::spawn(client.send(&msg));
+                    &client.send(&msg);
                 }
                 queue.clear();
             }
@@ -152,29 +146,62 @@ pub mod tcp {
             &self.clients
         }
 
-        pub fn push_message(&mut self, client_id: &RUMString, msg: &str) {
+        pub async fn push_message(&mut self, client_id: &RUMString, msg: &str) {
             if !self.tx_out.contains_key(client_id) {
                 let new_queue = SafeQueue::<RUMString>::new(VecDeque::new());
                 self.tx_out.insert(client_id.clone(), new_queue);
             }
-            let mut queue = &self.tx_out[client_id].lock().unwrap();
+            let mut queue = self.tx_out[client_id].lock().await;
             queue.push_back(msg.to_rumstring());
         }
 
         async fn handle_receive(&mut self) {
-            for mut client in self.clients.iter() {
+            let mut client_list = self.clients.lock().await;
+            for mut client in client_list.iter_mut() {
                 client.read_ready().await;
-                tokio::spawn(async move || {
-                    let msg = client.recv().await.unwrap();
-                    let mut queue = self.tx_in.lock().unwrap();
-                    queue.push_back(msg);
-                });
+                let msg = client.recv().await.unwrap();
+                let mut queue = self.tx_in.lock().await;
+                queue.push_back(msg);
             }
         }
 
-        pub fn pop_message(&mut self) -> Option<RUMNetMessage> {
-            self.tx_in.lock().unwrap().pop_front()
+        pub async fn pop_message(&mut self) -> Option<RUMNetMessage> {
+            let mut queue = self.tx_in.lock().await;
+            queue.pop_front()
         }
     }
+
+    pub struct RUMClientHandle {
+        client: RUMClient,
+    }
+
+    impl RUMClientHandle {
+        pub fn new(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
+            let con: ConnectionInfo = (RUMString::from(ip), port);
+            let args = create_task_args!(vec![con]);
+            let results = run_quick_async_as_sync!(RUMClientHandle::new_helper, &args);
+            let client = match results {
+                Ok(mut result) => result.pop().unwrap(),
+                Err(e) => return Err(e),
+            };
+            Ok(RUMClientHandle{client})
+        }
+
+        async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMClient> {
+            let owned_args = args.lock().unwrap();
+            let (ip, port) = match owned_args.get(0) {
+                Some((ip, port)) => (ip, port),
+                None => return Err(format_compact!("No IP address or port provided for connection!")),
+            };
+            Ok(vec![RUMClient::connect(ip, *port).await?])
+        }
+    }
+
+    pub struct RUMServerHandle {
+
+    }
+
+     //*/
+
 }
 

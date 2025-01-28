@@ -166,6 +166,16 @@ pub mod threading_macros {
 
     #[macro_export]
     macro_rules! run_quick_async_as_sync {
+        ( $func:expr, $args:expr ) => {{
+            let tokio_runtime = tokio::runtime::Handle::current();
+            tokio_runtime.block_on(async move {
+                $func($args).await
+            })
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! run_quick_task {
         ( $task:expr ) => {{
             use $crate::threading::thread_primitives::{ThreadPool};
             let mut init = ThreadPool::new(1)?;
