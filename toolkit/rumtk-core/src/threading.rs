@@ -166,10 +166,20 @@ pub mod threading_macros {
 
     #[macro_export]
     macro_rules! run_quick_async_as_sync {
-        ( $func:expr, $args:expr ) => {{
+        ( $func:expr ) => {{
             let tokio_runtime = tokio::runtime::Handle::current();
+            let arg_list = vec![];
+            let args = create_task_args!(arg_list);
             tokio_runtime.block_on(async move {
-                $func($args).await
+                $func(&args).await
+            })
+        }};
+        ( $func:expr, $($arg_items:expr),+ ) => {{
+            let tokio_runtime = tokio::runtime::Handle::current();
+            let arg_list = vec![$($arg_items),+];
+            let args = create_task_args!(arg_list);
+            tokio_runtime.block_on(async move {
+                $func(&args).await
             })
         }};
     }
@@ -195,7 +205,7 @@ pub mod threading_macros {
     macro_rules! create_task_args {
         ( $args:expr ) => {{
             use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs};
-            SafeTaskArgs::new(Mutex::new(TaskArgs::from($args)))
+            SafeTaskArgs::new(Mutex::new($args))
         }};
     }
 

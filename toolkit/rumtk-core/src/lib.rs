@@ -1,4 +1,3 @@
-#![feature(unboxed_closures)]
 /*
  * rumtk attempts to implement HL7 and medical protocols for interoperability in medicine.
  * This toolkit aims to be reliable, simple, performant, and standards compliant.
@@ -19,6 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+//#![feature(unboxed_closures)]
+#![feature(inherent_associated_types)]
 
 pub mod net;
 pub mod log;
