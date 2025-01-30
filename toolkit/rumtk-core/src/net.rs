@@ -177,6 +177,7 @@ pub mod tcp {
 
     impl RUMClientHandle {
         type SendArgs<'a, 'b> = (&'a mut RUMClient, &'b RUMString);
+        type ReceiveArgs<'a, 'b> = &'a mut RUMClient;
 
         pub fn new(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
             let con: ConnectionInfo = (RUMString::from(ip), port);
@@ -188,10 +189,20 @@ pub mod tcp {
             run_quick_async_as_sync!(RUMClientHandle::send_helper, (&mut self.client, msg))
         }
 
+        pub fn receive(&mut self) -> RUMResult<RUMNetMessage> {
+            run_quick_async_as_sync!(RUMClientHandle::receive_helper, &mut self.client)
+        }
+
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_, '_>>) -> RUMResult<()> {
             let mut arg_list = args.lock().unwrap();
             let (client, msg) = arg_list.pop().unwrap();
             client.send(msg).await
+        }
+
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_, '_>>) -> RUMResult<RUMNetMessage> {
+            let mut arg_list = args.lock().unwrap();
+            let mut client = arg_list.pop().unwrap();
+            client.recv().await
         }
 
         async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMClient> {

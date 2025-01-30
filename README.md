@@ -27,8 +27,10 @@ communication and automation in medicine.
     - [ ] Commandline Standard Argument Interface
     - [ ] Enable STDIN|Pipe Functionality
     - [ ] Toolkit Core Tests
-    - [ ] Async support
-    - [ ] Multithreaded support
+    - [x] Async support
+    - [x] Multithreaded support
+    - [ ] SQLite Bindings
+    - [ ] PyO3 for extending message processing
     - [ ] SIMD support?? [Maybe]
 - [ ] HL7 v2 Library
   - [ ] Parser
