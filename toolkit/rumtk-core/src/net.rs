@@ -31,7 +31,6 @@ pub mod tcp {
     use crate::queue::queue::{SafeTaskArgs, TaskItems, TaskProcessor, TaskQueue, TaskResult};
     use crate::{create_task_args, run_quick_async_as_sync};
 
-    ///*
     pub type RUMNetMessage = Vec<u8>;
     pub type ConnectionInfo = (RUMString, u16);
 
@@ -136,7 +135,10 @@ pub mod tcp {
                 let addr = client.socket.peer_addr().unwrap().to_compact_string();
                 let mut queue = self.tx_out[&addr].lock().await;
                 for msg in queue.iter() {
-                    &client.send(&msg);
+                    match client.send(&msg).await {
+                        Ok(_) => (),
+                        Err(e) => return (),
+                    }
                 }
                 queue.clear();
             }
@@ -146,7 +148,7 @@ pub mod tcp {
             &self.clients
         }
 
-        pub async fn push_message(&mut self, client_id: &RUMString, msg: &str) {
+        pub async fn push_message(&mut self, client_id: &RUMString, msg: &RUMString) {
             if !self.tx_out.contains_key(client_id) {
                 let new_queue = SafeQueue::<RUMString>::new(VecDeque::new());
                 self.tx_out.insert(client_id.clone(), new_queue);
@@ -177,7 +179,7 @@ pub mod tcp {
 
     impl RUMClientHandle {
         type SendArgs<'a, 'b> = (&'a mut RUMClient, &'b RUMString);
-        type ReceiveArgs<'a, 'b> = &'a mut RUMClient;
+        type ReceiveArgs<'a> = &'a mut RUMClient;
 
         pub fn new(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
             let con: ConnectionInfo = (RUMString::from(ip), port);
@@ -199,7 +201,7 @@ pub mod tcp {
             client.send(msg).await
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_, '_>>) -> RUMResult<RUMNetMessage> {
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<RUMNetMessage> {
             let mut arg_list = args.lock().unwrap();
             let mut client = arg_list.pop().unwrap();
             client.recv().await
@@ -216,10 +218,58 @@ pub mod tcp {
     }
 
     pub struct RUMServerHandle {
-
+        server: RUMServer,
     }
 
-     //*/
+    impl RUMServerHandle {
+        type SendArgs<'a, 'b, 'c> = (&'a mut RUMServer, &'b RUMString, &'c RUMString);
+        type ReceiveArgs<'a> = &'a mut RUMServer;
+
+        pub fn new(ip: &str, port: u16) -> RUMResult<RUMServerHandle> {
+            let con: ConnectionInfo = (RUMString::from(ip), port);
+            let server = run_quick_async_as_sync!(RUMServerHandle::new_helper, con)?.pop().unwrap();
+            Ok(RUMServerHandle{server})
+        }
+
+        pub fn start(&mut self) -> RUMResult<()> {
+            run_quick_async_as_sync!(RUMServerHandle::start_helper, (&mut self.server))
+        }
+
+        pub fn send(&mut self, client_id: &RUMString, msg: &RUMString) -> RUMResult<()> {
+            run_quick_async_as_sync!(RUMServerHandle::send_helper, (&mut self.server, client_id, msg))
+        }
+
+        pub fn receive(&mut self) -> Option<RUMNetMessage> {
+            run_quick_async_as_sync!(RUMServerHandle::receive_helper, &mut self.server)
+        }
+
+        async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_, '_, '_>>) -> RUMResult<()> {
+            let mut arg_list = args.lock().unwrap();
+            let (server, client_id, msg) = arg_list.pop().unwrap();
+            Ok(server.push_message(client_id, msg).await)
+        }
+
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> Option<RUMNetMessage> {
+            let mut arg_list = args.lock().unwrap();
+            let mut server = arg_list.pop().unwrap();
+            server.pop_message().await
+        }
+
+        async fn start_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<()> {
+            let mut arg_list = args.lock().unwrap();
+            let mut server = arg_list.pop().unwrap();
+            server.run().await
+        }
+
+        async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMServer> {
+            let owned_args = args.lock().unwrap();
+            let (ip, port) = match owned_args.get(0) {
+                Some((ip, port)) => (ip, port),
+                None => return Err(format_compact!("No IP address or port provided for connection!")),
+            };
+            Ok(vec![RUMServer::new(ip, *port).await?])
+        }
+    }
 
 }
 
