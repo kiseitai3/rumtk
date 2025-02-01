@@ -26,9 +26,13 @@ pub mod thread_primitives {
     use compact_str::format_compact;
     use tokio::runtime::Runtime;
     use tokio::sync::futures;
+    use tokio::runtime::Runtime as TokioRuntime;
     use tokio::task::JoinHandle;
     use crate::core::{RUMResult, RUMVec};
+    use crate::cache::{new_cache, LazyRUMCache, get_or_set_from_cache};
+    use crate::strings::RUMString;
     use crate::threading::threading_functions::get_default_system_thread_count;
+
 
     pub type TaskItems<T> = RUMVec<T>;
     /// This type aliases a vector of T elements that will be used for passing arguments to the task processor.
@@ -47,6 +51,23 @@ pub mod thread_primitives {
     pub type AsyncTaskHandles<R> = Vec<AsyncTaskHandle<R>>;
     pub type TaskProcessor<T, R> = fn(args: &SafeTaskArgs<T>) -> TaskResult<R>;
 
+
+    /**************************** Globals **************************************/
+    static mut rt_cache: TokioRtCache = new_cache();
+    /**************************** Types *****************************************/
+    type TokioRtCache = LazyRUMCache<usize, Arc<TokioRuntime>>;
+    /**************************** Helpers ***************************************/
+    fn init_cache<'a>(threads: &'a usize) -> Arc<TokioRuntime> {
+        let mut builder = tokio::runtime::Builder::new_multi_thread();
+        builder.worker_threads(*threads);
+        builder.enable_all();
+        match builder.build() {
+            Ok(handle) => Arc::new(handle),
+            Err(e) => panic!("Unable to initialize threading tokio runtime because {}!", &e),
+        }
+    }
+
+    /**************************** Types ***************************************/
 
     ///
     /// A [`Task<T, R>`] is composed of a processing function closure, a list of args of
@@ -90,7 +111,7 @@ pub mod thread_primitives {
     /// worker thread of an instance of [`MicroTaskQueue`].
     ///
     pub struct ThreadPool {
-        runtime: Runtime
+        runtime: &'static Runtime
     }
 
     impl ThreadPool
@@ -101,23 +122,19 @@ pub mod thread_primitives {
         /// reported by num_cpus crate.
         ///
         pub fn default() -> RUMResult<ThreadPool> {
-            ThreadPool::new(get_default_system_thread_count())
+            ThreadPool::new(&get_default_system_thread_count())
         }
 
         ///
         /// Creates an instance of [`RUMResult<ThreadPool>`] with a pool of `size` threads pre-running
         /// and waiting for work. When this instance gets dropped, we signal threads to exit.
         ///
-        pub fn new(threads: usize) -> RUMResult<ThreadPool> {
-            let mut builder = tokio::runtime::Builder::new_multi_thread();
-            builder.worker_threads(threads);
-            builder.enable_all();
-            let handle = match builder.build() {
-                Ok(handle) => handle,
-                Err(e) => return Err(format_compact!("Unable to initialize threading tokio runtime because {}!", &e)),
+        pub fn new(threads: &usize) -> RUMResult<ThreadPool> {
+            let rt = unsafe {
+                get_or_set_from_cache(&mut rt_cache, &threads, init_cache)
             };
 
-            Ok(ThreadPool{runtime: handle})
+            Ok( ThreadPool{runtime: rt })
         }
 
         ///
@@ -158,12 +175,6 @@ pub mod threading_functions {
 }
 
 pub mod threading_macros {
-    use std::sync::MutexGuard;
-    use crate::queue::queue::TaskItems;
-    use crate::threading::thread_primitives::TaskProcessor;
-    extern crate proc_macro;
-    use proc_macro::TokenStream;
-
     #[macro_export]
     macro_rules! run_quick_async_as_sync {
         ( $func:expr ) => {{

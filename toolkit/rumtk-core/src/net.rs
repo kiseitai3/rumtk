@@ -273,3 +273,13 @@ pub mod tcp {
 
 }
 
+pub mod tcp_macros {
+    #[macro_export]
+    macro_rules! create_server {
+        ( $ip:expr, $port:expr ) => {{
+            use $crate::net::tcp::{RUMServerHandle};
+            RUMServerHandle::new($ip, $port)
+        }};
+    }
+}
+

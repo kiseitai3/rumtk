@@ -46,7 +46,7 @@ pub mod queue {
         /// The `threads` field is computed from the number of cores present in system.
         ///
         pub fn default() -> RUMResult<TaskQueue<R>> {
-            Self::new(threading::threading_functions::get_default_system_thread_count())
+            Self::new(&threading::threading_functions::get_default_system_thread_count())
         }
 
         ///
@@ -57,9 +57,9 @@ pub mod queue {
         /// This method calls [`Self::with_capacity()`] for the actual object creation.
         /// The main queue capacity is pre-allocated to [`DEFAULT_QUEUE_CAPACITY`].
         ///
-        pub fn new(worker_num: usize) -> RUMResult<TaskQueue<R>> {
+        pub fn new(worker_num: &usize) -> RUMResult<TaskQueue<R>> {
             let tasks = AsyncTaskHandles::with_capacity(DEFAULT_QUEUE_CAPACITY);
-            let threads = ThreadPool::new(worker_num)?;
+            let threads = ThreadPool::new(&worker_num)?;
             Ok(TaskQueue{tasks, threads})
         }
 

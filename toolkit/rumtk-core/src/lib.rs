@@ -36,43 +36,11 @@ mod tests {
     use std::sync::Mutex;
     use std::time::Duration;
     use compact_str::{format_compact, CompactString};
-    use tokio::time::sleep;
     use crate::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
     use crate::search::rumtk_search::*;
     use crate::cache::RUMCache;
     use super::*;
 
-    /*
-    #[test]
-    fn test_server_listen() {
-        let server = net::TCPSever::new();
-        server.start();
-        //assert_eq!(result, 4);
-    }
-
-    #[test]
-    fn test_client_send() {
-        let test_str = String::from("Hello World!");
-        let server = net::TCPSever::new();
-        let client = net::TCPClient::new();
-        let port = 55555;
-        server.start(port);
-        client.connect(port);
-        client.send(&test_str.as_bytes());
-        let result = String::from(server.pop());
-        assert_eq!(result, test_str);
-    }
-
-    #[test]
-    fn test_log_to_file() {
-        let logger_name = String::from("test_logger");
-        let logger_path = String::from("logs");
-        let logger = log::new_logger(logger_path, logger_name, log::LOGLEVEL::INFO);
-        let test_str = String::from("Hello World!");
-        log::log_info(test_str);
-        assert_eq!(result, test_str);
-    }
-    */
     #[test]
     fn test_escaping_control() {
         let input = "\r\n\'\"";
@@ -217,12 +185,12 @@ mod tests {
 
     #[test]
     fn test_create_threadpool() {
-        let pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(&4);
     }
 
     #[test]
     fn test_create_threadpool_macro() {
-        let pool = create_thread_pool!(4);
+        let pool = create_thread_pool!(&4);
     }
 
     #[test]
@@ -254,7 +222,7 @@ mod tests {
         };
         let task_args = SafeTaskArgs::<i32>::new(Mutex::new(expected.clone()));
         let task = SafeTask::<i32, i32>::new(Mutex::new(Task::new(task_processor, task_args)));
-        let pool = ThreadPool::new(4).unwrap();
+        let pool = ThreadPool::new(&4).unwrap();
         let task_handle = pool.execute(task);
         // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
         std::thread::sleep(Duration::from_millis(1000));
@@ -281,7 +249,7 @@ mod tests {
         };
         let task_args = create_task_args!(expected.clone());
         let task = create_task!(task_processor, task_args);
-        let pool = create_thread_pool!(4).unwrap();
+        let pool = create_thread_pool!(&4).unwrap();
         let task_handle = execute_task!(pool, task);
         // Let the pool init and threads come online. Otherwise, we end up poisoning the lock...
         std::thread::sleep(Duration::from_millis(1000));
@@ -301,7 +269,7 @@ mod tests {
             RUMString::from("and"),
             RUMString::from("Sad")
         ];
-        let mut queue = TaskQueue::<RUMString>::new(5).unwrap();
+        let mut queue = TaskQueue::<RUMString>::new(&5).unwrap();
         let processor = |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
             let owned_args = args.lock().unwrap();
             let mut results = TaskItems::<RUMString>::with_capacity(owned_args.len());
@@ -322,6 +290,20 @@ mod tests {
             }
         }
         assert_eq!(result_data, expected, "Results do not match expected!");
+    }
+
+    ///////////////////////////////////Net Tests/////////////////////////////////////////////////
+    #[test]
+    fn test_server_start() {
+        let mut rt = tokio::runtime::Builder::new_multi_thread();
+        let mut server = match create_server!("localhost", 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start() {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        }
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
