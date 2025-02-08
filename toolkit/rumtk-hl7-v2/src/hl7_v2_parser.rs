@@ -47,7 +47,7 @@ pub mod v2_parser {
     };
     use std::collections::VecDeque;
     use std::ops::{Index, IndexMut};
-    use rumtk_core::rum_cache_fetch;
+    use rumtk_core::rumtk_cache_fetch;
     /**************************** Globals ***************************************/
 
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();

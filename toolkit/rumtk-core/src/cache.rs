@@ -59,7 +59,7 @@ where
 
 pub mod cache_macros {
     #[macro_export]
-    macro_rules! rum_cache_fetch {
+    macro_rules! rumtk_cache_fetch {
         ( $cache:expr, $key:expr, $func:expr ) => {{
             use crate::cache::get_or_set_from_cache;
             unsafe {
