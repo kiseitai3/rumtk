@@ -25,11 +25,12 @@ pub mod thread_primitives {
     use std::thread;
     use compact_str::format_compact;
     use tokio::runtime::Runtime;
-    use tokio::sync::futures;
+    use tokio::sync::{futures, RwLock};
     use tokio::runtime::Runtime as TokioRuntime;
     use tokio::task::JoinHandle;
     use crate::core::{RUMResult, RUMVec};
     use crate::cache::{new_cache, LazyRUMCache, get_or_set_from_cache};
+    use crate::rum_cache_fetch;
     use crate::strings::RUMString;
     use crate::threading::threading_functions::get_default_system_thread_count;
 
@@ -44,7 +45,7 @@ pub mod thread_primitives {
     pub type MicroTaskQueue<T, R> = Arc<Mutex<RUMVec<Task<T, R>>>>;
     pub type SafeTask<T, R> = Arc<Mutex<Task<T, R>>>;
     pub type SafeTasks<T, R> = RUMVec<SafeTask<T, R>>;
-    pub type SafeTaskArgs<T> = Arc<Mutex<TaskItems<T>>>;
+    pub type SafeTaskArgs<T> = Arc<RwLock<TaskItems<T>>>;
     pub type ThreadReceiver<T, R> = Arc<Mutex<Receiver<SafeTask<T, R>>>>;
     pub type ThreadSender<T, R> = Sender<SafeTask<T, R>>;
     pub type AsyncTaskHandle<R> = JoinHandle<TaskResult<R>>;
@@ -53,11 +54,11 @@ pub mod thread_primitives {
 
 
     /**************************** Globals **************************************/
-    static mut rt_cache: TokioRtCache = new_cache();
+    pub static mut rt_cache: TokioRtCache = new_cache();
     /**************************** Types *****************************************/
     type TokioRtCache = LazyRUMCache<usize, Arc<TokioRuntime>>;
     /**************************** Helpers ***************************************/
-    fn init_cache<'a>(threads: &'a usize) -> Arc<TokioRuntime> {
+    pub fn init_cache(threads: &usize) -> Arc<TokioRuntime> {
         let mut builder = tokio::runtime::Builder::new_multi_thread();
         builder.worker_threads(*threads);
         builder.enable_all();
@@ -82,8 +83,8 @@ pub mod thread_primitives {
 
     impl<T, R> Task<T, R>
     where
-        T: Send + Clone + 'static,
-        R: Send + Clone + 'static,
+        T: Sync + Send + Clone + 'static,
+        R: Sync + Send + Clone + 'static,
         Box<T>: Send + Clone + 'static,
     {
         ///
@@ -130,9 +131,7 @@ pub mod thread_primitives {
         /// and waiting for work. When this instance gets dropped, we signal threads to exit.
         ///
         pub fn new(threads: &usize) -> RUMResult<ThreadPool> {
-            let rt = unsafe {
-                get_or_set_from_cache(&mut rt_cache, &threads, init_cache)
-            };
+            let rt = rum_cache_fetch!(&mut rt_cache, &threads, init_cache);
 
             Ok( ThreadPool{runtime: rt })
         }
@@ -142,7 +141,7 @@ pub mod thread_primitives {
         /// We actually send a clone of the reference of the microtask queue.
         /// This allows the main thread to poll for results and own the original tasks.
         ///
-        pub fn execute<T: Send + Clone + 'static, R: Clone + Send  + 'static>(&self, task: SafeTask<T, R>) -> AsyncTaskHandle<R> {
+        pub fn execute<T: Sync + Send + Clone + 'static, R: Sync + Clone + Send  + 'static>(&self, task: SafeTask<T, R>) -> AsyncTaskHandle<R> {
             self.runtime.spawn(async move {
                 let mut task_handle = task.lock().unwrap();
                 task_handle.execute()
@@ -176,6 +175,76 @@ pub mod threading_functions {
 
 pub mod threading_macros {
     #[macro_export]
+    macro_rules! rum_init_threads {
+        ( ) => {{
+            use crate::threading::thread_primitives::{rt_cache, init_cache};
+            use crate::threading::threading_functions::get_default_system_thread_count;
+            use crate::rum_cache_fetch;
+            let rt = rum_cache_fetch!(&mut rt_cache, &get_default_system_thread_count(), init_cache);
+            rt
+        }};
+        ( $threads:expr ) => {{
+            use crate::threading::thread_primitives::{rt_cache, init_cache};
+            use crate::rum_cache_fetch;
+            let rt = rum_cache_fetch!(&mut rt_cache, $threads, init_cache);
+            rt
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rum_spawn_job {
+        ( $rt:expr, $func:expr ) => {{
+            $rt.spawn(async move {
+                $func().await
+            })
+        }};
+        ( $rt:expr, $func:expr, $($arg_items:expr),+ ) => {{
+            $rt.spawn(async move {
+                $func($($arg_items),+).await
+            })
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rum_wait_on_job {
+        ( $rt:expr, $func:expr ) => {{
+            $rt.block_on(async move {
+                $func().await
+            })
+        }};
+        ( $rt:expr, $func:expr, $($arg_items:expr),+ ) => {{
+            $rt.block_on(async move {
+                $func($($arg_items),+).await
+            })
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rum_resolve_job {
+        ( $rt:expr, $future:expr ) => {{
+            $rt.block_on(async move {
+                $future.await
+            })
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! run_async_as_sync {
+        ( $func:expr ) => {{
+            let tokio_runtime = tokio::runtime::Handle::current();
+            tokio_runtime.block_on(async move {
+                $func().await
+            })
+        }};
+        ( $func:expr, $($arg_items:expr),+ ) => {{
+            let tokio_runtime = tokio::runtime::Handle::current();
+            tokio_runtime.block_on(async move {
+                $func($($arg_items),+).await
+            })
+        }};
+    }
+
+    #[macro_export]
     macro_rules! run_quick_async_as_sync {
         ( $func:expr ) => {{
             let tokio_runtime = tokio::runtime::Handle::current();
@@ -190,6 +259,26 @@ pub mod threading_macros {
             let arg_list = vec![$($arg_items),+];
             let args = create_task_args!(arg_list);
             tokio_runtime.block_on(async move {
+                $func(&args).await
+            })
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! run_quick_background_task {
+        ( $func:expr ) => {{
+            let tokio_runtime = get;
+            let arg_list = vec![];
+            let args = create_task_args!(arg_list);
+            tokio_runtime.spawn(async move {
+                $func(&args).await
+            })
+        }};
+        ( $func:expr, $($arg_items:expr),+ ) => {{
+            let tokio_runtime = tokio::runtime::Handle::current();
+            let arg_list = vec![$($arg_items),+];
+            let args = create_task_args!(arg_list);
+            tokio_runtime.spawn(async move {
                 $func(&args).await
             })
         }};
@@ -216,7 +305,8 @@ pub mod threading_macros {
     macro_rules! create_task_args {
         ( $args:expr ) => {{
             use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs};
-            SafeTaskArgs::new(Mutex::new($args))
+            use tokio::sync::RwLock;
+            SafeTaskArgs::new(RwLock::new($args))
         }};
     }
 

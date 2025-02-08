@@ -47,7 +47,7 @@ pub mod v2_parser {
     };
     use std::collections::VecDeque;
     use std::ops::{Index, IndexMut};
-    use rumtk_core::cache_fetch;
+    use rumtk_core::rum_cache_fetch;
     /**************************** Globals ***************************************/
 
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
@@ -510,7 +510,7 @@ pub mod v2_parser {
         }
 
         pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
-            let index = cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
+            let index = rum_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
             let segment = self.get(&index.segment, index.segment_group as usize)?;
             let field = match segment.get(index.field as isize)?.get((index.field_group - 1) as usize) {
                 Some(field) => field,
