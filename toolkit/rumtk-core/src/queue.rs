@@ -22,8 +22,10 @@ pub mod queue {
     use std::sync::Mutex;
     use std::time::Duration;
     use std::thread::{sleep};
+    use tokio::runtime::Runtime;
     use crate::core::RUMResult;
-    use crate::threading;
+    use crate::{rumtk_init_threads, rumtk_resolve_task, rumtk_spawn_task, threading};
+    use crate::strings::RUMString;
     pub use crate::threading::thread_primitives::*;
 
     pub const DEFAULT_SLEEP_DURATION: Duration = Duration::from_millis(1);
@@ -33,12 +35,12 @@ pub mod queue {
 
     pub struct TaskQueue<R> {
         tasks: AsyncTaskHandles<R>,
-        threads: ThreadPool
+        runtime: &'static SafeTokioRuntime
     }
 
     impl<R> TaskQueue<R>
     where
-        R: Send + Clone + 'static,
+        R: Sync + Send + Clone + 'static,
     {
         ///
         /// This method creates a [`TaskQueue`] instance using sensible defaults.
@@ -59,18 +61,21 @@ pub mod queue {
         ///
         pub fn new(worker_num: &usize) -> RUMResult<TaskQueue<R>> {
             let tasks = AsyncTaskHandles::with_capacity(DEFAULT_QUEUE_CAPACITY);
-            let threads = ThreadPool::new(&worker_num)?;
-            Ok(TaskQueue{tasks, threads})
+            let runtime = rumtk_init_threads!(&worker_num);
+            Ok(TaskQueue{tasks, runtime})
         }
 
         ///
         /// Add a task to the processing queue. The idea is that you can queue a processor function
         /// and list of args that will be picked up by one of the threads for processing.
         ///
-        pub fn add_task<T: Send + Sync + Clone + 'static>(&mut self, processor: TaskProcessor<T, R>, args: SafeTaskArgs<T>) {
-            let task = Task::new(processor, args);
-            let safe_task = SafeTask::new(Mutex::new(task));
-            self.tasks.push(self.threads.execute(safe_task));
+        pub fn add_task<F>(&mut self, task: F)
+        where
+            F: Future<Output=TaskResult<R>> + Send + Sync + 'static,
+            F::Output: Send + 'static,
+        {
+            let handle = rumtk_spawn_task!(&self.runtime, task);
+            self.tasks.push(handle);
         }
 
         ///
@@ -107,6 +112,11 @@ pub mod queue {
         ///
         pub fn is_completed(&self) -> bool {
             let mut accumulator: usize = 0;
+
+            if self.tasks.is_empty() {
+                return false
+            }
+
             for task in self.tasks.iter() {
                 accumulator += task.is_finished() as usize;
             }
@@ -124,7 +134,7 @@ pub mod queue {
             let mut result_queue = TaskResults::<R>::with_capacity(self.tasks.len());
             for i in 0..self.tasks.len() {
                 let task = self.tasks.pop().unwrap();
-                result_queue.push(self.threads.resolve_task(task));
+                result_queue.push(rumtk_resolve_task!(&self.runtime, task));
             }
             result_queue
         }

@@ -20,6 +20,8 @@
 
 //#![feature(unboxed_closures)]
 #![feature(inherent_associated_types)]
+#![feature(type_alias_impl_trait)]
+#![feature(unboxed_closures)]
 
 pub mod net;
 pub mod log;
@@ -186,28 +188,8 @@ mod tests {
     }
 
     #[test]
-    fn test_create_threadpool() {
-        let pool = ThreadPool::new(&4);
-    }
-
-    #[test]
-    fn test_create_threadpool_macro() {
-        let pool = create_thread_pool!(&4);
-    }
-
-    #[test]
-    fn test_create_threadpool_default() {
-        let pool = ThreadPool::default();
-    }
-
-    #[test]
-    fn test_create_threadpool_default_macro() {
-        let pool = create_thread_pool!();
-    }
-
-    #[test]
     fn test_execute_job() {
-        let rt = rum_init_threads!();
+        let rt = rumtk_init_threads!();
         let expected = vec![
             1,
             2,
@@ -227,14 +209,14 @@ mod tests {
         };
         let locked_args = RwLock::new(expected.clone());
         let task_args = SafeTaskArgs::<i32>::new(locked_args);
-        let task_result = rum_wait_on_job!(rt, task_processor, &task_args);
+        let task_result = rumtk_wait_on_task!(rt, task_processor, &task_args);
         let result = task_result.unwrap();
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
     }
 
     #[test]
     fn test_execute_job_macros() {
-        let rt = rum_init_threads!();
+        let rt = rumtk_init_threads!();
         let expected = vec![
             1,
             2,
@@ -252,15 +234,15 @@ mod tests {
             }
             Ok(results)
         };
-        let task_args = create_task_args!(expected.clone());
-        let task_result = rum_wait_on_job!(rt, task_processor, &task_args);
+        let task_args = rumtk_create_task_args!(expected.clone());
+        let task_result = rumtk_wait_on_task!(rt, task_processor, &task_args);
         let result = task_result.unwrap();
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
     }
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use queue::queue::*;
-/*
+
     #[test]
     fn test_queue_data() {
         let expected = vec![
@@ -271,21 +253,24 @@ mod tests {
             RUMString::from("Sad")
         ];
         let mut queue = TaskQueue::<RUMString>::new(&5).unwrap();
-        let processor = async |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
-            let owned_args = Arc::clone(args);
-            let lock_future = owned_args.read();
-            let locked_args = lock_future.await;
-            let mut results = TaskItems::<RUMString>::with_capacity(locked_args.len());
-            print!("Contents: ");
-            for arg in locked_args.iter() {
-                print!("{} ", &arg);
-                results.push(RUMString::new(arg));
-            }
-            Ok(results)
-        };
         let locked_args = RwLock::new(expected.clone());
         let task_args = SafeTaskArgs::<RUMString>::new(locked_args);
-        queue.add_task(processor, task_args);
+        let processor = async move {
+            let f = async |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
+                let owned_args = Arc::clone(args);
+                let lock_future = owned_args.read();
+                let locked_args = lock_future.await;
+                let mut results = TaskItems::<RUMString>::with_capacity(locked_args.len());
+                print!("Contents: ");
+                for arg in locked_args.iter() {
+                    print!("{} ", &arg);
+                    results.push(RUMString::new(arg));
+                }
+                Ok(results)
+            };
+            f(&task_args).await
+        };
+        queue.add_task::<_>(processor);
         let results = queue.wait();
         let mut result_data = Vec::<RUMString>::with_capacity(5);
         for r in results {
@@ -295,7 +280,7 @@ mod tests {
         }
         assert_eq!(result_data, expected, "Results do not match expected!");
     }
-*/
+
     ///////////////////////////////////Net Tests/////////////////////////////////////////////////
     /*
     #[test]

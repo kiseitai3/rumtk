@@ -20,6 +20,7 @@
 
 pub mod thread_primitives {
     use std::future::{Future, IntoFuture};
+    use std::pin::Pin;
     use std::sync::{mpsc, Arc, Mutex};
     use std::sync::mpsc::{Receiver, Sender};
     use tokio::sync::{futures, RwLock};
@@ -51,14 +52,10 @@ pub mod thread_primitives {
     pub type TaskResult<R> = RUMResult<TaskItems<R>>;
     pub type TaskResults<R> = TaskItems<TaskResult<R>>;
     /// Function signature defining the interface of task processing logic.
-    pub type SafeTask<T, R> = Arc<Mutex<Task<T, R>>>;
-    pub type SafeTasks<T, R> = RUMVec<SafeTask<T, R>>;
     pub type SafeTaskArgs<T> = Arc<RwLock<TaskItems<T>>>;
-    pub type ThreadReceiver<T, R> = Arc<Mutex<Receiver<SafeTask<T, R>>>>;
-    pub type ThreadSender<T, R> = Sender<SafeTask<T, R>>;
     pub type AsyncTaskHandle<R> = JoinHandle<TaskResult<R>>;
     pub type AsyncTaskHandles<R> = Vec<AsyncTaskHandle<R>>;
-    pub type TaskProcessor<R> = Box<dyn Future<Output=TaskResult<R>>>;
+    //pub type TaskProcessor<T, R, Fut: Future<Output = TaskResult<R>>> = impl FnOnce(&SafeTaskArgs<T>) -> Fut;
 }
 
 pub mod threading_functions {
@@ -99,21 +96,31 @@ pub mod threading_macros {
     }
 
     #[macro_export]
-    macro_rules! rumtk_spawn_job {
-        ( $rt:expr, $func:expr ) => {{
-            $rt.spawn(async move {
-                $func().await
-            })
-        }};
-        ( $rt:expr, $func:expr, $($arg_items:expr),+ ) => {{
-            $rt.spawn(async move {
-                $func($($arg_items),+).await
-            })
+    macro_rules! rumtk_create_task {
+        ( $body:block ) => {{
+            async move {
+                let f = async |args: &SafeTaskArgs| -> TaskResult {
+                    let owned_args = Arc::clone(args);
+                    let lock_future = owned_args.read();
+                    let locked_args = lock_future.await;
+                    let mut results = TaskItems::<RUMString>::with_capacity(locked_args.len());
+                    $body
+                    Ok(results)
+                };
+                f(&task_args).await
+            };
         }};
     }
 
     #[macro_export]
-    macro_rules! rumtk_wait_on_job {
+    macro_rules! rumtk_spawn_task {
+        ( $rt:expr, $func:expr ) => {{
+            $rt.spawn($func)
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_wait_on_task {
         ( $rt:expr, $func:expr ) => {{
             $rt.block_on(async move {
                 $func().await
@@ -127,7 +134,7 @@ pub mod threading_macros {
     }
 
     #[macro_export]
-    macro_rules! rumtk_resolve_job {
+    macro_rules! rumtk_resolve_task {
         ( $rt:expr, $future:expr ) => {{
             $rt.block_on(async move {
                 $future.await
@@ -136,7 +143,7 @@ pub mod threading_macros {
     }
 
     #[macro_export]
-    macro_rules! create_task_args {
+    macro_rules! rumtk_create_task_args {
         ( $args:expr ) => {{
             use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs};
             use tokio::sync::RwLock;

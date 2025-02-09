@@ -19,17 +19,18 @@
  */
 pub mod tcp {
     use std::collections::VecDeque;
+    use std::ops::DerefMut;
     use std::task::Poll;
-    use tokio::sync::{Mutex as AsyncMutex};
-    use std::sync::Mutex;
+    use tokio::sync::{Mutex as AsyncMutex, RwLock as AsyncRwLock};
+    use std::sync::{Arc, Mutex};
     use ahash::{HashMap, HashMapExt};
     use compact_str::{format_compact, ToCompactString};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use crate::core::RUMResult;
     use crate::strings::{RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
-    use crate::queue::queue::{SafeTaskArgs, TaskItems, TaskProcessor, TaskQueue, TaskResult};
-    use crate::{create_task_args, run_quick_async_as_sync};
+    use crate::queue::queue::{TaskItems, TaskQueue, TaskResult};
+    use crate::threading::thread_primitives::SafeTaskArgs;
 
     pub type RUMNetMessage = Vec<u8>;
     pub type ConnectionInfo = (RUMString, u16);
@@ -92,6 +93,8 @@ pub mod tcp {
         tx_in: SafeQueue<RUMNetMessage>,
         tx_out: HashMap<RUMString, SafeQueue<RUMString>>,
         clients: SafeClients,
+        stop: bool,
+        shutdown_completed: bool,
     }
 
     impl RUMServer {
@@ -104,15 +107,23 @@ pub mod tcp {
             let tx_in = SafeQueue::<RUMNetMessage>::new(VecDeque::new());
             let tx_out = HashMap::<RUMString, SafeQueue<RUMString>>::new();
             let clients = SafeClients::new(Vec::new());
-            Ok(RUMServer{tcp_listener, tx_in, tx_out, clients})
+            Ok(RUMServer{tcp_listener, tx_in, tx_out, clients, stop: false, shutdown_completed: false})
         }
 
         async fn run(&mut self) -> RUMResult<()> {
-            loop {
+            while !self.stop {
                 self.handle_accept().await;
                 self.handle_send().await;
                 self.handle_receive().await;
             }
+            self.shutdown_completed = true;
+            Ok(())
+        }
+
+        async fn stop_server(&mut self) -> RUMResult<RUMString> {
+            self.stop = true;
+            while !self.shutdown_completed {}
+            Ok(format_compact!("Server shutdown..."))
         }
 
         async fn handle_accept(&mut self) {
@@ -172,43 +183,47 @@ pub mod tcp {
             queue.pop_front()
         }
     }
-
+/*
     pub struct RUMClientHandle {
-        client: RUMClient,
+        client: Arc<AsyncRwLock<RUMClient>>,
     }
 
     impl RUMClientHandle {
-        type SendArgs<'a, 'b> = (&'a mut RUMClient, &'b RUMString);
-        type ReceiveArgs<'a> = &'a mut RUMClient;
+        type SendArgs<'a> = (Arc<AsyncRwLock<RUMClient>>, &'a RUMString);
+        type ReceiveArgs<> = Arc<AsyncRwLock<RUMClient>>;
 
         pub fn new(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
             let con: ConnectionInfo = (RUMString::from(ip), port);
-            let client = run_quick_async_as_sync!(RUMClientHandle::new_helper, con)?.pop().unwrap();
-            Ok(RUMClientHandle{client})
+            let mut client = run_quick_async_as_sync!(RUMClientHandle::new_helper, con)?.pop().unwrap();
+            Ok(RUMClientHandle{client: Arc::new(AsyncRwLock::new(client))})
         }
 
         pub fn send(&mut self, msg: &RUMString) -> RUMResult<()> {
-            run_quick_async_as_sync!(RUMClientHandle::send_helper, (&mut self.client, msg))
+            let mut client_ref = Arc::clone(&self.client);
+            run_quick_async_as_sync!(RUMClientHandle::send_helper, (client_ref, msg))
         }
 
         pub fn receive(&mut self) -> RUMResult<RUMNetMessage> {
-            run_quick_async_as_sync!(RUMClientHandle::receive_helper, &mut self.client)
+            let client_ref = Arc::clone(&self.client);
+            run_quick_async_as_sync!(RUMClientHandle::receive_helper, client_ref)
         }
 
-        async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_, '_>>) -> RUMResult<()> {
-            let mut arg_list = args.lock().unwrap();
-            let (client, msg) = arg_list.pop().unwrap();
-            client.send(msg).await
+        async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_>>) -> RUMResult<()> {
+            let lock = args.read().await;
+            let (mut client_lock_ref, msg) = lock.get(0).unwrap();
+            let mut client_lock = Arc::get_mut(&mut Arc::clone(&mut client_lock_ref)).unwrap();
+            let mut client = client_lock.read().await;
+            *client.send(msg).await
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<RUMNetMessage> {
-            let mut arg_list = args.lock().unwrap();
-            let mut client = arg_list.pop().unwrap();
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<RUMNetMessage> {
+            let mut arg_list = Arc::clone(args);
+            let &&mut mut client = &arg_list[0];
             client.recv().await
         }
 
         async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMClient> {
-            let owned_args = args.lock().unwrap();
+            let owned_args =Arc::clone(args);
             let (ip, port) = match owned_args.get(0) {
                 Some((ip, port)) => (ip, port),
                 None => return Err(format_compact!("No IP address or port provided for connection!")),
@@ -218,51 +233,66 @@ pub mod tcp {
     }
 
     pub struct RUMServerHandle {
-        server: RUMServer,
+        server: Arc<RUMServer>,
     }
 
     impl RUMServerHandle {
-        type SendArgs<'a, 'b, 'c> = (&'a mut RUMServer, &'b RUMString, &'c RUMString);
-        type ReceiveArgs<'a> = &'a mut RUMServer;
+        type SendArgs<'a, 'b, 'c> = (Arc<RUMServer>, &'b RUMString, &'c RUMString);
+        type ReceiveArgs<'a> = Arc<RUMServer>;
 
         pub fn new(ip: &str, port: u16) -> RUMResult<RUMServerHandle> {
             let con: ConnectionInfo = (RUMString::from(ip), port);
             let server = run_quick_async_as_sync!(RUMServerHandle::new_helper, con)?.pop().unwrap();
-            Ok(RUMServerHandle{server})
+            Ok(RUMServerHandle{server: Arc::new(server)})
         }
 
         pub fn start(&mut self) -> RUMResult<()> {
-            run_quick_async_as_sync!(RUMServerHandle::start_helper, (&mut self.server))
+            run_quick_background_task!(RUMServerHandle::start_helper, (Arc::clone(&mut self.server)));
+            Ok(())
+        }
+
+        pub fn stop(&mut self) -> RUMResult<RUMString> {
+            run_quick_async_as_sync!(RUMServerHandle::stop_helper, (Arc::clone(&mut self.server)))
         }
 
         pub fn send(&mut self, client_id: &RUMString, msg: &RUMString) -> RUMResult<()> {
-            run_quick_async_as_sync!(RUMServerHandle::send_helper, (&mut self.server, client_id, msg))
+            run_quick_async_as_sync!(RUMServerHandle::send_helper, (Arc::clone(&mut self.server), client_id, msg))
         }
 
         pub fn receive(&mut self) -> Option<RUMNetMessage> {
-            run_quick_async_as_sync!(RUMServerHandle::receive_helper, &mut self.server)
+            run_quick_async_as_sync!(RUMServerHandle::receive_helper, Arc::clone(&mut self.server))
         }
 
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_, '_, '_>>) -> RUMResult<()> {
-            let mut arg_list = args.lock().unwrap();
-            let (server, client_id, msg) = arg_list.pop().unwrap();
-            Ok(server.push_message(client_id, msg).await)
+            let mut arg_list =Arc::clone(args);
+            let (mut server, client_id, msg) = arg_list.pop().unwrap();
+            let mut server_ref = Arc::get_mut(&mut server).unwrap();
+            Ok(server_ref.push_message(client_id, msg).await)
         }
 
         async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> Option<RUMNetMessage> {
-            let mut arg_list = args.lock().unwrap();
+            let mut arg_list =Arc::clone(args);
             let mut server = arg_list.pop().unwrap();
-            server.pop_message().await
+            let mut server_ref = Arc::get_mut(&mut server).unwrap();
+            server_ref.pop_message().await
         }
 
         async fn start_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<()> {
-            let mut arg_list = args.lock().unwrap();
+            let mut arg_list = Arc::clone(args);
             let mut server = arg_list.pop().unwrap();
-            server.run().await
+            let mut server_ref = Arc::get_mut(&mut server).unwrap();
+            server_ref.run().await
+        }
+
+        async fn stop_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<RUMString> {
+            let mut arg_list = Arc::clone(args);
+            let mut server = arg_list.pop().unwrap();
+            let mut server_ref = Arc::get_mut(&mut server).unwrap();
+            server_ref.stop_server().await
         }
 
         async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMServer> {
-            let owned_args = args.lock().unwrap();
+            let owned_args = Arc::clone(args);
             let (ip, port) = match owned_args.get(0) {
                 Some((ip, port)) => (ip, port),
                 None => return Err(format_compact!("No IP address or port provided for connection!")),
@@ -270,10 +300,11 @@ pub mod tcp {
             Ok(vec![RUMServer::new(ip, *port).await?])
         }
     }
-
+*/
 }
 
 pub mod tcp_macros {
+    /*
     #[macro_export]
     macro_rules! create_server {
         ( $ip:expr, $port:expr ) => {{
@@ -281,5 +312,7 @@ pub mod tcp_macros {
             RUMServerHandle::new($ip, $port)
         }};
     }
+
+     */
 }
 
