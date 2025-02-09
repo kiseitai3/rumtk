@@ -29,8 +29,11 @@ pub mod tcp {
     use crate::core::RUMResult;
     use crate::strings::{RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
-    use crate::queue::queue::{TaskItems, TaskQueue, TaskResult};
-    use crate::threading::thread_primitives::SafeTaskArgs;
+    use tokio::runtime;
+    use crate::queue::queue::{TaskQueue};
+    use crate::{rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_spawn_task, rumtk_wait_on_task};
+    use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskItems, TaskResult};
+    use crate::threading::threading_functions::get_default_system_thread_count;
 
     pub type RUMNetMessage = Vec<u8>;
     pub type ConnectionInfo = (RUMString, u16);
@@ -183,8 +186,9 @@ pub mod tcp {
             queue.pop_front()
         }
     }
-/*
+
     pub struct RUMClientHandle {
+        runtime: &'static SafeTokioRuntime,
         client: Arc<AsyncRwLock<RUMClient>>,
     }
 
@@ -192,20 +196,28 @@ pub mod tcp {
         type SendArgs<'a> = (Arc<AsyncRwLock<RUMClient>>, &'a RUMString);
         type ReceiveArgs<> = Arc<AsyncRwLock<RUMClient>>;
 
+        pub fn connect(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
+            RUMClientHandle::new(ip, port)
+        }
+
         pub fn new(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
+            let runtime = rumtk_init_threads!(&1);
             let con: ConnectionInfo = (RUMString::from(ip), port);
-            let mut client = run_quick_async_as_sync!(RUMClientHandle::new_helper, con)?.pop().unwrap();
-            Ok(RUMClientHandle{client: Arc::new(AsyncRwLock::new(client))})
+            let args = rumtk_create_task_args!(con);
+            let client = rumtk_wait_on_task!(&runtime, RUMClientHandle::new_helper, &args)?.pop().unwrap();
+            Ok(RUMClientHandle{client: Arc::new(AsyncRwLock::new(client)), runtime})
         }
 
         pub fn send(&mut self, msg: &RUMString) -> RUMResult<()> {
             let mut client_ref = Arc::clone(&self.client);
-            run_quick_async_as_sync!(RUMClientHandle::send_helper, (client_ref, msg))
+            let args = rumtk_create_task_args!((client_ref, msg));
+            rumtk_wait_on_task!(&self.runtime, RUMClientHandle::send_helper, &args)
         }
 
         pub fn receive(&mut self) -> RUMResult<RUMNetMessage> {
             let client_ref = Arc::clone(&self.client);
-            run_quick_async_as_sync!(RUMClientHandle::receive_helper, client_ref)
+            let args = rumtk_create_task_args!(client_ref);
+            rumtk_wait_on_task!(&self.runtime, RUMClientHandle::receive_helper, &args)
         }
 
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_>>) -> RUMResult<()> {
@@ -233,34 +245,52 @@ pub mod tcp {
     }
 
     pub struct RUMServerHandle {
+        runtime: &'static SafeTokioRuntime,
         server: Arc<RUMServer>,
     }
 
     impl RUMServerHandle {
-        type SendArgs<'a, 'b, 'c> = (Arc<RUMServer>, &'b RUMString, &'c RUMString);
+        type SendArgs<'a, 'b, 'c> = (Arc<RUMServer>, RUMString, RUMString);
         type ReceiveArgs<'a> = Arc<RUMServer>;
 
-        pub fn new(ip: &str, port: u16) -> RUMResult<RUMServerHandle> {
+        pub fn default(port: u16) -> RUMResult<RUMServerHandle> {
+            RUMServerHandle::new("0.0.0.0", port, get_default_system_thread_count())
+        }
+
+        pub fn default_local(port: u16) -> RUMResult<RUMServerHandle> {
+            RUMServerHandle::new("localhost", port, get_default_system_thread_count())
+        }
+
+        pub fn new(ip: &str, port: u16, threads: usize) -> RUMResult<RUMServerHandle> {
+            let runtime = rumtk_init_threads!(&threads);
             let con: ConnectionInfo = (RUMString::from(ip), port);
-            let server = run_quick_async_as_sync!(RUMServerHandle::new_helper, con)?.pop().unwrap();
-            Ok(RUMServerHandle{server: Arc::new(server)})
+            let args = rumtk_create_task_args!(con);
+            let server = rumtk_wait_on_task!(&runtime, RUMServerHandle::new_helper, &args)?.pop().unwrap();
+            Ok(RUMServerHandle{server: Arc::new(server), runtime})
         }
 
         pub fn start(&mut self) -> RUMResult<()> {
-            run_quick_background_task!(RUMServerHandle::start_helper, (Arc::clone(&mut self.server)));
+            let args = rumtk_create_task_args!(Arc::clone(&mut self.server));
+            let task = rumtk_create_task!(RUMServerHandle::start_helper, args);
+            rumtk_spawn_task!(&self.runtime, task);
             Ok(())
         }
 
         pub fn stop(&mut self) -> RUMResult<RUMString> {
-            run_quick_async_as_sync!(RUMServerHandle::stop_helper, (Arc::clone(&mut self.server)))
+            let args = rumtk_create_task_args!(Arc::clone(&mut self.server));
+            rumtk_wait_on_task!(RUMServerHandle::stop_helper, &args)
         }
 
         pub fn send(&mut self, client_id: &RUMString, msg: &RUMString) -> RUMResult<()> {
-            run_quick_async_as_sync!(RUMServerHandle::send_helper, (Arc::clone(&mut self.server), client_id, msg))
+            let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone(), msg.clone()));
+            let task = rumtk_create_task!(RUMServerHandle::send_helper, args);
+            rumtk_spawn_task!(&self.runtime, task);
         }
 
         pub fn receive(&mut self) -> Option<RUMNetMessage> {
-            run_quick_async_as_sync!(RUMServerHandle::receive_helper, Arc::clone(&mut self.server))
+            let args = rumtk_create_task_args!((Arc::clone(&mut self.server)));
+            let task = rumtk_create_task!(RUMServerHandle::receive_helper, args);
+            rumtk_spawn_task!(&self.runtime, task);
         }
 
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs<'_, '_, '_>>) -> RUMResult<()> {
@@ -300,19 +330,25 @@ pub mod tcp {
             Ok(vec![RUMServer::new(ip, *port).await?])
         }
     }
-*/
 }
 
 pub mod tcp_macros {
-    /*
+
     #[macro_export]
     macro_rules! create_server {
-        ( $ip:expr, $port:expr ) => {{
+        ( $port:expr ) => {{
             use $crate::net::tcp::{RUMServerHandle};
-            RUMServerHandle::new($ip, $port)
+            RUMServerHandle::default($port)
+        }};
+        ( $ip:expr, $port:expr ) => {{
+            use crate::threading::threading_functions::get_default_system_thread_count;
+            use $crate::net::tcp::{RUMServerHandle};
+            RUMServerHandle::new($ip, $port, get_default_system_thread_count())
+        }};
+        ( $ip:expr, $port:expr, $threads:expr ) => {{
+            use $crate::net::tcp::{RUMServerHandle};
+            RUMServerHandle::new($ip, $port, $threads)
         }};
     }
-
-     */
 }
 

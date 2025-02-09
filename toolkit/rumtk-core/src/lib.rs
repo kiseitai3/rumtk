@@ -283,7 +283,6 @@ mod tests {
     }
 
     ///////////////////////////////////Net Tests/////////////////////////////////////////////////
-    /*
     #[test]
     fn test_server_start() {
         let mut server = match create_server!("localhost", 55555) {
@@ -295,8 +294,6 @@ mod tests {
             Err(e) => panic!("Failed to start server because {}", e),
         }
     }
-
-     */
 
     //////////////////////////////////////////////////////////////////////////////////////////////
 }
