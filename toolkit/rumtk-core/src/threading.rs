@@ -78,6 +78,8 @@ pub mod threading_functions {
 }
 
 pub mod threading_macros {
+    use crate::queue::queue::TaskResult;
+
     #[macro_export]
     macro_rules! rumtk_init_threads {
         ( ) => {{
@@ -92,23 +94,6 @@ pub mod threading_macros {
             use crate::rumtk_cache_fetch;
             let rt = rumtk_cache_fetch!(&mut rt_cache, $threads, init_cache);
             rt
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! rumtk_create_task {
-        ( $body:block ) => {{
-            async move {
-                let f = async |args: &SafeTaskArgs| -> TaskResult {
-                    let owned_args = Arc::clone(args);
-                    let lock_future = owned_args.read();
-                    let locked_args = lock_future.await;
-                    let mut results = TaskItems::<RUMString>::with_capacity(locked_args.len());
-                    $body
-                    Ok(results)
-                };
-                f(&task_args).await
-            };
         }};
     }
 
