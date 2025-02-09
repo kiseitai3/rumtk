@@ -26,7 +26,7 @@ pub mod queue {
     use crate::core::RUMResult;
     use crate::{rumtk_init_threads, rumtk_resolve_task, rumtk_spawn_task, threading};
     use crate::strings::RUMString;
-    pub use crate::threading::thread_primitives::*;
+    use crate::threading::thread_primitives::*;
 
     pub const DEFAULT_SLEEP_DURATION: Duration = Duration::from_millis(1);
     pub const DEFAULT_QUEUE_CAPACITY: usize = 10;

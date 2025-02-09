@@ -78,7 +78,7 @@ pub mod threading_functions {
 }
 
 pub mod threading_macros {
-    use crate::queue::queue::TaskResult;
+    use crate::threading::thread_primitives::TaskResult;
 
     #[macro_export]
     macro_rules! rumtk_init_threads {
@@ -128,11 +128,21 @@ pub mod threading_macros {
     }
 
     #[macro_export]
+    macro_rules! rumtk_create_task {
+        ( $func:expr, $args:expr ) => {{
+            async move {
+                let f = $func;
+                f(&$args).await
+            }
+        }};
+    }
+
+    #[macro_export]
     macro_rules! rumtk_create_task_args {
-        ( $args:expr ) => {{
-            use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs};
+        ( $($args:expr),+ ) => {{
+            use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs, TaskItems};
             use tokio::sync::RwLock;
-            SafeTaskArgs::new(RwLock::new($args))
+            SafeTaskArgs::new(RwLock::new(vec![$($args),+]))
         }};
     }
 }

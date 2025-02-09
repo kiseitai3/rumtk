@@ -234,7 +234,7 @@ mod tests {
             }
             Ok(results)
         };
-        let task_args = rumtk_create_task_args!(expected.clone());
+        let task_args = rumtk_create_task_args!(1, 2, 3);
         let task_result = rumtk_wait_on_task!(rt, task_processor, &task_args);
         let result = task_result.unwrap();
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
@@ -242,6 +242,7 @@ mod tests {
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use queue::queue::*;
+    use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
 
     #[test]
     fn test_queue_data() {
@@ -255,8 +256,8 @@ mod tests {
         let mut queue = TaskQueue::<RUMString>::new(&5).unwrap();
         let locked_args = RwLock::new(expected.clone());
         let task_args = SafeTaskArgs::<RUMString>::new(locked_args);
-        let processor = async move {
-            let f = async |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
+        let processor = rumtk_create_task!(
+            async |args: &SafeTaskArgs<RUMString>| -> TaskResult<RUMString> {
                 let owned_args = Arc::clone(args);
                 let lock_future = owned_args.read();
                 let locked_args = lock_future.await;
@@ -267,9 +268,9 @@ mod tests {
                     results.push(RUMString::new(arg));
                 }
                 Ok(results)
-            };
-            f(&task_args).await
-        };
+            },
+            task_args
+        );
         queue.add_task::<_>(processor);
         let results = queue.wait();
         let mut result_data = Vec::<RUMString>::with_capacity(5);
@@ -285,7 +286,6 @@ mod tests {
     /*
     #[test]
     fn test_server_start() {
-        let mut rt = tokio::runtime::Builder::new_multi_thread();
         let mut server = match create_server!("localhost", 55555) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
@@ -295,6 +295,7 @@ mod tests {
             Err(e) => panic!("Failed to start server because {}", e),
         }
     }
+
      */
 
     //////////////////////////////////////////////////////////////////////////////////////////////
