@@ -40,7 +40,7 @@ mod tests {
     use std::time::Duration;
     use compact_str::{format_compact, CompactString};
     use tokio::sync::{RwLock};
-    use crate::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
+    use crate::strings::{RUMString, RUMStringConversions, UTFStringExtensions, RUMArrayConversions};
     use crate::search::rumtk_search::*;
     use crate::cache::RUMCache;
     use super::*;
@@ -285,7 +285,7 @@ mod tests {
     ///////////////////////////////////Net Tests/////////////////////////////////////////////////
     #[test]
     fn test_server_start() {
-        let mut server = match create_server!("localhost", 55555) {
+        let mut server = match rumtk_create_server!("localhost", 55555) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -293,6 +293,29 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         }
+    }
+
+    #[test]
+    fn test_server_receive() {
+        let msg = RUMString::from("Hello World!");
+        let mut server = match rumtk_create_server!("localhost", 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start() {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        }
+        let mut client = match rumtk_connect!(55555) {
+            Ok(client) => client,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match client.send(&msg) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to send message because {}", e),
+        }
+        let incoming_message = server.receive().expect("Failed to receive message");
+        assert_eq!(RUMString::from(incoming_message.to_rumstring()), msg, "Received message corruption!");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

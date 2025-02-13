@@ -27,7 +27,7 @@ pub mod tcp {
     use compact_str::{format_compact, ToCompactString};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use crate::core::RUMResult;
-    use crate::strings::{RUMString, RUMStringConversions};
+    use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
     use tokio::runtime;
     use crate::queue::queue::{TaskQueue};
@@ -133,10 +133,12 @@ pub mod tcp {
             match self.tcp_listener.accept().await {
                 Ok((socket, _)) => {
                     let mut client_list = self.clients.lock().await;
-                    client_list.push(match RUMClient::accept(socket).await {
+                    let client = match RUMClient::accept(socket).await {
                         Ok(client) => client,
                         Err(e) => return (),
-                    });
+                    };
+                    println!("Client connected => {:?}", &client);
+                    client_list.push(client);
                 }
                 Err(e) => ()
             }
@@ -177,6 +179,7 @@ pub mod tcp {
                 client.read_ready().await;
                 let msg = client.recv().await.unwrap();
                 let mut queue = self.tx_in.lock().await;
+                println!("{}", &msg.to_rumstring());
                 queue.push_back(msg);
             }
         }
@@ -313,7 +316,11 @@ pub mod tcp {
             let locked_args = lock_future.await;
             let mut server_ref = locked_args.get(0).unwrap();
             let mut server = server_ref.lock().await;
-            server.pop_message().await
+            let mut msg = server.pop_message().await;
+            while msg.is_none() {
+                msg = server.pop_message().await;
+            }
+            msg
         }
 
         async fn start_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<()> {
@@ -350,7 +357,7 @@ pub mod tcp {
 pub mod tcp_macros {
 
     #[macro_export]
-    macro_rules! create_server {
+    macro_rules! rumtk_create_server {
         ( $port:expr ) => {{
             use $crate::net::tcp::{RUMServerHandle};
             RUMServerHandle::default($port)
@@ -363,6 +370,18 @@ pub mod tcp_macros {
         ( $ip:expr, $port:expr, $threads:expr ) => {{
             use $crate::net::tcp::{RUMServerHandle};
             RUMServerHandle::new($ip, $port, $threads)
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_connect {
+        ( $port:expr ) => {{
+            use $crate::net::tcp::{RUMClientHandle};
+            RUMClientHandle::connect("localhost", $port)
+        }};
+        ( $ip:expr, $port:expr ) => {{
+            use $crate::net::tcp::{RUMClientHandle};
+            RUMClientHandle::connect($ip, $port)
         }};
     }
 }
