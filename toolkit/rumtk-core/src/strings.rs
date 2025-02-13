@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+use std::fmt::Display;
 use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
 use encoding_rs::Encoding;
@@ -223,6 +224,22 @@ impl AsStr for str {
 impl StringUtils for str {}
 
 impl RUMStringConversions for char {}
+
+pub trait RUMArrayConversions {
+    fn to_rumstring(&self) -> RUMString;
+}
+
+impl RUMArrayConversions for Vec<u8> {
+    fn to_rumstring(&self) -> RUMString {
+        RUMString::from_utf8(&self).unwrap()
+    }
+}
+
+impl RUMArrayConversions for &[u8] {
+    fn to_rumstring(&self) -> RUMString {
+        RUMString::from_utf8(&self).unwrap()
+    }
+}
 
 /**************************** Helpers ***************************************/
 
