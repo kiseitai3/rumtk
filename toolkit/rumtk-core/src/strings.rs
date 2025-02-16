@@ -131,6 +131,10 @@ pub trait RUMStringConversions: ToString {
     fn to_rumstring(&self) -> RUMString {
         RUMString::from(self.to_string())
     }
+
+    fn to_raw(&self) -> Vec<u8> {
+        self.to_string().as_bytes().to_vec()
+    }
 }
 
 pub trait StringUtils: AsStr + UTFStringExtensions {
