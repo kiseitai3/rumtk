@@ -29,14 +29,19 @@ pub mod tcp {
     use crate::core::RUMResult;
     use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
-    use tokio::runtime;
+    use tokio::{io, runtime};
     use crate::queue::queue::{TaskQueue};
     use crate::{rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_resolve_task, rumtk_spawn_task, rumtk_wait_on_task};
     use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskItems, TaskResult};
     use crate::threading::threading_functions::get_default_system_thread_count;
 
+    const MESSAGE_BUFFER_SIZE: usize = 1024;
+
+
     pub type RUMNetMessage = Vec<u8>;
+    type RUMNetPartialMessage = (RUMNetMessage, bool);
     pub type ConnectionInfo = (RUMString, u16);
+
 
     #[derive(Debug)]
     pub struct RUMClient {
@@ -58,8 +63,8 @@ pub mod tcp {
             Ok(RUMClient{socket})
         }
 
-        pub async fn send(&mut self, msg: &RUMString) -> RUMResult<()> {
-            match self.socket.write_all(msg.as_bytes()).await {
+        pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
+            match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format_compact!("Unable to send message to {} because {}", &self.socket.local_addr().unwrap().to_compact_string(), &e)),
             }
@@ -67,8 +72,21 @@ pub mod tcp {
 
         pub async fn recv(&mut self) -> RUMResult<RUMNetMessage> {
             let mut msg = RUMNetMessage::new();
-            match self.socket.read_to_end(&mut msg).await {
-                Ok(_) => Ok(msg),
+            loop {
+                let mut fragment = self.recv_some().await?;
+                msg.append(&mut fragment.0);
+                if fragment.1 == false {
+                    break;
+                }
+            }
+            Ok(msg)
+        }
+
+        async fn recv_some(&mut self) -> RUMResult<RUMNetPartialMessage> {
+            let mut buf: [u8; MESSAGE_BUFFER_SIZE] = [0; MESSAGE_BUFFER_SIZE];
+            match self.socket.try_read(&mut buf) {
+                Ok(n) => Ok((RUMNetMessage::from(buf), true)),
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok((RUMNetMessage::from(buf), false)),
                 Err(e) => Err(format_compact!("Error receiving message from {} because {}", &self.socket.peer_addr().unwrap().to_compact_string(), &e)),
             }
         }
@@ -94,7 +112,7 @@ pub mod tcp {
     pub struct RUMServer {
         tcp_listener: TcpListener,
         tx_in: SafeQueue<RUMNetMessage>,
-        tx_out: HashMap<RUMString, SafeQueue<RUMString>>,
+        tx_out: HashMap<RUMString, SafeQueue<RUMNetMessage>>,
         clients: SafeClients,
         stop: bool,
         shutdown_completed: bool,
@@ -108,15 +126,18 @@ pub mod tcp {
                 Err(e) => return Err(format_compact!("Unable to bind to {} because {}", &addr.as_str(), &e)),
             };
             let tx_in = SafeQueue::<RUMNetMessage>::new(VecDeque::new());
-            let tx_out = HashMap::<RUMString, SafeQueue<RUMString>>::new();
+            let tx_out = HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new();
             let clients = SafeClients::new(Vec::new());
             Ok(RUMServer{tcp_listener, tx_in, tx_out, clients, stop: false, shutdown_completed: false})
         }
 
         async fn run(&mut self) -> RUMResult<()> {
             while !self.stop {
+                println!("Checking for clients!");
                 self.handle_accept().await;
+                println!("Checking for data to send!");
                 self.handle_send().await;
+                println!("Checking for incoming data!");
                 self.handle_receive().await;
             }
             self.shutdown_completed = true;
@@ -147,16 +168,22 @@ pub mod tcp {
         async fn handle_send(&mut self) {
             let mut client_list = self.clients.lock().await;
             for mut client in client_list.iter_mut() {
-                client.write_ready().await;
-                let addr = client.socket.peer_addr().unwrap().to_compact_string();
-                let mut queue = self.tx_out[&addr].lock().await;
-                for msg in queue.iter() {
-                    match client.send(&msg).await {
-                        Ok(_) => (),
-                        Err(e) => return (),
+                let ready = client.write_ready().await;
+                if ready {
+                    let addr = client.socket.peer_addr().unwrap().to_compact_string();
+                    let mut queue = match self.tx_out.get_mut(&addr) {
+                        Some(queue) => queue,
+                        None => continue,
+                    };
+                    let mut locked_queue = queue.lock().await;
+                    for msg in locked_queue.iter() {
+                        match client.send(&msg).await {
+                            Ok(_) => (),
+                            Err(e) => return (),
+                        }
                     }
+                    locked_queue.clear();
                 }
-                queue.clear();
             }
         }
 
@@ -164,23 +191,24 @@ pub mod tcp {
             &self.clients
         }
 
-        pub async fn push_message(&mut self, client_id: &RUMString, msg: &RUMString) {
+        pub async fn push_message(&mut self, client_id: &RUMString, msg: RUMNetMessage) {
             if !self.tx_out.contains_key(client_id) {
-                let new_queue = SafeQueue::<RUMString>::new(VecDeque::new());
+                let new_queue = SafeQueue::<RUMNetMessage>::new(VecDeque::new());
                 self.tx_out.insert(client_id.clone(), new_queue);
             }
             let mut queue = self.tx_out[client_id].lock().await;
-            queue.push_back(msg.to_rumstring());
+            queue.push_back(msg);
         }
 
         async fn handle_receive(&mut self) {
             let mut client_list = self.clients.lock().await;
             for mut client in client_list.iter_mut() {
-                client.read_ready().await;
-                let msg = client.recv().await.unwrap();
-                let mut queue = self.tx_in.lock().await;
-                println!("{}", &msg.to_rumstring());
-                queue.push_back(msg);
+                let ready = client.read_ready().await;
+                if ready {
+                    let msg = client.recv().await.unwrap();
+                    let mut queue = self.tx_in.lock().await;
+                    queue.push_back(msg);
+                }
             }
         }
 
@@ -196,7 +224,7 @@ pub mod tcp {
     }
 
     impl RUMClientHandle {
-        type SendArgs<'a> = (Arc<AsyncMutex<RUMClient>>, &'a RUMString);
+        type SendArgs<'a> = (Arc<AsyncMutex<RUMClient>>, &'a RUMNetMessage);
         type ReceiveArgs<> = Arc<AsyncMutex<RUMClient>>;
 
         pub fn connect(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
@@ -211,7 +239,7 @@ pub mod tcp {
             Ok(RUMClientHandle{client: Arc::new(AsyncMutex::new(client)), runtime})
         }
 
-        pub fn send(&mut self, msg: &RUMString) -> RUMResult<()> {
+        pub fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
             let mut client_ref = Arc::clone(&self.client);
             let args = rumtk_create_task_args!((client_ref, msg));
             rumtk_wait_on_task!(&self.runtime, RUMClientHandle::send_helper, &args)
@@ -259,7 +287,7 @@ pub mod tcp {
     }
 
     impl RUMServerHandle {
-        type SendArgs<'a, 'b, 'c> = (Arc<AsyncMutex<RUMServer>>, RUMString, RUMString);
+        type SendArgs<'a, 'b, 'c> = (Arc<AsyncMutex<RUMServer>>, RUMString, RUMNetMessage);
         type ReceiveArgs<'a> = Arc<AsyncMutex<RUMServer>>;
 
         pub fn default(port: u16) -> RUMResult<RUMServerHandle> {
@@ -290,8 +318,8 @@ pub mod tcp {
             rumtk_wait_on_task!(&self.runtime, RUMServerHandle::stop_helper, &args)
         }
 
-        pub fn send(&mut self, client_id: &RUMString, msg: &RUMString) -> RUMResult<()> {
-            let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone(), msg.clone()));
+        pub fn send(&mut self, client_id: &RUMString, msg: RUMNetMessage) -> RUMResult<()> {
+            let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone(), msg));
             let task = rumtk_create_task!(RUMServerHandle::send_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
@@ -307,7 +335,7 @@ pub mod tcp {
             let locked_args = owned_args.read().await;
             let (server_ref, client_id, msg) = locked_args.get(0).unwrap();
             let mut server = server_ref.lock().await;
-            Ok(server.push_message(client_id, msg).await)
+            Ok(server.push_message(client_id, msg.to_vec()).await)
         }
 
         async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> Option<RUMNetMessage> {
