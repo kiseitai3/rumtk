@@ -59,8 +59,14 @@ pub mod thread_primitives {
 }
 
 pub mod threading_functions {
-    use std::thread::available_parallelism;
+    use std::time::Duration;
+    use std::thread::{available_parallelism, sleep as std_sleep};
+    use tokio::time::sleep as tokio_sleep;
     use num_cpus;
+
+    pub const NANOS_PER_SEC: u64 = 1000000000;
+    pub const MILLIS_PER_SEC: u64 = 1000;
+    pub const MICROS_PER_SEC: u64 = 1000000;
 
     pub fn get_default_system_thread_count() -> usize {
         let cpus: usize = num_cpus::get();
@@ -74,6 +80,20 @@ pub mod threading_functions {
         } else {
             cpus
         }
+    }
+
+    pub fn sleep(s: f32) {
+        let ns = s * NANOS_PER_SEC as f32;
+        let rounded_ns = ns.round() as u64;
+        let duration = Duration::from_nanos(rounded_ns);
+        std_sleep(duration);
+    }
+
+    async fn async_sleep(s: f32) {
+        let ns = s * NANOS_PER_SEC as f32;
+        let rounded_ns = ns.round() as u64;
+        let duration = Duration::from_nanos(rounded_ns);
+        tokio_sleep(duration).await;
     }
 }
 
@@ -143,6 +163,22 @@ pub mod threading_macros {
             use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs, TaskItems};
             use tokio::sync::RwLock;
             SafeTaskArgs::new(RwLock::new(vec![$($args),+]))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_sleep {
+        ( $dur:expr) => {{
+            use $crate::threading::threading_functions::{sleep};
+            sleep($dur as f32)
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_async_sleep {
+        ( $dur:expr) => {{
+            use $crate::threading::threading_functions::{async_sleep};
+            async_sleep($dur as f32)
         }};
     }
 }
