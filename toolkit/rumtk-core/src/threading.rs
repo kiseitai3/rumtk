@@ -89,7 +89,7 @@ pub mod threading_functions {
         std_sleep(duration);
     }
 
-    async fn async_sleep(s: f32) {
+    pub async fn async_sleep(s: f32) {
         let ns = s * NANOS_PER_SEC as f32;
         let rounded_ns = ns.round() as u64;
         let duration = Duration::from_nanos(rounded_ns);
