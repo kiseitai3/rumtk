@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+use std::ffi::CStr;
 use std::fmt::Display;
 use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
@@ -235,7 +236,11 @@ pub trait RUMArrayConversions {
 
 impl RUMArrayConversions for Vec<u8> {
     fn to_rumstring(&self) -> RUMString {
-        RUMString::from_utf8(&self).unwrap()
+        let stripped = match CStr::from_bytes_until_nul(&self) {
+            Ok(cstr) => cstr,
+            Err(err) => return RUMString::new(""),
+        };
+        RUMString::from_utf8(stripped.to_bytes()).unwrap()
     }
 }
 
