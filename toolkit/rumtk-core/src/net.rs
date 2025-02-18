@@ -139,11 +139,17 @@ pub mod tcp {
         }
 
         async fn run(ctx: &SafeServer) -> RUMResult<()> {
+            // Bootstrapping the main server loop.
             let mut reowned_self = ctx.read().await;
             let mut accept_handle = tokio::spawn(RUMServer::handle_accept(Arc::clone(&reowned_self.tcp_listener), Arc::clone(&reowned_self.clients)));
             let mut send_handle = tokio::spawn(RUMServer::handle_send(Arc::clone(&reowned_self.clients), Arc::clone(&reowned_self.tx_out)));
             let mut receive_handle = tokio::spawn(RUMServer::handle_receive(Arc::clone(&reowned_self.clients), Arc::clone(&reowned_self.tx_in)));
-            while !reowned_self.stop {
+            let mut stop = reowned_self.stop;
+            //Most drop here to allow the outside world to grab access to the server handle and interact with us.
+            std::mem::drop(reowned_self); //Bootstrap magic that let's the outside able to interact with our server while it runs autonomously in the background.
+            // Essentially, repeat the above but inside a scope thus automatically freeing the handle to outside access on a routine basis.
+            while !stop {
+                let mut reowned_self = ctx.read().await;
                 if accept_handle.is_finished() {
                     accept_handle = tokio::spawn(RUMServer::handle_accept(Arc::clone(&reowned_self.tcp_listener), Arc::clone(&reowned_self.clients)));
                 }
@@ -153,6 +159,7 @@ pub mod tcp {
                 if receive_handle.is_finished() {
                     receive_handle = tokio::spawn(RUMServer::handle_receive(Arc::clone(&reowned_self.clients),Arc::clone(&reowned_self.tx_in)));
                 }
+                stop = reowned_self.stop;
             }
             while !accept_handle.is_finished() || !send_handle.is_finished() || !receive_handle.is_finished() {
                 rumtk_async_sleep!(0.001);
@@ -176,7 +183,6 @@ pub mod tcp {
                         Ok(client) => client,
                         Err(e) => return (),
                     };
-                    println!("Client connected => {:?}", &client);
                     client_list.push(client);
                 }
                 Err(e) => ()
@@ -234,7 +240,6 @@ pub mod tcp {
 
         pub async fn pop_message(&mut self) -> Option<RUMNetMessage> {
             let mut queue = self.tx_in.lock().await;
-            println!("Empty queue => {}", queue.is_empty());
             queue.pop_front()
         }
     }
@@ -345,7 +350,7 @@ pub mod tcp {
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
 
-        pub fn receive(&mut self) -> Option<RUMNetMessage> {
+        pub fn receive(&mut self) -> RUMNetMessage {
             let args = rumtk_create_task_args!((Arc::clone(&mut self.server)));
             let task = rumtk_create_task!(RUMServerHandle::receive_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
@@ -359,19 +364,17 @@ pub mod tcp {
             Ok(server.push_message(client_id, msg.to_vec()).await)
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> Option<RUMNetMessage> {
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMNetMessage {
             let owned_args = Arc::clone(args).clone();
-            println!("Receiving ...");
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
             let mut server_ref = locked_args.get(0).unwrap();
             let mut server = server_ref.write().await;
             let mut msg = server.pop_message().await;
-            println!("Popped message => {}", &msg.clone().unwrap().to_rumstring());
             while msg.is_none() {
                 msg = server.pop_message().await;
             }
-            msg
+            msg.unwrap()
         }
 
         async fn start_helper(args: &SafeTaskArgs<Self::ReceiveArgs<'_>>) -> RUMResult<()> {

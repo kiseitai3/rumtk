@@ -243,6 +243,7 @@ mod tests {
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use queue::queue::*;
     use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
+    use crate::threading::threading_functions::sleep;
 
     #[test]
     fn test_queue_data() {
@@ -305,17 +306,21 @@ mod tests {
         match server.start() {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
-        }
+        };
+        println!("Sleeping");
+        rumtk_sleep!(1);
         let mut client = match rumtk_connect!(55555) {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
-        match client.send(&msg) {
+        match client.send(&msg.to_raw()) {
             Ok(_) => (),
             Err(e) => panic!("Failed to send message because {}", e),
-        }
-        let incoming_message = server.receive().expect("Failed to receive message");
-        assert_eq!(RUMString::from(incoming_message.to_rumstring()), msg, "Received message corruption!");
+        };
+        rumtk_sleep!(1);
+        let incoming_message = server.receive().to_rumstring();
+        println!("Received message => {}", &incoming_message);
+        assert_eq!(&incoming_message, msg, "Received message corruption!");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
