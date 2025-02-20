@@ -244,6 +244,12 @@ pub mod tcp {
         }
     }
 
+    ///
+    /// Handle struct containing a reference to the global Tokio runtime and an instance of
+    /// [SafeClient]. This handle allows sync codebases to interact with the async primitives built
+    /// on top of Tokio. Specifically, this handle allows wrapping of the async connect, send, and
+    /// receive methods implemented in [RUMClient].
+    ///
     pub struct RUMClientHandle {
         runtime: &'static SafeTokioRuntime,
         client: SafeClient,
@@ -307,6 +313,17 @@ pub mod tcp {
         }
     }
 
+    ///
+    /// Handle struct containing a reference to the global Tokio runtime and an instance of
+    /// [SafeServer]. This handle allows sync codebases to interact with the async primitives built
+    /// on top of Tokio. Specifically, this handle allows wrapping of the async bind, send,
+    /// receive, and start methods implemented in [RUMServer]. In addition, this handle allows
+    /// spinning a server in a fully non-blocking manner. Meaning, you can call start, which will
+    /// immediately return after queueing the task in the tokio queue. You can then query the server
+    /// for incoming data or submit your own data while the server is operating in the background.
+    /// The server can be handling incoming data at the "same" time you are trying to queue your
+    /// own message.
+    ///
     pub struct RUMServerHandle {
         runtime: &'static SafeTokioRuntime,
         server: SafeServer,
@@ -316,14 +333,28 @@ pub mod tcp {
         type SendArgs<'a, 'b, 'c> = (SafeServer, RUMString, RUMNetMessage);
         type ReceiveArgs<'a> = SafeServer;
 
+        ///
+        /// Constructs a [RUMServerHandle] using the detected number of parallel units/threads on
+        /// this machine. This method automatically binds to IP 0.0.0.0. Meaning, your server may
+        /// become visible to the outside world.
+        ///
         pub fn default(port: u16) -> RUMResult<RUMServerHandle> {
             RUMServerHandle::new("0.0.0.0", port, get_default_system_thread_count())
         }
 
+        ///
+        /// Constructs a [RUMServerHandle] using the detected number of parallel units/threads on
+        /// this machine. This method automatically binds to **localhost**. Meaning, your server
+        /// remains private in your machine.
+        ///
         pub fn default_local(port: u16) -> RUMResult<RUMServerHandle> {
             RUMServerHandle::new("localhost", port, get_default_system_thread_count())
         }
 
+        ///
+        /// General purpose constructor for [RUMServerHandle]. It takes an ip and port and binds it.
+        /// You can also control how many threads are spawned under the hood for this server handle.
+        ///
         pub fn new(ip: &str, port: u16, threads: usize) -> RUMResult<RUMServerHandle> {
             let runtime = rumtk_init_threads!(&threads);
             let con: ConnectionInfo = (RUMString::from(ip), port);
@@ -332,10 +363,19 @@ pub mod tcp {
             Ok(RUMServerHandle{server: Arc::new(AsyncRwLock::new(server)), runtime})
         }
 
-        pub fn start(&mut self) -> RUMResult<()> {
+        ///
+        /// Starts the main processing loop for the server. This processing loop listens for new
+        /// clients in a non-blocking manner and checks for incoming data and data that must be
+        /// shipped to clients. You can start the server in a blocking and non_blocking manner.
+        ///
+        pub fn start(&mut self, blocking: bool) -> RUMResult<()> {
             let args = rumtk_create_task_args!(Arc::clone(&mut self.server));
             let task = rumtk_create_task!(RUMServerHandle::start_helper, args);
-            rumtk_spawn_task!(&self.runtime, task);
+            if blocking {
+                rumtk_resolve_task!(&self.runtime, task);
+            } else {
+                rumtk_spawn_task!(&self.runtime, task);
+            }
             Ok(())
         }
 
@@ -423,6 +463,16 @@ pub mod tcp_macros {
         ( $ip:expr, $port:expr, $threads:expr ) => {{
             use $crate::net::tcp::{RUMServerHandle};
             RUMServerHandle::new($ip, $port, $threads)
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_start_server {
+        ( $server:expr ) => {{
+            $server.start(false)
+        }};
+        ( $server:expr, $blocking:expr ) => {{
+            $server.start($blocking)
         }};
     }
 

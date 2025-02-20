@@ -22,7 +22,7 @@ communication and automation in medicine.
     - [x] String Encodings to UTF-8 Support
     - [x] RegEx Support
     - [x] Memory Cache Support
-    - [ ] Network Core library
+    - [x] Network Core library
     - [ ] Cryptologic Adapters
     - [ ] Commandline Standard Argument Interface
     - [ ] Enable STDIN|Pipe Functionality
