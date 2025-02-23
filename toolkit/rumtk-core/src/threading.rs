@@ -18,6 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+///
+/// This module provides all of the primitives needed to build a multithreaded application.
+///
 pub mod thread_primitives {
     use std::future::{Future, IntoFuture};
     use std::pin::Pin;
@@ -58,6 +61,12 @@ pub mod thread_primitives {
     //pub type TaskProcessor<T, R, Fut: Future<Output = TaskResult<R>>> = impl FnOnce(&SafeTaskArgs<T>) -> Fut;
 }
 
+///
+/// This module contains a few helper.
+///
+/// For example, you can find a function for determining number of threads available in system.
+/// The sleep family of functions are also here.
+///
 pub mod threading_functions {
     use std::time::Duration;
     use std::thread::{available_parallelism, sleep as std_sleep};
@@ -97,9 +106,52 @@ pub mod threading_functions {
     }
 }
 
+///
+/// Main API for interacting with the threading back end. Remember, we use tokio as our executor.
+/// This means that by default, all jobs sent to the thread pool have to be async in nature.
+/// These macros make handling of these jobs at the sync/async boundary more convenient.
+///
 pub mod threading_macros {
-    use crate::threading::thread_primitives::TaskResult;
+    use crate::threading::thread_primitives;
 
+    ///
+    /// First, let's make sure we have *tokio* initialized at least once. The runtime created here
+    /// will be saved to the global context so the next call to this macro will simply grab a
+    /// reference to the previously initialized runtime.
+    ///
+    /// Passing nothing will default to initializing a runtime using the default number of threads
+    /// for this system. This is typically equivalent to number of cores/threads for your CPU.
+    ///
+    /// Passing `threads` number will yield a runtime that allocates that many threads.
+    ///
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///
+    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
+    ///         i
+    ///     }
+    ///
+    ///     let rt = rumtk_init_threads!();                         // Creates runtime instance
+    ///     let args = rumtk_create_task_args!(1);                  // Creates a vector of i32s
+    ///     let task = rumtk_create_task!(test, args);              // Creates a standard task which consists of a function or closure accepting a Vec<T>
+    ///     rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task))  // Spawn's task and waits for it to conclude.
+    /// ```
+    ///
+    /// ```no_run
+    ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///
+    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
+    ///         i
+    ///     }
+    ///
+    ///     let rt = rumtk_init_threads!(10);
+    ///     let args = rumtk_create_task_args!(1);
+    ///     let task = rumtk_create_task!(test, args);
+    ///     rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task))
+    /// ```
     #[macro_export]
     macro_rules! rumtk_init_threads {
         ( ) => {{
@@ -117,6 +169,14 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// Puts task onto the runtime queue.
+    ///
+    /// The parameters to this macro are a reference to the runtime (`rt`) and a future (`func`).
+    ///
+    /// The return is a [thread_primitives::JoinHandle<T>] instance. If the task was a standard
+    /// framework task, you will get [thread_primitives::AsyncTaskHandle] instead.
+    ///
     #[macro_export]
     macro_rules! rumtk_spawn_task {
         ( $rt:expr, $func:expr ) => {{
@@ -124,6 +184,15 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// Using the initialized runtime, wait for the future to resolve in a thread blocking manner!
+    ///
+    /// If you pass a reference to the runtime (`rt`) and an async closure (`func`), we await the
+    /// async closure without passing any arguments.
+    ///
+    /// You can pass a third argument to this macro in the form of any number of arguments (`arg_item`).
+    /// In such a case, we pass those arguments to the call on the async closure and await on results.
+    ///
     #[macro_export]
     macro_rules! rumtk_wait_on_task {
         ( $rt:expr, $func:expr ) => {{
@@ -138,6 +207,28 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// This macro awaits a future.
+    ///
+    /// The arguments are a reference to the runtime (`rt) and a future.
+    ///
+    /// If there is a result, you will get the result of the future.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///
+    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
+    ///         i
+    ///     }
+    ///
+    ///     let rt = rumtk_init_threads!();
+    ///     let args = rumtk_create_task_args!(1);
+    ///     let task = rumtk_create_task!(test, args);
+    ///     rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task));
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_resolve_task {
         ( $rt:expr, $future:expr ) => {{
@@ -147,6 +238,9 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// This macro creates an async body that calls the async closure and awaits it.
+    ///
     #[macro_export]
     macro_rules! rumtk_create_task {
         ( $func:expr, $args:expr ) => {{
@@ -157,6 +251,13 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// Creates an instance of [SafeTaskArgs] with the arguments passed.
+    ///
+    /// ## Note
+    ///
+    /// All arguments must be of the same type
+    ///
     #[macro_export]
     macro_rules! rumtk_create_task_args {
         ( $($args:expr),+ ) => {{
@@ -166,6 +267,23 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// Sleep a duration of time in a sync context, so no await can be call on the result.
+    ///
+    /// You can pass any value that can be cast to f32.
+    ///
+    /// The precision is up to nanoseconds and it is depicted by the number of decimal places.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    ///     use rumtk_core::rumtk_sleep;
+    ///     rumtk_sleep!(1);           // Sleeps for 1 second.
+    ///     rumtk_sleep!(0.001);       // Sleeps for 1 millisecond
+    ///     rumtk_sleep!(0.000001);    // Sleeps for 1 microsecond
+    ///     rumtk_sleep!(0.000000001); // Sleeps for 1 nanosecond
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_sleep {
         ( $dur:expr) => {{
@@ -174,6 +292,23 @@ pub mod threading_macros {
         }};
     }
 
+    ///
+    /// Sleep for some duration of time in an async context. Meaning, we can be awaited.
+    ///
+    /// You can pass any value that can be cast to f32.
+    ///
+    /// The precision is up to nanoseconds and it is depicted by the number of decimal places.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    ///     use rumtk_core::rumtk_async_sleep;
+    ///     rumtk_async_sleep!(1).await;           // Sleeps for 1 second.
+    ///     rumtk_async_sleep!(0.001).await;       // Sleeps for 1 millisecond
+    ///     rumtk_async_sleep!(0.000001).await;    // Sleeps for 1 microsecond
+    ///     rumtk_async_sleep!(0.000000001).await; // Sleeps for 1 nanosecond
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_async_sleep {
         ( $dur:expr) => {{
