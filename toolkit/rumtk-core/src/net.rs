@@ -244,6 +244,9 @@ pub mod tcp {
         ///
         /// This method signals the server to stop.
         ///
+        /// Then, this method waits for run to cleanup before exiting.
+        /// Meaning, this method's exit is enough to signal everything went through smoothly.
+        ///
         async fn stop_server(ctx: &SafeServer) -> RUMResult<RUMString> {
             println!("Attempting to stop server!");
             let mut reowned_self = ctx.write().await;
