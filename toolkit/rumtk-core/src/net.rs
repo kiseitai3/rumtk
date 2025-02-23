@@ -48,6 +48,7 @@ pub mod tcp {
 
 
     pub type RUMNetMessage = Vec<u8>;
+    pub type ReceivedRUMNetMessage = (RUMString, RUMNetMessage);
     type RUMNetPartialMessage = (RUMNetMessage, bool);
     pub type ConnectionInfo = (RUMString, u16);
 
@@ -167,7 +168,7 @@ pub mod tcp {
     ///
     pub struct RUMServer {
         tcp_listener: SafeListener,
-        tx_in: SafeQueue<RUMNetMessage>,
+        tx_in: SafeQueue<ReceivedRUMNetMessage>,
         tx_out: SafeMappedQueues,
         clients: SafeClients,
         stop: bool,
@@ -185,7 +186,7 @@ pub mod tcp {
                 Ok(listener) => listener,
                 Err(e) => return Err(format_compact!("Unable to bind to {} because {}", &addr.as_str(), &e)),
             };
-            let tx_in = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+            let tx_in = SafeQueue::<ReceivedRUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
             let tx_out = SafeMappedQueues::new(AsyncMutex::new(HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new()));
             let clients = SafeClients::new(AsyncMutex::new(Vec::new()));
             let tcp_listener = Arc::new(AsyncMutex::new(tcp_listener_handle));
@@ -295,14 +296,14 @@ pub mod tcp {
         /// Contains the logic for handling receiving messages from clients. Incoming messages are
         /// all placed into a queue that the "outside" world can interact with.
         ///
-        async fn handle_receive(clients: SafeClients, tx_in: SafeQueue<RUMNetMessage>) {
+        async fn handle_receive(clients: SafeClients, tx_in: SafeQueue<ReceivedRUMNetMessage>) {
             let mut client_list = clients.lock().await;
             for mut client in client_list.iter_mut() {
                 let ready = client.read_ready().await;
                 if ready {
                     let msg = client.recv().await.unwrap();
                     let mut queue = tx_in.lock().await;
-                    queue.push_back(msg);
+                    queue.push_back((client.get_address().await, msg));
                 }
             }
         }
@@ -314,7 +315,7 @@ pub mod tcp {
             let clients = self.clients.lock().await;
             let mut client_ids = ClientList::with_capacity(clients.len());
             for c in clients.iter() {
-                client_ids.push(c.get_address());
+                client_ids.push(c.get_address().await);
             }
             client_ids
         }
@@ -335,7 +336,7 @@ pub mod tcp {
         ///
         /// Obtain a message, if available, from the incoming queue.
         ///
-        pub async fn pop_message(&mut self) -> Option<RUMNetMessage> {
+        pub async fn pop_message(&mut self) -> Option<ReceivedRUMNetMessage> {
             let mut queue = self.tx_in.lock().await;
             queue.pop_front()
         }
@@ -502,8 +503,9 @@ pub mod tcp {
 
         ///
         /// Sync API method for obtaining a single message from the server's incoming queue.
+        /// Returns the next available [ReceivedRUMNetMessage]
         ///
-        pub fn receive(&mut self) -> RUMNetMessage {
+        pub fn receive(&mut self) -> ReceivedRUMNetMessage {
             let args = rumtk_create_task_args!((Arc::clone(&mut self.server)));
             let task = rumtk_create_task!(RUMServerHandle::receive_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
@@ -526,7 +528,7 @@ pub mod tcp {
             Ok(server.push_message(client_id, msg.to_vec()).await)
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMNetMessage {
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> ReceivedRUMNetMessage {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
@@ -573,7 +575,7 @@ pub mod tcp {
             let locked_args = lock_future.await;
             let server_ref = locked_args.get(0).unwrap();
             let server = server_ref.write().await;
-            server.get_clients()
+            server.get_clients().await
         }
     }
 }
