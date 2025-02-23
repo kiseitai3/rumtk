@@ -111,6 +111,7 @@ pub mod tcp {
             }
         }
 
+        /// Check if socket is ready for reading.
         pub async fn read_ready(&self) -> bool {
             match self.socket.readable().await {
                 Ok(_) => true,
@@ -118,17 +119,24 @@ pub mod tcp {
             }
         }
 
+        /// Check if socket is ready for writing.
         pub async fn write_ready(&self) -> bool {
             match self.socket.writable().await {
                 Ok(_) => true,
                 Err(_) => false,
             }
         }
+
+        /// Returns the peer address:port as a string.
+        pub async fn get_address(&self) -> RUMString {
+            self.socket.peer_addr().unwrap().to_compact_string()
+        }
     }
 
-    pub type ClientList = Vec<RUMClient>;
+    /// List of client IDs that you can interact with.
+    pub type ClientList = Vec<RUMString>;
     type SafeQueue<T> = Arc<AsyncMutex<VecDeque<T>>>;
-    type SafeClients = Arc<AsyncMutex<ClientList>>;
+    type SafeClients = Arc<AsyncMutex<Vec<RUMClient>>>;
     type SafeMappedQueues = Arc<AsyncMutex<HashMap<RUMString, SafeQueue<RUMNetMessage>>>>;
     pub type SafeListener = Arc<AsyncMutex<TcpListener>>;
     pub type SafeServer = Arc<AsyncRwLock<RUMServer>>;
@@ -258,7 +266,7 @@ pub mod tcp {
             for mut client in client_list.iter_mut() {
                 let ready = client.write_ready().await;
                 if ready {
-                    let addr = client.socket.peer_addr().unwrap().to_compact_string();
+                    let addr = client.get_address().await;
                     let mut queues = tx_out.lock().await;
                     let mut queue = match queues.get_mut(&addr) {
                         Some(queue) => queue,
@@ -297,7 +305,11 @@ pub mod tcp {
         ///
         pub async fn get_clients(&self) -> ClientList {
             let clients = self.clients.lock().await;
-            ClientList::from(clients.iter())
+            let mut client_ids = ClientList::with_capacity(clients.len());
+            for c in clients.iter() {
+                client_ids.push(c.get_address());
+            }
+            client_ids
         }
 
         ///
@@ -335,7 +347,7 @@ pub mod tcp {
 
     impl RUMClientHandle {
         type SendArgs<'a> = (SafeClient, &'a RUMNetMessage);
-        type ReceiveArgs<> = SafeClient;
+        type ReceiveArgs = SafeClient;
 
         pub fn connect(ip: &str, port: u16) -> RUMResult<RUMClientHandle> {
             RUMClientHandle::new(ip, port)
