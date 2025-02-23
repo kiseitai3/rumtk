@@ -17,6 +17,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+///
+/// This module provides the basic types necessary to be able to handle connections and message
+/// transmission in both synchronous and asynchronous contexts.
+///
+/// The types here should simplify implementation of higher level layers and protocols.
+///
 pub mod tcp {
     use std::collections::VecDeque;
     use std::ffi::CStr;
@@ -571,8 +578,28 @@ pub mod tcp {
     }
 }
 
+///
+/// This module provides the preferred API for interacting and simplifying work with the [tcp]
+/// module's primitives.
+///
+/// The API here is defined in the form of macros!
+///
 pub mod tcp_macros {
+    use crate::net::tcp;
 
+    ///
+    /// Macro for creating a server instance.
+    ///
+    /// If a `port` is passed, we return the default configured [tcp::RUMServerHandle] instance
+    /// exposed to the world on all interfaces.
+    ///
+    /// If an `ip` and `port` is passed, we create an instance of [tcp::RUMServerHandle] bound
+    /// to that ip/port combo using the default number of threads on the system which should match
+    /// roughly to the number of cores/threads.
+    ///
+    /// Alternatively, you can pass the `ip`, `port`, and `threads`. In such a case, the constructed
+    /// [tcp::RUMServerHandle] will use only the number of threads requested.
+    ///
     #[macro_export]
     macro_rules! rumtk_create_server {
         ( $port:expr ) => {{
@@ -590,6 +617,16 @@ pub mod tcp_macros {
         }};
     }
 
+    ///
+    /// Macro for starting the server. When a server is created, it does not start accepting clients
+    /// right away. You need to call this macro to do that or call [tcp::RUMServerHandle::start]
+    /// directly.
+    ///
+    /// The only argument that we expect is the `blocking` argument. If `blocking` is requested,
+    /// calling this macro will block the calling thread. By default, we start the server in
+    /// non-blocking mode so that you can do other actions in the calling thread like queueing
+    /// messages.
+    ///
     #[macro_export]
     macro_rules! rumtk_start_server {
         ( $server:expr ) => {{
@@ -600,6 +637,16 @@ pub mod tcp_macros {
         }};
     }
 
+    ///
+    /// This macro is a convenience macro that allows you to establish a connection to an endpoint.
+    /// It creates and instance of [tcp::RUMClientHandle].
+    ///
+    /// If you only pass the `port`, we will connect to a server in *localhost* listening at that
+    /// port.
+    ///
+    /// If you pass both `ip` and `port`, we will connect to a server listening at that ip/port
+    /// combo.
+    ///
     #[macro_export]
     macro_rules! rumtk_connect {
         ( $port:expr ) => {{
