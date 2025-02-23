@@ -45,12 +45,19 @@ pub mod tcp {
     pub type ConnectionInfo = (RUMString, u16);
 
 
+    ///
+    /// This structs encapsulates the [tokio::net::TcpStream] instance that will be our adapter
+    /// for connecting and sending messages to a peer or server.
+    ///
     #[derive(Debug)]
     pub struct RUMClient {
         socket: TcpStream
     }
 
     impl RUMClient {
+        ///
+        /// Connect to peer and construct the client.
+        ///
         pub async fn connect(ip: &str, port: u16) -> RUMResult<RUMClient> {
             let addr = format_compact!("{}:{}", ip, port);
             match TcpStream::connect(addr.as_str()).await {
@@ -61,10 +68,17 @@ pub mod tcp {
             }
         }
 
+        ///
+        /// If a connection was already pre-established elsewhere, construct our client with the
+        /// connected socket.
+        ///
         pub async fn accept(socket: TcpStream) -> RUMResult<RUMClient> {
             Ok(RUMClient{socket})
         }
 
+        ///
+        /// Send message to server.
+        ///
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
@@ -72,6 +86,10 @@ pub mod tcp {
             }
         }
 
+        ///
+        /// Receive message from server. This method will make calls to [RUMClient::recv_some]
+        /// indefinitely until we have the full message or stop receiving any data.
+        ///
         pub async fn recv(&mut self) -> RUMResult<RUMNetMessage> {
             let mut msg = RUMNetMessage::new();
             loop {
