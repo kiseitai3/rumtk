@@ -230,20 +230,36 @@ pub mod tcp {
                 }
                 stop = reowned_self.stop;
             }
-            while !accept_handle.is_finished() || !send_handle.is_finished() || !receive_handle.is_finished() {
-                rumtk_async_sleep!(0.001);
-            }
             println!("Shutting down server!");
+            while !send_handle.is_finished() || !receive_handle.is_finished() {
+                rumtk_async_sleep!(0.001).await;
+            }
+            // Cleanup; signal to the outside world we did finished shutting down and exit execution.
+            let mut reowned_self = ctx.write().await;
+            reowned_self.shutdown_completed = true;
+            println!("Server successfully shut down!");
             Ok(())
         }
 
         ///
         /// This method signals the server to stop.
         ///
-        async fn stop_server(&mut self) -> RUMResult<RUMString> {
-            self.stop = true;
-            while !self.shutdown_completed {}
-            Ok(format_compact!("Server shutdown..."))
+        async fn stop_server(ctx: &SafeServer) -> RUMResult<RUMString> {
+            println!("Attempting to stop server!");
+            let mut reowned_self = ctx.write().await;
+            let mut shutdown_completed = reowned_self.shutdown_completed;
+            reowned_self.stop = true;
+            std::mem::drop(reowned_self);
+
+            // Same trick as run's. We can now opportunistically check if the server exited while
+            // safely holding the calling thread hostage.
+            while !shutdown_completed {
+                rumtk_async_sleep!(0.001).await;
+                let mut reowned_self = ctx.read().await;
+                shutdown_completed = reowned_self.shutdown_completed;
+            }
+
+            Ok(format_compact!("Server fully shutdown!"))
         }
 
         ///
@@ -553,9 +569,8 @@ pub mod tcp {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
-            let mut server_ref = locked_args.get(0).unwrap();
-            let mut server = server_ref.write().await;
-            server.stop_server().await
+            let server_ref = locked_args.get(0).unwrap();
+            RUMServer::stop_server(server_ref).await
         }
 
         async fn new_helper(args: &SafeTaskArgs<ConnectionInfo>) -> TaskResult<RUMServer> {

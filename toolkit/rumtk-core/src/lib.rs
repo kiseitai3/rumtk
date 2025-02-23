@@ -340,14 +340,6 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to stop server because {}", e),
         };
-        let mut client = match rumtk_connect!(55555) {
-            Ok(client) => client,
-            Err(e) => panic!("Failed to create server because {}", e),
-        };
-        match client.send(&msg.to_raw()) {
-            Ok(_) => (),
-            Err(e) => panic!("Failed to send message because {}", e),
-        };
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
