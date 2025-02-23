@@ -290,7 +290,7 @@ mod tests {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
-        match server.start() {
+        match server.start(false) {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         }
@@ -303,7 +303,7 @@ mod tests {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
-        match server.start() {
+        match server.start(false) {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         };
@@ -318,9 +318,36 @@ mod tests {
             Err(e) => panic!("Failed to send message because {}", e),
         };
         rumtk_sleep!(1);
-        let incoming_message = server.receive().to_rumstring();
-        println!("Received message => {}", &incoming_message);
-        assert_eq!(&incoming_message, msg, "Received message corruption!");
+        let incoming_message = server.receive();
+        println!("Received message => {:?}", &incoming_message);
+        assert_eq!(&incoming_message.1.to_rumstring(), msg, "Received message corruption!");
+    }
+
+    #[test]
+    fn test_server_stop() {
+        let msg = RUMString::from("Hello World!");
+        let mut server = match rumtk_create_server!("localhost", 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start(false) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        };
+        println!("Sleeping");
+        rumtk_sleep!(1);
+        match server.stop() {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to stop server because {}", e),
+        };
+        let mut client = match rumtk_connect!(55555) {
+            Ok(client) => client,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match client.send(&msg.to_raw()) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to send message because {}", e),
+        };
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
