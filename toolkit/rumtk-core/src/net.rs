@@ -342,14 +342,14 @@ pub mod tcp {
         ///
         /// Queues a message onto the server to send to client.
         ///
-        pub async fn push_message(&mut self, client_id: &RUMString, msg: RUMNetMessage) {
+        pub async fn push_message(&mut self, client_id: &RUMString, msg: &RUMNetMessage) {
             let mut queue = self.tx_out.lock().await;
             if !queue.contains_key(client_id) {
                 let new_queue = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
                 queue.insert(client_id.clone(), new_queue);
             }
             let mut queue = queue[client_id].lock().await;
-            queue.push_back(msg);
+            queue.push_back(msg.clone());
         }
 
         ///
@@ -454,7 +454,7 @@ pub mod tcp {
     }
 
     impl RUMServerHandle {
-        type SendArgs = (SafeServer, RUMString, RUMNetMessage);
+        type SendArgs<'a> = (SafeServer, RUMString, &'a RUMNetMessage);
         type ReceiveArgs = SafeServer;
 
         ///
@@ -514,7 +514,7 @@ pub mod tcp {
         ///
         /// Sync API method for queueing a message to send a client on the server.
         ///
-        pub fn send(&mut self, client_id: &RUMString, msg: RUMNetMessage) -> RUMResult<()> {
+        pub fn send(&mut self, client_id: &RUMString, msg: &RUMNetMessage) -> RUMResult<()> {
             let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone(), msg));
             let task = rumtk_create_task!(RUMServerHandle::send_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
@@ -544,7 +544,7 @@ pub mod tcp {
             let locked_args = owned_args.read().await;
             let (server_ref, client_id, msg) = locked_args.get(0).unwrap();
             let mut server = server_ref.write().await;
-            Ok(server.push_message(client_id, msg.to_vec()).await)
+            Ok(server.push_message(client_id, msg).await)
         }
 
         async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> ReceivedRUMNetMessage {
