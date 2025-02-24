@@ -320,7 +320,7 @@ mod tests {
         rumtk_sleep!(1);
         let incoming_message = server.receive();
         println!("Received message => {:?}", &incoming_message);
-        assert_eq!(&incoming_message.1.to_rumstring(), msg, "Received message corruption!");
+        assert_eq!(&incoming_message.unwrap().1.to_rumstring(), msg, "Received message corruption!");
     }
 
     #[test]
