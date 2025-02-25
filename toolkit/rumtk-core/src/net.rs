@@ -46,6 +46,11 @@ pub mod tcp {
 
     const MESSAGE_BUFFER_SIZE: usize = 1024;
 
+    /// Convenience constant to localhost
+    pub const LOCALHOST: &str = "127.0.0.1";
+    /// Convenience constant for the `0.0.0.0` address. This is to be used in contexts in which you do not have any interface preference.
+    pub const ANYHOST: &str = "0.0.0.0";
+
 
     pub type RUMNetMessage = Vec<u8>;
     pub type ReceivedRUMNetMessage = (RUMString, RUMNetMessage);
@@ -478,7 +483,7 @@ pub mod tcp {
         /// become visible to the outside world.
         ///
         pub fn default(port: u16) -> RUMResult<RUMServerHandle> {
-            RUMServerHandle::new("0.0.0.0", port, get_default_system_thread_count())
+            RUMServerHandle::new(ANYHOST, port, get_default_system_thread_count())
         }
 
         ///
@@ -487,7 +492,7 @@ pub mod tcp {
         /// remains private in your machine.
         ///
         pub fn default_local(port: u16) -> RUMResult<RUMServerHandle> {
-            RUMServerHandle::new("localhost", port, get_default_system_thread_count())
+            RUMServerHandle::new(LOCALHOST, port, get_default_system_thread_count())
         }
 
         ///
@@ -621,6 +626,7 @@ pub mod tcp {
 ///
 pub mod tcp_macros {
     use crate::net::tcp;
+    use crate::net::tcp::LOCALHOST;
 
     ///
     /// Macro for creating a server instance.
@@ -685,8 +691,8 @@ pub mod tcp_macros {
     #[macro_export]
     macro_rules! rumtk_connect {
         ( $port:expr ) => {{
-            use $crate::net::tcp::{RUMClientHandle};
-            RUMClientHandle::connect("localhost", $port)
+            use $crate::net::tcp::{RUMClientHandle, LOCALHOST};
+            RUMClientHandle::connect(LOCALHOST, $port)
         }};
         ( $ip:expr, $port:expr ) => {{
             use $crate::net::tcp::{RUMClientHandle};
