@@ -642,7 +642,7 @@ pub mod tcp_macros {
             RUMServerHandle::default($port)
         }};
         ( $ip:expr, $port:expr ) => {{
-            use crate::threading::threading_functions::get_default_system_thread_count;
+            use $crate::threading::threading_functions::get_default_system_thread_count;
             use $crate::net::tcp::{RUMServerHandle};
             RUMServerHandle::new($ip, $port, get_default_system_thread_count())
         }};
