@@ -510,7 +510,7 @@ pub mod v2_parser {
         }
 
         pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
-            let index = rum_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
+            let index = rumtk_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
             let segment = self.get(&index.segment, index.segment_group as usize)?;
             let field = match segment.get(index.field as isize)?.get((index.field_group - 1) as usize) {
                 Some(field) => field,
