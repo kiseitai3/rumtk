@@ -141,8 +141,11 @@ pub mod tcp {
         }
 
         /// Returns the peer address:port as a string.
-        pub async fn get_address(&self) -> RUMString {
-            self.socket.peer_addr().unwrap().to_compact_string()
+        pub async fn get_address(&self, local: bool) -> RUMString {
+            match local {
+                true  => self.socket.local_addr().unwrap().to_compact_string(),
+                false => self.socket.peer_addr().unwrap().to_compact_string()
+            }
         }
     }
 
@@ -173,7 +176,7 @@ pub mod tcp {
     ///
     pub struct RUMServer {
         tcp_listener: SafeListener,
-        tx_in: SafeQueue<ReceivedRUMNetMessage>,
+        tx_in: SafeMappedQueues,
         tx_out: SafeMappedQueues,
         clients: SafeClients,
         stop: bool,
@@ -191,7 +194,7 @@ pub mod tcp {
                 Ok(listener) => listener,
                 Err(e) => return Err(format_compact!("Unable to bind to {} because {}", &addr.as_str(), &e)),
             };
-            let tx_in = SafeQueue::<ReceivedRUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+            let tx_in = SafeMappedQueues::new(AsyncMutex::new(HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new()));
             let tx_out = SafeMappedQueues::new(AsyncMutex::new(HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new()));
             let clients = SafeClients::new(AsyncMutex::new(Vec::new()));
             let tcp_listener = Arc::new(AsyncMutex::new(tcp_listener_handle));
@@ -298,7 +301,7 @@ pub mod tcp {
             for mut client in client_list.iter_mut() {
                 let ready = client.write_ready().await;
                 if ready {
-                    let addr = client.get_address().await;
+                    let addr = client.get_address(false).await;
                     let mut queues = tx_out.lock().await;
                     let mut queue = match queues.get_mut(&addr) {
                         Some(queue) => queue,
@@ -320,14 +323,24 @@ pub mod tcp {
         /// Contains the logic for handling receiving messages from clients. Incoming messages are
         /// all placed into a queue that the "outside" world can interact with.
         ///
-        async fn handle_receive(clients: SafeClients, tx_in: SafeQueue<ReceivedRUMNetMessage>) {
+        async fn handle_receive(clients: SafeClients, tx_in: SafeMappedQueues) {
             let mut client_list = clients.lock().await;
             for mut client in client_list.iter_mut() {
                 let ready = client.read_ready().await;
                 if ready {
+                    let addr = client.get_address(false).await;
+                    let mut queues = tx_in.lock().await;
+                    let mut queue = match queues.get_mut(&addr) {
+                        Some(queue) => queue,
+                        None => {
+                            let new_queue = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+                            queues.insert(addr.clone(), new_queue);
+                            queues.get_mut(&addr).unwrap()
+                        },
+                    };
+                    let mut locked_queue = queue.lock().await;
                     let msg = client.recv().await.unwrap();
-                    let mut queue = tx_in.lock().await;
-                    queue.push_back((client.get_address().await, msg));
+                    locked_queue.push_back(msg);
                 }
             }
         }
@@ -339,7 +352,7 @@ pub mod tcp {
             let clients = self.clients.lock().await;
             let mut client_ids = ClientList::with_capacity(clients.len());
             for c in clients.iter() {
-                client_ids.push(c.get_address().await);
+                client_ids.push(c.get_address(false).await);
             }
             client_ids
         }
@@ -360,9 +373,14 @@ pub mod tcp {
         ///
         /// Obtain a message, if available, from the incoming queue.
         ///
-        pub async fn pop_message(&mut self) -> Option<ReceivedRUMNetMessage> {
-            let mut queue = self.tx_in.lock().await;
-            queue.pop_front()
+        pub async fn pop_message(&mut self, client_id: &RUMString) -> Option<RUMNetMessage> {
+            let mut queues = self.tx_in.lock().await;
+            let mut queue = match queues.get_mut(client_id) {
+                Some(queue) => queue,
+                None => return Some(vec![]),
+            };
+            let mut locked_queue = queue.lock().await;
+            locked_queue.pop_front()
         }
     }
 
@@ -449,11 +467,10 @@ pub mod tcp {
         }
         async fn get_address_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMString {
             let owned_args = Arc::clone(args).clone();
-            let lock_future = owned_args.read();
-            let locked_args = lock_future.await;
-            let mut client_ref = locked_args.get(0).unwrap();
+            let locked_args = owned_args.read().await;
+            let client_ref = locked_args.get(0).unwrap();
             let mut client = client_ref.lock().await;
-            client.get_address().await
+            client.get_address(true).await
         }
     }
 
@@ -475,7 +492,8 @@ pub mod tcp {
 
     impl RUMServerHandle {
         type SendArgs = (SafeServer, RUMString, RUMNetMessage);
-        type ReceiveArgs = SafeServer;
+        type ReceiveArgs = (SafeServer, RUMString);
+        type SelfArgs = SafeServer;
 
         ///
         /// Constructs a [RUMServerHandle] using the detected number of parallel units/threads on
@@ -542,10 +560,10 @@ pub mod tcp {
 
         ///
         /// Sync API method for obtaining a single message from the server's incoming queue.
-        /// Returns the next available [ReceivedRUMNetMessage]
+        /// Returns the next available [RUMNetMessage]
         ///
-        pub fn receive(&mut self) -> RUMResult<ReceivedRUMNetMessage> {
-            let args = rumtk_create_task_args!((Arc::clone(&mut self.server)));
+        pub fn receive(&mut self, client_id: &RUMString) -> RUMResult<RUMNetMessage> {
+            let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone()));
             let task = rumtk_create_task!(RUMServerHandle::receive_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
@@ -567,20 +585,22 @@ pub mod tcp {
             Ok(server.push_message(client_id, msg.clone()).await)
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<ReceivedRUMNetMessage> {
+        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<RUMNetMessage> {
             let owned_args = Arc::clone(args).clone();
-            let lock_future = owned_args.read();
-            let locked_args = lock_future.await;
-            let mut server_ref = locked_args.get(0).unwrap();
+            let locked_args = owned_args.read().await;
+            let (server_ref, client_id) = locked_args.get(0).unwrap();
             let mut server = server_ref.write().await;
-            let mut msg = server.pop_message().await;
+            let mut msg = server.pop_message(&client_id).await;
+            std::mem::drop(server);
+
             while msg.is_none() {
-                msg = server.pop_message().await;
+                let mut server = server_ref.write().await;
+                msg = server.pop_message(&client_id).await;
             }
             Ok(msg.unwrap())
         }
 
-        async fn start_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<()> {
+        async fn start_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> RUMResult<()> {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
@@ -588,7 +608,7 @@ pub mod tcp {
             RUMServer::run(&server_ref).await
         }
 
-        async fn stop_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<RUMString> {
+        async fn stop_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> RUMResult<RUMString> {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
@@ -607,12 +627,12 @@ pub mod tcp {
             Ok(vec![RUMServer::new(ip, *port).await?])
         }
 
-        async fn get_clients_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> ClientList {
+        async fn get_clients_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> ClientList {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
             let server_ref = locked_args.get(0).unwrap();
-            let server = server_ref.write().await;
+            let server = server_ref.read().await;
             server.get_clients().await
         }
     }
