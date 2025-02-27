@@ -250,13 +250,13 @@ pub mod mllp_v2 {
             }
         }
 
-        pub fn receive_message(&mut self) -> RUMResult<ReceivedRUMNetMessage> {
+        pub fn receive_message(&mut self, client_id: &RUMString) -> RUMResult<RUMNetMessage> {
             match *self {
                 LowerLayer::SERVER(ref mut server) => {
-                    server.receive()
+                    server.receive(client_id)
                 },
                 LowerLayer::CLIENT(ref mut client) => {
-                    Ok((client.get_address(), client.receive()?))
+                    Ok(client.receive()?)
                 }
             }
         }
@@ -273,22 +273,29 @@ pub mod mllp_v2 {
         }
     }
 
+    pub enum MLLP_FILTER_POLICY {
+        NONE = 0,
+        ESCAPE_INPUT = 1,
+        FILTER_INPUT = 2,
+    }
+
     pub type SafeLowerLayer = Arc<Mutex<LowerLayer>>;
     pub type GuardedLowerLayer<'a> = LockResult<MutexGuard<'a, LowerLayer>>;
 
     pub struct MLLP {
-        transport_layer: SafeLowerLayer
+        transport_layer: SafeLowerLayer,
+        filter_policy: MLLP_FILTER_POLICY,
     }
 
     impl MLLP {
-        pub fn net(port: u16, send_channel: bool) -> RUMResult<MLLP> {
-            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(ANYHOST, port, !send_channel)?))})
+        pub fn net(port: u16, filter_policy: MLLP_FILTER_POLICY, send_channel: bool) -> RUMResult<MLLP> {
+            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(ANYHOST, port, !send_channel)?)), filter_policy})
         }
-        pub fn local(port: u16, send_channel: bool) -> RUMResult<MLLP> {
-            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(LOCALHOST, port, !send_channel)?))})
+        pub fn local(port: u16, filter_policy: MLLP_FILTER_POLICY, send_channel: bool) -> RUMResult<MLLP> {
+            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(LOCALHOST, port, !send_channel)?)), filter_policy})
         }
-        pub fn new(ip: &str, port: u16, send_channel: bool) -> RUMResult<MLLP> {
-            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(ip, port, !send_channel)?))})
+        pub fn new(ip: &str, port: u16, filter_policy: MLLP_FILTER_POLICY, send_channel: bool) -> RUMResult<MLLP> {
+            Ok(MLLP{transport_layer: Arc::new(Mutex::new(LowerLayer::init(ip, port, !send_channel)?)), filter_policy})
         }
 
         pub fn next_layer(&self) -> GuardedLowerLayer {
@@ -297,6 +304,14 @@ pub mod mllp_v2 {
 
         pub fn send_message(&mut self, message: &RUMNetMessage, endpoint: &RUMString) -> RUMResult<()> {
             self.next_layer().unwrap().send_message(message, endpoint)
+        }
+
+        pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMNetMessage> {
+            self.next_layer().unwrap().receive_message(endpoint)
+        }
+
+        pub fn get_clients(&self) -> ClientList {
+            self.next_layer().unwrap().get_clients()
         }
     }
 
@@ -309,16 +324,22 @@ pub mod mllp_v2 {
     }
 
     impl MLLPChannel {
-        pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> RUMResult<MLLPChannel> {
-            Ok(MLLPChannel{peer: endpoint.clone(), channel: Arc::clone(mllp_instance)})
-        }
-
-        pub fn from_endpoints(endpoints: &ClientList, mllp_instance: &SafeMLLP) -> Vec<RUMResult<MLLPChannel>> {
+        pub fn from_server(mllp_instance: &SafeMLLP) -> Vec<RUMResult<MLLPChannel>> {
+            let endpoints = mllp_instance.lock().unwrap().get_clients();
             let mut channels = Vec::<RUMResult<MLLPChannel>>::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
                 channels.push(MLLPChannel::open(endpoint, mllp_instance));
             }
             channels
+        }
+
+        pub fn from_client(mllp_instance: &SafeMLLP) -> RUMResult<MLLPChannel> {
+            let endpoint = mllp_instance.lock().unwrap().get_clients().get(0).unwrap();
+            MLLPChannel::open(endpoint, mllp_instance)
+        }
+
+        pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> RUMResult<MLLPChannel> {
+            Ok(MLLPChannel{peer: endpoint.clone(), channel: Arc::clone(mllp_instance)})
         }
 
         pub fn next_layer(&self) -> GuardedMLLPLayer {
@@ -327,6 +348,10 @@ pub mod mllp_v2 {
 
         pub fn send_message(&mut self, message: &RUMNetMessage) -> RUMResult<()> {
             self.next_layer().unwrap().send_message(message, &self.peer)
+        }
+
+        pub fn receive_message(&mut self) -> RUMResult<RUMNetMessage> {
+            self.next_layer().unwrap().receive_message(&self.peer)
         }
     }
 }
