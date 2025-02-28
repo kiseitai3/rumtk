@@ -90,7 +90,7 @@ mod tests {
     fn test_escaping_string() {
         let input = "I ❤ my wife!";
         let expected = "I \\u2764 my wife!";
-        let result = strings::escape_str(&input);
+        let result = strings::escape(&input);
         println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
         assert_eq!(expected, result.as_str(), "Incorrect string escaping!");
         println!("Passed!")

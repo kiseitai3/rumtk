@@ -23,6 +23,7 @@ use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
 use encoding_rs::Encoding;
 use unicode_segmentation::UnicodeSegmentation;
+use crate::core::RUMResult;
 /**************************** Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
 const ASCII_ESCAPE_CHAR: char = '\\';
@@ -306,7 +307,7 @@ fn decode(src: &[u8], encoding: &'static Encoding) -> RUMString {
 /// Finally, we do a decode pass on the vector to re-encode the bytes **hopefully right** into a
 /// valid UTF-8 string.
 ///
-pub fn unescape_string(escaped_str: &str) -> Result<RUMString, RUMString> {
+pub fn unescape_string(escaped_str: &str) -> RUMResult<RUMString> {
     let str_size = escaped_str.count_graphemes();
     let mut result: Vec<u8> = Vec::with_capacity(escaped_str.len());
     let mut i = 0;
@@ -526,29 +527,22 @@ fn number_to_char_unchecked(num: &u32) -> RUMString {
 }
 
 ///
-/// This function will scan through an unescaped string and escape any characters outside the
-/// ASCII printable range.
-///
-pub fn escape_str(in_str: &str) -> RUMString {
-    let max_str_size = 4 * in_str.len();
-    let mut result = RUMString::with_capacity(max_str_size);
-    for c in in_str.chars() {
-        if c < MIN_ASCII_READABLE || c > MAX_ASCII_READABLE {
-            result += &escape(c.to_string().as_str());
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-
-///
 /// Turn UTF-8 character into escaped character sequence
 ///
 pub fn escape(unescaped_str: &str) -> RUMString {
-    let escaped_value = unescaped_str.escape_default().to_string();
+    let escaped_value = unescaped_str.escape_default().to_compact_string();
     escaped_value
         .replace("{", "")
         .replace("}", "")
         .to_rumstring()
+}
+
+///
+/// Removes all non ASCII and all non printable characters from string.
+///
+pub fn filter_non_printable_ascii(unescaped_str: &str) -> RUMString {
+    let mut filtered = unescaped_str.to_rumstring();
+    filtered.retain(|c| !c.is_ascii() && (' ' <= c || c <= '~'));
+    filtered
+
 }
