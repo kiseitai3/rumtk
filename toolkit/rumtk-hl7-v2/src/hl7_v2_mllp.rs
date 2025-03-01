@@ -72,24 +72,24 @@
 /// The behavior of the Source
 /// --------------------------
 ///
-/// #. "Send Block with HL7 Content, block and wait for Affirmative Commit Acknowledgement, Negative Commit Acknowledge, or a Timeout. "
-/// #. "In case of Affirmative Commit Acknowledgement (ACK), finished. "
-/// #.  If case of Negative Commit Acknowledgement the subsequent step is subject to implementation decisions. The default behavior is
-///     #.  If the preset number of retries has been reached, notify sender of delivery failure, with reason code.
-///     #.  Otherwise go to step 1 to resend the block.
-/// #.  In case of a Timeout the subsequent step is subject to implementation decisions. The default behavior is:
-///     #.  If preset number of retries has been reached, or if a pre-specified time has elapsed, notify SENDER of delivery failure, with reason code.
-///     #.  otherwise go to step 1 to resend the Block.
+/// 1. "Send Block with HL7 Content, block and wait for Affirmative Commit Acknowledgement, Negative Commit Acknowledge, or a Timeout. "
+/// 2. "In case of Affirmative Commit Acknowledgement (ACK), finished. "
+/// 3.  If case of Negative Commit Acknowledgement the subsequent step is subject to implementation decisions. The default behavior is
+///     1.  If the preset number of retries has been reached, notify sender of delivery failure, with reason code.
+///     2.  Otherwise go to step 1 to resend the block.
+/// 4.  In case of a Timeout the subsequent step is subject to implementation decisions. The default behavior is:
+///     1.  If preset number of retries has been reached, or if a pre-specified time has elapsed, notify SENDER of delivery failure, with reason code.
+///     2.  otherwise go to step 1 to resend the Block.
 ///
 /// The behavior of the Destination
 /// -------------------------------
 ///
-/// #.  Receive and ignore any received bytes until the start of a Block is found.
-/// #.  Continue to receive bytes until the end of a Block is found, or until a Timeout occurs.
-/// #.  In case of a Timeout, ignore all bytes received thus far; go to step 1.
-/// #.  Once an entire Block has been received, attempt to commit the HL7 Content to storage.
-/// #.  In case the HL7 Content has been successfully committed to storage, send an Affirmative Commit Acknowledgement (ACK); go to step 1.
-/// #.  In case the HL7 Content can't be committed to storage, send a Negative Commit Acknowledgement (NAK); go to step 1.
+/// 1.  Receive and ignore any received bytes until the start of a Block is found.
+/// 2.  Continue to receive bytes until the end of a Block is found, or until a Timeout occurs.
+/// 3.  In case of a Timeout, ignore all bytes received thus far; go to step 1.
+/// 4.  Once an entire Block has been received, attempt to commit the HL7 Content to storage.
+/// 5.  In case the HL7 Content has been successfully committed to storage, send an Affirmative Commit Acknowledgement (ACK); go to step 1.
+/// 6.  In case the HL7 Content can't be committed to storage, send a Negative Commit Acknowledgement (NAK); go to step 1.
 ///
 pub mod mllp_v2 {
     //! ### 1.2.2 - Block Format
@@ -193,7 +193,7 @@ pub mod mllp_v2 {
     use rumtk_core::core::RUMResult;
     use rumtk_core::net::tcp::{ClientList, RUMClient, RUMClientHandle, RUMNetMessage, RUMServerHandle, ReceivedRUMNetMessage, LOCALHOST, ANYHOST};
     use rumtk_core::{rumtk_create_server, rumtk_connect};
-    use rumtk_core::strings::RUMString;
+    use rumtk_core::strings::{escape, filter_ascii, filter_non_printable_ascii, RUMArrayConversions, RUMString, RUMStringConversions};
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
@@ -210,15 +210,30 @@ pub mod mllp_v2 {
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
     /// This should not be confused with the ASCII characters SOH or STX.
-    pub const SB: char = 0x0b as char;
+    pub const SB: u8 = 0x0b;
     /// Acknowledgement character (1 byte, ASCII <ACK>, i.e., <0x06>)
-    pub const ACK: char = 0x06 as char;
+    pub const ACK: u8 = 0x06;
     /// Negative-acknowledgement character (1 byte, ASCII <NAK>, i.e., <0x15>)
-    pub const NACK: char = 0x15 as char;
+    pub const NACK: u8 = 0x15;
     /// End Block character (1 byte). ASCII <FS>, i.e., <0x1C>.
-    pub const EB: char = 0x1c as char;
+    pub const EB: u8 = 0x1c;
     /// Carriage Return (1 byte). ASCII <CR> character, i.e., <0x0D>.
-    pub const CR: char = 0x0d as char;
+    pub const CR: u8 = 0x0d;
+
+    pub fn mllp_encode(message: &RUMString) -> RUMNetMessage {
+        let mut packaged = RUMNetMessage::with_capacity(message.len() + 3);
+        packaged.push(SB);
+        packaged.extend(message.as_bytes());
+        packaged.push(EB);
+        packaged.push(CR);
+        packaged
+    }
+
+    pub fn mllp_decode(message: &RUMNetMessage) -> RUMString {
+        let mut stripped = message.clone();
+        stripped.retain(|c| c != &SB && c != &EB && c != &CR);
+        message.to_rumstring()
+    }
 
     pub enum LowerLayer {
         SERVER(RUMServerHandle),
@@ -302,16 +317,27 @@ pub mod mllp_v2 {
             self.transport_layer.lock()
         }
 
-        pub fn send_message(&mut self, message: &RUMNetMessage, endpoint: &RUMString) -> RUMResult<()> {
-            self.next_layer().unwrap().send_message(message, endpoint)
+        pub fn send_message(&mut self, message: &RUMString, endpoint: &RUMString) -> RUMResult<()> {
+            let filtered = self.filter_message(message, &self.filter_policy);
+            let encoded = mllp_encode(&filtered);
+            self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
-        pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMNetMessage> {
-            self.next_layer().unwrap().receive_message(endpoint)
+        pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
+            let message = self.next_layer().unwrap().receive_message(endpoint)?;
+            Ok(mllp_decode(&message))
         }
 
         pub fn get_clients(&self) -> ClientList {
             self.next_layer().unwrap().get_clients()
+        }
+
+        fn filter_message(&self, msg: &RUMString, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
+            match mllp_filter_policy {
+                MLLP_FILTER_POLICY::NONE => msg.clone(),
+                MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
+                MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
+            }
         }
     }
 
@@ -346,11 +372,11 @@ pub mod mllp_v2 {
             self.channel.lock()
         }
 
-        pub fn send_message(&mut self, message: &RUMNetMessage) -> RUMResult<()> {
+        pub fn send_message(&mut self, message: &RUMString) -> RUMResult<()> {
             self.next_layer().unwrap().send_message(message, &self.peer)
         }
 
-        pub fn receive_message(&mut self) -> RUMResult<RUMNetMessage> {
+        pub fn receive_message(&mut self) -> RUMResult<RUMString> {
             self.next_layer().unwrap().receive_message(&self.peer)
         }
     }
