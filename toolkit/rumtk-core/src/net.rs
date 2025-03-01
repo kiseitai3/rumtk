@@ -645,8 +645,6 @@ pub mod tcp {
 /// The API here is defined in the form of macros!
 ///
 pub mod tcp_macros {
-    use crate::net::tcp;
-    use crate::net::tcp::LOCALHOST;
 
     ///
     /// Macro for creating a server instance.

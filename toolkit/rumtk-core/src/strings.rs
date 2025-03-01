@@ -540,9 +540,16 @@ pub fn escape(unescaped_str: &str) -> RUMString {
 ///
 /// Removes all non ASCII and all non printable characters from string.
 ///
-pub fn filter_non_printable_ascii(unescaped_str: &str) -> RUMString {
+pub fn filter_ascii(unescaped_str: &str, closure: fn(char) -> bool) -> RUMString {
     let mut filtered = unescaped_str.to_rumstring();
-    filtered.retain(|c| !c.is_ascii() && (' ' <= c || c <= '~'));
+    filtered.retain(closure);
     filtered
 
+}
+
+///
+/// Removes all non ASCII and all non printable characters from string.
+///
+pub fn filter_non_printable_ascii(unescaped_str: &str) -> RUMString {
+    filter_ascii(unescaped_str, |c: char| !c.is_ascii() && (' ' <= c || c <= '~'))
 }
