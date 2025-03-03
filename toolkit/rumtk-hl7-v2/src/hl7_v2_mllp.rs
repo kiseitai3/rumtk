@@ -235,6 +235,14 @@ pub mod mllp_v2 {
         message.to_rumstring()
     }
 
+    pub fn filter_message(msg: &RUMString, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
+        match mllp_filter_policy {
+            MLLP_FILTER_POLICY::NONE => msg.clone(),
+            MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
+            MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
+        }
+    }
+
     pub enum LowerLayer {
         SERVER(RUMServerHandle),
         CLIENT(RUMClientHandle)
@@ -318,7 +326,7 @@ pub mod mllp_v2 {
         }
 
         pub fn send_message(&mut self, message: &RUMString, endpoint: &RUMString) -> RUMResult<()> {
-            let filtered = self.filter_message(message, &self.filter_policy);
+            let filtered = filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
             self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
@@ -330,14 +338,6 @@ pub mod mllp_v2 {
 
         pub fn get_clients(&self) -> ClientList {
             self.next_layer().unwrap().get_clients()
-        }
-
-        fn filter_message(&self, msg: &RUMString, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
-            match mllp_filter_policy {
-                MLLP_FILTER_POLICY::NONE => msg.clone(),
-                MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
-                MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
-            }
         }
     }
 
