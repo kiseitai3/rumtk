@@ -193,7 +193,7 @@ pub mod mllp_v2 {
     use rumtk_core::core::RUMResult;
     use rumtk_core::net::tcp::{ClientList, RUMClient, RUMClientHandle, RUMNetMessage, RUMServerHandle, ReceivedRUMNetMessage, LOCALHOST, ANYHOST};
     use rumtk_core::{rumtk_create_server, rumtk_connect};
-    use rumtk_core::strings::{escape, filter_ascii, filter_non_printable_ascii, RUMArrayConversions, RUMString, RUMStringConversions};
+    use rumtk_core::strings::{escape, filter_ascii, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString, RUMStringConversions};
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
@@ -220,6 +220,11 @@ pub mod mllp_v2 {
     /// Carriage Return (1 byte). ASCII <CR> character, i.e., <0x0D>.
     pub const CR: u8 = 0x0d;
 
+    ///
+    /// Encodes a payload using the message format defined by the HL7 spec.
+    ///
+    /// *\<[SB]\>payload\<[EB]\>\<[CR]\>*
+    ///
     pub fn mllp_encode(message: &RUMString) -> RUMNetMessage {
         let mut packaged = RUMNetMessage::with_capacity(message.len() + 3);
         packaged.push(SB);
@@ -229,12 +234,29 @@ pub mod mllp_v2 {
         packaged
     }
 
+    ///
+    /// Opposite of [mllp_encode]. Strips the incoming message off the \<[SB]\>, \<[EB]\>, and \<[CR]\>.
+    /// The remaining data is considered an ASCII or UTF-8 payload. However, to be on the safe side,
+    /// we use the [try_decode] function from the strings module to attempt auto-detection of encoding
+    /// and forcing the output to be in UTF-8.
+    ///
     pub fn mllp_decode(message: &RUMNetMessage) -> RUMString {
         let mut stripped = message.clone();
         stripped.retain(|c| c != &SB && c != &EB && c != &CR);
-        message.to_rumstring()
+        try_decode(message)
     }
 
+    ///
+    /// Depending on [MLLP_FILTER_POLICY], transform the string payload.
+    ///
+    /// -   If policy is None => clone string.
+    /// -   If policy is escape => force escaping of string input such that it is all within the
+    ///      printable range of ASCII.
+    /// -   If the policy is to filter, remove all non printable ASCII characters and weird bytes.
+    ///
+    /// I made this function to allow utilities to better control what kind of outbound message
+    /// sanitization to enforce in the production environment.
+    ///
     pub fn filter_message(msg: &RUMString, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
         match mllp_filter_policy {
             MLLP_FILTER_POLICY::NONE => msg.clone(),
