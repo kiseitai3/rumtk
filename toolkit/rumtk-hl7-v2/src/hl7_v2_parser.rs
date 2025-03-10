@@ -41,13 +41,12 @@ pub mod v2_parser {
         V2_SEGMENT_TERMINATOR,
     };
     pub use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
+    use rumtk_core::rumtk_cache_fetch;
     pub use rumtk_core::strings::{
-        format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions
-        ,
+        format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
     };
     use std::collections::VecDeque;
     use std::ops::{Index, IndexMut};
-    use rumtk_core::rumtk_cache_fetch;
     /**************************** Globals ***************************************/
 
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
@@ -398,7 +397,9 @@ pub mod v2_parser {
             }
         }
 
-        pub fn len(&self) -> usize { return self.fields.len(); }
+        pub fn len(&self) -> usize {
+            return self.fields.len();
+        }
     }
 
     impl Index<isize> for V2Segment {
@@ -531,7 +532,7 @@ pub mod v2_parser {
         // Message parsing operations
         pub fn find_msh<'a>(segments: &Vec<&'a str>) -> V2Result<&'a str> {
             for segment in segments {
-                if segment.starts_with(V2_MSHEADER_PATTERN){
+                if segment.starts_with(V2_MSHEADER_PATTERN) {
                     return Ok(segment);
                 }
             }
@@ -636,14 +637,20 @@ pub mod v2_parser_interface {
     /// Simple interface for creating an instance of V2Message!
     /// You can pass a string view, a String, a RUMString, or a byte slice as input.
     ///
-    /// # Example
+    /// ## Example
     ///
-    ///     v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+    /// ```
+    ///     use rumtk_hl7_v2::v2_parse_message;
+    ///     let hl7_v2_message = "My|HL7|V2|message";
+    ///     v2_parse_message!(&hl7_v2_message).unwrap();
+    /// ```
     ///
     #[macro_export]
     macro_rules! v2_parse_message {
         ( $msg:expr ) => {{
-            use $crate::hl7_v2_parser::v2_parser::{V2Message, V2Result, RUMString, RUMStringConversions};
+            use $crate::hl7_v2_parser::v2_parser::{
+                RUMString, RUMStringConversions, V2Message, V2Result,
+            };
             V2Message::try_from($msg)
         }};
     }
@@ -662,10 +669,14 @@ pub mod v2_parser_interface {
     /// For the main indices, you can use negative values. For example, a -1 means you want to select
     /// the last item. This is applicable for the field and component indices.
     ///
-    /// # Example
+    /// ## Example
     ///
-    ///     let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+    /// ```
+    ///     use rumtk_hl7_v2::{v2_parse_message, v2_find_component};
+    ///     let hl7_v2_message = "My|HL7|V2|message";
+    ///     let message = v2_parse_message!(&hl7_v2_message).unwrap();
     ///     let component = v2_find_component!(message, pattern).unwrap();
+    /// ```
     ///
     #[macro_export]
     macro_rules! v2_find_component {
