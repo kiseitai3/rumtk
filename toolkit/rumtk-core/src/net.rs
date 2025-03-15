@@ -25,24 +25,24 @@
 /// The types here should simplify implementation of higher level layers and protocols.
 ///
 pub mod tcp {
-    use std::collections::VecDeque;
-    use std::ffi::CStr;
-    use std::future::Future;
-    use std::ops::DerefMut;
-    use std::task::Poll;
-    use tokio::sync::{Mutex as AsyncMutex, RwLock as AsyncRwLock};
-    use std::sync::{Arc, Mutex};
+    use crate::core::RUMResult;
+    use crate::strings::RUMString;
+    use crate::threading::thread_primitives::{
+        SafeTaskArgs, SafeTokioRuntime, TaskResult,
+    };
+    use crate::threading::threading_functions::get_default_system_thread_count;
+    use crate::{
+        rumtk_async_sleep, rumtk_create_task, rumtk_create_task_args, rumtk_init_threads,
+        rumtk_resolve_task, rumtk_spawn_task, rumtk_wait_on_task,
+    };
     use ahash::{HashMap, HashMapExt};
     use compact_str::{format_compact, ToCompactString};
+    use std::collections::VecDeque;
+    use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use crate::core::RUMResult;
-    use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions};
     pub use tokio::net::{TcpListener, TcpStream};
-    use tokio::{io, runtime};
-    use crate::queue::queue::{TaskQueue};
-    use crate::{rumtk_async_sleep, rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_resolve_task, rumtk_sleep, rumtk_spawn_task, rumtk_wait_on_task};
-    use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskItems, TaskResult};
-    use crate::threading::threading_functions::get_default_system_thread_count;
+    use tokio::sync::{Mutex as AsyncMutex, RwLock as AsyncRwLock};
+    use tokio::io;
 
     const MESSAGE_BUFFER_SIZE: usize = 1024;
 
@@ -51,12 +51,10 @@ pub mod tcp {
     /// Convenience constant for the `0.0.0.0` address. This is to be used in contexts in which you do not have any interface preference.
     pub const ANYHOST: &str = "0.0.0.0";
 
-
     pub type RUMNetMessage = Vec<u8>;
     pub type ReceivedRUMNetMessage = (RUMString, RUMNetMessage);
     type RUMNetPartialMessage = (RUMNetMessage, bool);
     pub type ConnectionInfo = (RUMString, u16);
-
 
     ///
     /// This structs encapsulates the [tokio::net::TcpStream] instance that will be our adapter
@@ -64,7 +62,7 @@ pub mod tcp {
     ///
     #[derive(Debug)]
     pub struct RUMClient {
-        socket: TcpStream
+        socket: TcpStream,
     }
 
     impl RUMClient {
@@ -74,10 +72,12 @@ pub mod tcp {
         pub async fn connect(ip: &str, port: u16) -> RUMResult<RUMClient> {
             let addr = format_compact!("{}:{}", ip, port);
             match TcpStream::connect(addr.as_str()).await {
-                Ok(socket) => {
-                    Ok(RUMClient{socket})
-                },
-                Err(e) => Err(format_compact!("Unable to connect to {} because {}", &addr.as_str(), &e)),
+                Ok(socket) => Ok(RUMClient { socket }),
+                Err(e) => Err(format_compact!(
+                    "Unable to connect to {} because {}",
+                    &addr.as_str(),
+                    &e
+                )),
             }
         }
 
@@ -86,7 +86,7 @@ pub mod tcp {
         /// connected socket.
         ///
         pub async fn accept(socket: TcpStream) -> RUMResult<RUMClient> {
-            Ok(RUMClient{socket})
+            Ok(RUMClient { socket })
         }
 
         ///
@@ -95,7 +95,11 @@ pub mod tcp {
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
-                Err(e) => Err(format_compact!("Unable to send message to {} because {}", &self.socket.local_addr().unwrap().to_compact_string(), &e)),
+                Err(e) => Err(format_compact!(
+                    "Unable to send message to {} because {}",
+                    &self.socket.local_addr().unwrap().to_compact_string(),
+                    &e
+                )),
             }
         }
 
@@ -119,8 +123,14 @@ pub mod tcp {
             let mut buf: [u8; MESSAGE_BUFFER_SIZE] = [0; MESSAGE_BUFFER_SIZE];
             match self.socket.try_read(&mut buf) {
                 Ok(n) => Ok((RUMNetMessage::from(buf), true)),
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok((RUMNetMessage::from(buf), false)),
-                Err(e) => Err(format_compact!("Error receiving message from {} because {}", &self.socket.peer_addr().unwrap().to_compact_string(), &e)),
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    Ok((RUMNetMessage::from(buf), false))
+                }
+                Err(e) => Err(format_compact!(
+                    "Error receiving message from {} because {}",
+                    &self.socket.peer_addr().unwrap().to_compact_string(),
+                    &e
+                )),
             }
         }
 
@@ -143,8 +153,8 @@ pub mod tcp {
         /// Returns the peer address:port as a string.
         pub async fn get_address(&self, local: bool) -> RUMString {
             match local {
-                true  => self.socket.local_addr().unwrap().to_compact_string(),
-                false => self.socket.peer_addr().unwrap().to_compact_string()
+                true => self.socket.local_addr().unwrap().to_compact_string(),
+                false => self.socket.peer_addr().unwrap().to_compact_string(),
             }
         }
     }
@@ -192,13 +202,32 @@ pub mod tcp {
             let addr = format_compact!("{}:{}", ip, port);
             let tcp_listener_handle = match TcpListener::bind(addr.as_str()).await {
                 Ok(listener) => listener,
-                Err(e) => return Err(format_compact!("Unable to bind to {} because {}", &addr.as_str(), &e)),
+                Err(e) => {
+                    return Err(format_compact!(
+                        "Unable to bind to {} because {}",
+                        &addr.as_str(),
+                        &e
+                    ))
+                }
             };
-            let tx_in = SafeMappedQueues::new(AsyncMutex::new(HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new()));
-            let tx_out = SafeMappedQueues::new(AsyncMutex::new(HashMap::<RUMString, SafeQueue<RUMNetMessage>>::new()));
+            let tx_in = SafeMappedQueues::new(AsyncMutex::new(HashMap::<
+                RUMString,
+                SafeQueue<RUMNetMessage>,
+            >::new()));
+            let tx_out = SafeMappedQueues::new(AsyncMutex::new(HashMap::<
+                RUMString,
+                SafeQueue<RUMNetMessage>,
+            >::new()));
             let clients = SafeClients::new(AsyncMutex::new(Vec::new()));
             let tcp_listener = Arc::new(AsyncMutex::new(tcp_listener_handle));
-            Ok(RUMServer{tcp_listener, tx_in, tx_out, clients, stop: false, shutdown_completed: false})
+            Ok(RUMServer {
+                tcp_listener,
+                tx_in,
+                tx_out,
+                clients,
+                stop: false,
+                shutdown_completed: false,
+            })
         }
 
         ///
@@ -218,23 +247,41 @@ pub mod tcp {
         async fn run(ctx: &SafeServer) -> RUMResult<()> {
             // Bootstrapping the main server loop.
             let mut reowned_self = ctx.read().await;
-            let mut accept_handle = tokio::spawn(RUMServer::handle_accept(Arc::clone(&reowned_self.tcp_listener), Arc::clone(&reowned_self.clients)));
-            let mut send_handle = tokio::spawn(RUMServer::handle_send(Arc::clone(&reowned_self.clients), Arc::clone(&reowned_self.tx_out)));
-            let mut receive_handle = tokio::spawn(RUMServer::handle_receive(Arc::clone(&reowned_self.clients), Arc::clone(&reowned_self.tx_in)));
+            let mut accept_handle = tokio::spawn(RUMServer::handle_accept(
+                Arc::clone(&reowned_self.tcp_listener),
+                Arc::clone(&reowned_self.clients),
+            ));
+            let mut send_handle = tokio::spawn(RUMServer::handle_send(
+                Arc::clone(&reowned_self.clients),
+                Arc::clone(&reowned_self.tx_out),
+            ));
+            let mut receive_handle = tokio::spawn(RUMServer::handle_receive(
+                Arc::clone(&reowned_self.clients),
+                Arc::clone(&reowned_self.tx_in),
+            ));
             let mut stop = reowned_self.stop;
             //Most drop here to allow the outside world to grab access to the server handle and interact with us.
             std::mem::drop(reowned_self); //Bootstrap magic that let's the outside able to interact with our server while it runs autonomously in the background.
-            // Essentially, repeat the above but inside a scope thus automatically freeing the handle to outside access on a routine basis.
+                                          // Essentially, repeat the above but inside a scope thus automatically freeing the handle to outside access on a routine basis.
             while !stop {
                 let mut reowned_self = ctx.read().await;
                 if accept_handle.is_finished() {
-                    accept_handle = tokio::spawn(RUMServer::handle_accept(Arc::clone(&reowned_self.tcp_listener), Arc::clone(&reowned_self.clients)));
+                    accept_handle = tokio::spawn(RUMServer::handle_accept(
+                        Arc::clone(&reowned_self.tcp_listener),
+                        Arc::clone(&reowned_self.clients),
+                    ));
                 }
                 if send_handle.is_finished() {
-                    send_handle = tokio::spawn(RUMServer::handle_send(Arc::clone(&reowned_self.clients), Arc::clone(&reowned_self.tx_out)));
+                    send_handle = tokio::spawn(RUMServer::handle_send(
+                        Arc::clone(&reowned_self.clients),
+                        Arc::clone(&reowned_self.tx_out),
+                    ));
                 }
                 if receive_handle.is_finished() {
-                    receive_handle = tokio::spawn(RUMServer::handle_receive(Arc::clone(&reowned_self.clients),Arc::clone(&reowned_self.tx_in)));
+                    receive_handle = tokio::spawn(RUMServer::handle_receive(
+                        Arc::clone(&reowned_self.clients),
+                        Arc::clone(&reowned_self.tx_in),
+                    ));
                 }
                 stop = reowned_self.stop;
             }
@@ -287,7 +334,7 @@ pub mod tcp {
                     };
                     client_list.push(client);
                 }
-                Err(e) => ()
+                Err(e) => (),
             }
         }
 
@@ -333,10 +380,11 @@ pub mod tcp {
                     let mut queue = match queues.get_mut(&addr) {
                         Some(queue) => queue,
                         None => {
-                            let new_queue = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+                            let new_queue =
+                                SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
                             queues.insert(addr.clone(), new_queue);
                             queues.get_mut(&addr).unwrap()
-                        },
+                        }
                     };
                     let mut locked_queue = queue.lock().await;
                     let msg = client.recv().await.unwrap();
@@ -382,6 +430,16 @@ pub mod tcp {
             let mut locked_queue = queue.lock().await;
             locked_queue.pop_front()
         }
+
+        ///
+        /// Get the Address:Port info for this socket.
+        ///
+        pub fn get_address_info(&self) -> Option<RUMString> {
+            match self.tcp_listener.blocking_lock().local_addr() {
+                Ok(addr) => Some(addr.to_compact_string()),
+                Err(_) => None,
+            }
+        }
     }
 
     ///
@@ -407,8 +465,13 @@ pub mod tcp {
             let runtime = rumtk_init_threads!(&1);
             let con: ConnectionInfo = (RUMString::from(ip), port);
             let args = rumtk_create_task_args!(con);
-            let client = rumtk_wait_on_task!(&runtime, RUMClientHandle::new_helper, &args)?.pop().unwrap();
-            Ok(RUMClientHandle{client: SafeClient::new(AsyncMutex::new(client)), runtime})
+            let client = rumtk_wait_on_task!(&runtime, RUMClientHandle::new_helper, &args)?
+                .pop()
+                .unwrap();
+            Ok(RUMClientHandle {
+                client: SafeClient::new(AsyncMutex::new(client)),
+                runtime,
+            })
         }
 
         ///
@@ -419,7 +482,6 @@ pub mod tcp {
             let args = rumtk_create_task_args!((client_ref, msg));
             rumtk_wait_on_task!(&self.runtime, RUMClientHandle::send_helper, &args)
         }
-
 
         ///
         /// Checks if there are any messages received by the [RUMClient] via the tokio runtime.
@@ -447,7 +509,9 @@ pub mod tcp {
             client.send(msg).await
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<RUMNetMessage> {
+        async fn receive_helper(
+            args: &SafeTaskArgs<Self::ReceiveArgs>,
+        ) -> RUMResult<RUMNetMessage> {
             let owned_args = Arc::clone(args).clone();
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
@@ -461,7 +525,11 @@ pub mod tcp {
             let lock_future = owned_args.read().await;
             let (ip, port) = match lock_future.get(0) {
                 Some((ip, port)) => (ip, port),
-                None => return Err(format_compact!("No IP address or port provided for connection!")),
+                None => {
+                    return Err(format_compact!(
+                        "No IP address or port provided for connection!"
+                    ))
+                }
             };
             Ok(vec![RUMClient::connect(ip, *port).await?])
         }
@@ -521,8 +589,13 @@ pub mod tcp {
             let runtime = rumtk_init_threads!(&threads);
             let con: ConnectionInfo = (RUMString::from(ip), port);
             let args = rumtk_create_task_args!(con);
-            let server = rumtk_wait_on_task!(&runtime, RUMServerHandle::new_helper, &args)?.pop().unwrap();
-            Ok(RUMServerHandle{server: Arc::new(AsyncRwLock::new(server)), runtime})
+            let server = rumtk_wait_on_task!(&runtime, RUMServerHandle::new_helper, &args)?
+                .pop()
+                .unwrap();
+            Ok(RUMServerHandle {
+                server: Arc::new(AsyncRwLock::new(server)),
+                runtime,
+            })
         }
 
         ///
@@ -553,7 +626,11 @@ pub mod tcp {
         /// Sync API method for queueing a message to send a client on the server.
         ///
         pub fn send(&mut self, client_id: &RUMString, msg: &RUMNetMessage) -> RUMResult<()> {
-            let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone(), msg.clone()));
+            let args = rumtk_create_task_args!((
+                Arc::clone(&mut self.server),
+                client_id.clone(),
+                msg.clone()
+            ));
             let task = rumtk_create_task!(RUMServerHandle::send_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
@@ -577,6 +654,13 @@ pub mod tcp {
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
 
+        ///
+        /// Get the Address:Port info for this socket.
+        ///
+        pub fn get_address_info(&self) -> Option<RUMString> {
+            self.server.blocking_read().get_address_info()
+        }
+
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs>) -> RUMResult<()> {
             let owned_args = Arc::clone(args).clone();
             let locked_args = owned_args.read().await;
@@ -585,7 +669,9 @@ pub mod tcp {
             Ok(server.push_message(client_id, msg.clone()).await)
         }
 
-        async fn receive_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMResult<RUMNetMessage> {
+        async fn receive_helper(
+            args: &SafeTaskArgs<Self::ReceiveArgs>,
+        ) -> RUMResult<RUMNetMessage> {
             let owned_args = Arc::clone(args).clone();
             let locked_args = owned_args.read().await;
             let (server_ref, client_id) = locked_args.get(0).unwrap();
@@ -622,7 +708,11 @@ pub mod tcp {
             let locked_args = lock_future.await;
             let (ip, port) = match locked_args.get(0) {
                 Some((ip, port)) => (ip, port),
-                None => return Err(format_compact!("No IP address or port provided for connection!")),
+                None => {
+                    return Err(format_compact!(
+                        "No IP address or port provided for connection!"
+                    ))
+                }
             };
             Ok(vec![RUMServer::new(ip, *port).await?])
         }
@@ -662,16 +752,16 @@ pub mod tcp_macros {
     #[macro_export]
     macro_rules! rumtk_create_server {
         ( $port:expr ) => {{
-            use $crate::net::tcp::{RUMServerHandle};
+            use $crate::net::tcp::RUMServerHandle;
             RUMServerHandle::default($port)
         }};
         ( $ip:expr, $port:expr ) => {{
+            use $crate::net::tcp::RUMServerHandle;
             use $crate::threading::threading_functions::get_default_system_thread_count;
-            use $crate::net::tcp::{RUMServerHandle};
             RUMServerHandle::new($ip, $port, get_default_system_thread_count())
         }};
         ( $ip:expr, $port:expr, $threads:expr ) => {{
-            use $crate::net::tcp::{RUMServerHandle};
+            use $crate::net::tcp::RUMServerHandle;
             RUMServerHandle::new($ip, $port, $threads)
         }};
     }
@@ -713,9 +803,8 @@ pub mod tcp_macros {
             RUMClientHandle::connect(LOCALHOST, $port)
         }};
         ( $ip:expr, $port:expr ) => {{
-            use $crate::net::tcp::{RUMClientHandle};
+            use $crate::net::tcp::RUMClientHandle;
             RUMClientHandle::connect($ip, $port)
         }};
     }
 }
-
