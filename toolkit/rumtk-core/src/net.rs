@@ -27,9 +27,7 @@
 pub mod tcp {
     use crate::core::RUMResult;
     use crate::strings::RUMString;
-    use crate::threading::thread_primitives::{
-        SafeTaskArgs, SafeTokioRuntime, TaskResult,
-    };
+    use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskResult};
     use crate::threading::threading_functions::get_default_system_thread_count;
     use crate::{
         rumtk_async_sleep, rumtk_create_task, rumtk_create_task_args, rumtk_init_threads,
@@ -39,10 +37,10 @@ pub mod tcp {
     use compact_str::{format_compact, ToCompactString};
     use std::collections::VecDeque;
     use std::sync::Arc;
+    use tokio::io;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     pub use tokio::net::{TcpListener, TcpStream};
     use tokio::sync::{Mutex as AsyncMutex, RwLock as AsyncRwLock};
-    use tokio::io;
 
     const MESSAGE_BUFFER_SIZE: usize = 1024;
 
@@ -151,10 +149,16 @@ pub mod tcp {
         }
 
         /// Returns the peer address:port as a string.
-        pub async fn get_address(&self, local: bool) -> RUMString {
+        pub async fn get_address(&self, local: bool) -> Option<RUMString> {
             match local {
-                true => self.socket.local_addr().unwrap().to_compact_string(),
-                false => self.socket.peer_addr().unwrap().to_compact_string(),
+                true => match self.socket.local_addr() {
+                    Ok(addr) => Some(addr.to_compact_string()),
+                    Err(_) => None,
+                },
+                false => match self.socket.peer_addr() {
+                    Ok(addr) => Some(addr.to_compact_string()),
+                    Err(_) => None,
+                },
             }
         }
     }
@@ -189,6 +193,7 @@ pub mod tcp {
         tx_in: SafeMappedQueues,
         tx_out: SafeMappedQueues,
         clients: SafeClients,
+        address: Option<RUMString>,
         stop: bool,
         shutdown_completed: bool,
     }
@@ -210,6 +215,10 @@ pub mod tcp {
                     ))
                 }
             };
+            let address = match tcp_listener_handle.local_addr() {
+                Ok(addr) => Some(addr.to_compact_string()),
+                Err(e) => None,
+            };
             let tx_in = SafeMappedQueues::new(AsyncMutex::new(HashMap::<
                 RUMString,
                 SafeQueue<RUMNetMessage>,
@@ -225,6 +234,7 @@ pub mod tcp {
                 tx_in,
                 tx_out,
                 clients,
+                address,
                 stop: false,
                 shutdown_completed: false,
             })
@@ -348,7 +358,10 @@ pub mod tcp {
             for mut client in client_list.iter_mut() {
                 let ready = client.write_ready().await;
                 if ready {
-                    let addr = client.get_address(false).await;
+                    let addr = client
+                        .get_address(false)
+                        .await
+                        .expect("No address found! Malformed client");
                     let mut queues = tx_out.lock().await;
                     let mut queue = match queues.get_mut(&addr) {
                         Some(queue) => queue,
@@ -375,7 +388,10 @@ pub mod tcp {
             for mut client in client_list.iter_mut() {
                 let ready = client.read_ready().await;
                 if ready {
-                    let addr = client.get_address(false).await;
+                    let addr = client
+                        .get_address(false)
+                        .await
+                        .expect("No address found! Malformed client");
                     let mut queues = tx_in.lock().await;
                     let mut queue = match queues.get_mut(&addr) {
                         Some(queue) => queue,
@@ -400,7 +416,11 @@ pub mod tcp {
             let clients = self.clients.lock().await;
             let mut client_ids = ClientList::with_capacity(clients.len());
             for c in clients.iter() {
-                client_ids.push(c.get_address(false).await);
+                client_ids.push(
+                    c.get_address(false)
+                        .await
+                        .expect("No address found! Malformed client"),
+                );
             }
             client_ids
         }
@@ -434,11 +454,8 @@ pub mod tcp {
         ///
         /// Get the Address:Port info for this socket.
         ///
-        pub fn get_address_info(&self) -> Option<RUMString> {
-            match self.tcp_listener.blocking_lock().local_addr() {
-                Ok(addr) => Some(addr.to_compact_string()),
-                Err(_) => None,
-            }
+        pub async fn get_address_info(&self) -> Option<RUMString> {
+            self.address.clone()
         }
     }
 
@@ -493,7 +510,7 @@ pub mod tcp {
         }
 
         /// Returns the peer address:port as a string.
-        pub fn get_address(&self) -> RUMString {
+        pub fn get_address(&self) -> Option<RUMString> {
             let client_ref = Arc::clone(&self.client);
             let args = rumtk_create_task_args!(client_ref);
             rumtk_wait_on_task!(&self.runtime, RUMClientHandle::get_address_helper, &args)
@@ -533,7 +550,7 @@ pub mod tcp {
             };
             Ok(vec![RUMClient::connect(ip, *port).await?])
         }
-        async fn get_address_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> RUMString {
+        async fn get_address_helper(args: &SafeTaskArgs<Self::ReceiveArgs>) -> Option<RUMString> {
             let owned_args = Arc::clone(args).clone();
             let locked_args = owned_args.read().await;
             let client_ref = locked_args.get(0).unwrap();
@@ -658,7 +675,9 @@ pub mod tcp {
         /// Get the Address:Port info for this socket.
         ///
         pub fn get_address_info(&self) -> Option<RUMString> {
-            self.server.blocking_read().get_address_info()
+            let args = rumtk_create_task_args!(Arc::clone(&self.server));
+            let task = rumtk_create_task!(RUMServerHandle::get_address_helper, args);
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
         }
 
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs>) -> RUMResult<()> {
@@ -724,6 +743,14 @@ pub mod tcp {
             let server_ref = locked_args.get(0).unwrap();
             let server = server_ref.read().await;
             server.get_clients().await
+        }
+
+        async fn get_address_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> Option<RUMString> {
+            let owned_args = Arc::clone(args).clone();
+            let locked_args = owned_args.read().await;
+            let server_ref = locked_args.get(0).unwrap();
+            let mut server = server_ref.read().await;
+            server.get_address_info().await
         }
     }
 }

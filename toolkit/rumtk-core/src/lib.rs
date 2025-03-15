@@ -23,34 +23,38 @@
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
 
-pub mod net;
-pub mod log;
-pub mod strings;
-pub mod maths;
 pub mod cache;
-pub mod search;
-pub mod queue;
 pub mod core;
+pub mod log;
+pub mod maths;
+pub mod net;
+pub mod queue;
+pub mod search;
+pub mod strings;
 pub mod threading;
 
 #[cfg(test)]
 mod tests {
-    use std::future::{Future, IntoFuture};
-    use std::sync::{Arc, Mutex};
-    use std::time::Duration;
-    use compact_str::{format_compact, CompactString};
-    use tokio::sync::{RwLock};
-    use crate::strings::{RUMString, RUMStringConversions, UTFStringExtensions, RUMArrayConversions};
-    use crate::search::rumtk_search::*;
-    use crate::cache::RUMCache;
     use super::*;
+    use crate::cache::RUMCache;
+    use crate::search::rumtk_search::*;
+    use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions};
+    use compact_str::{format_compact, CompactString};
+    use std::future::IntoFuture;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     #[test]
     fn test_escaping_control() {
         let input = "\r\n\'\"";
         let expected = "\\r\\n\\'\\\"";
         let result = strings::escape(&input);
-        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            expected,
+            result.as_str()
+        );
         assert_eq!(expected, result, "Incorrect string escaping!");
         println!("Passed!")
     }
@@ -60,7 +64,12 @@ mod tests {
         let input = "❤";
         let expected = "\\u2764";
         let result = strings::escape(&input);
-        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            expected,
+            result.as_str()
+        );
         assert_eq!(expected, result, "Incorrect string escaping!");
         println!("Passed!")
     }
@@ -71,7 +80,12 @@ mod tests {
         let escaped = strings::escape(&input);
         let expected = "❤";
         let result = RUMString::from_utf8(strings::unescape(&escaped.as_str()).unwrap()).unwrap();
-        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            expected,
+            result.as_str()
+        );
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")
     }
@@ -81,7 +95,12 @@ mod tests {
         let input = "I \\u2764 my wife!";
         let expected = "I ❤ my wife!";
         let result = strings::unescape_string(&input).unwrap();
-        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            expected,
+            result.as_str()
+        );
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")
     }
@@ -91,7 +110,12 @@ mod tests {
         let input = "I ❤ my wife!";
         let expected = "I \\u2764 my wife!";
         let result = strings::escape(&input);
-        println!("Input: {} Expected: {} Got: {}", input, expected, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            expected,
+            result.as_str()
+        );
         assert_eq!(expected, result.as_str(), "Incorrect string escaping!");
         println!("Passed!")
     }
@@ -100,7 +124,12 @@ mod tests {
     fn test_autodecode_utf8() {
         let input = "I ❤ my wife!";
         let result = strings::try_decode(input.as_bytes());
-        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            input,
+            result.as_str()
+        );
         assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
@@ -121,7 +150,12 @@ mod tests {
         let input = "I ❤ my wife!";
         let expected = "I ❤ my wife!";
         let result = strings::try_decode_with(input.as_bytes(), "utf-8");
-        println!("Input: {} Expected: {} Got: {}", input, input, result.as_str());
+        println!(
+            "Input: {} Expected: {} Got: {}",
+            input,
+            input,
+            result.as_str()
+        );
         assert_eq!(input, result, "Incorrect string decoding!");
         println!("Passed!")
     }
@@ -141,7 +175,10 @@ mod tests {
         let expr = r"\w";
         let result = string_search(input, expr, "");
         let expected: RUMString = RUMString::from("HelloWorld");
-        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            input, expected, result
+        );
         assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
@@ -152,7 +189,10 @@ mod tests {
         let expr = r"\w+";
         let result = string_search(input, expr, " ");
         let expected: RUMString = RUMString::from("Hello World");
-        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            input, expected, result
+        );
         assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
@@ -163,7 +203,10 @@ mod tests {
         let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
         let result = string_search_named_captures(input, expr, "");
         let expected: RUMString = RUMString::from("World");
-        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            input, expected, result
+        );
         assert_eq!(expected, result["world"], "String search results mismatch");
         println!("Passed!")
     }
@@ -174,7 +217,10 @@ mod tests {
         let expr = r"(?<hello>\w{5}) (?<world>\w{5})";
         let result = string_search_all_captures(input, expr, "");
         let expected: Vec<&str> = vec!["Hello", "World"];
-        println!("Input: {:?} Expected: {:?} Got: {:?}", input, expected, result);
+        println!(
+            "Input: {:?} Expected: {:?} Got: {:?}",
+            input, expected, result
+        );
         assert_eq!(expected, result, "String search results mismatch");
         println!("Passed!")
     }
@@ -184,17 +230,19 @@ mod tests {
     fn test_default_num_threads() {
         use num_cpus;
         let threads = threading::threading_functions::get_default_system_thread_count();
-        assert_eq!(threads >= num_cpus::get(), true, "Default thread count is incorrect! We got {}, but expected {}!", threads, num_cpus::get());
+        assert_eq!(
+            threads >= num_cpus::get(),
+            true,
+            "Default thread count is incorrect! We got {}, but expected {}!",
+            threads,
+            num_cpus::get()
+        );
     }
 
     #[test]
     fn test_execute_job() {
         let rt = rumtk_init_threads!();
-        let expected = vec![
-            1,
-            2,
-            3
-        ];
+        let expected = vec![1, 2, 3];
         let task_processor = async |args: &SafeTaskArgs<i32>| -> TaskResult<i32> {
             let owned_args = Arc::clone(args);
             let lock_future = owned_args.read();
@@ -217,11 +265,7 @@ mod tests {
     #[test]
     fn test_execute_job_macros() {
         let rt = rumtk_init_threads!();
-        let expected = vec![
-            1,
-            2,
-            3
-        ];
+        let expected = vec![1, 2, 3];
         let task_processor = async |args: &SafeTaskArgs<i32>| -> TaskResult<i32> {
             let owned_args = Arc::clone(args);
             let lock_future = owned_args.read();
@@ -241,10 +285,10 @@ mod tests {
     }
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
-    use queue::queue::*;
     use crate::net::tcp::LOCALHOST;
     use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
     use crate::threading::threading_functions::sleep;
+    use queue::queue::*;
 
     #[test]
     fn test_queue_data() {
@@ -253,7 +297,7 @@ mod tests {
             RUMString::from("World!"),
             RUMString::from("Overcast"),
             RUMString::from("and"),
-            RUMString::from("Sad")
+            RUMString::from("Sad"),
         ];
         let mut queue = TaskQueue::<RUMString>::new(&5).unwrap();
         let locked_args = RwLock::new(expected.clone());
@@ -344,7 +388,7 @@ mod tests {
             Err(e) => panic!("Failed to send message because {}", e),
         };
         rumtk_sleep!(1);
-        let client_id = client.get_address();
+        let client_id = client.get_address().expect("Failed to get client id");
         let incoming_message = server.receive(&client_id).unwrap().to_rumstring();
         println!("Received message => {:?}", &incoming_message);
         assert_eq!(&incoming_message, msg, "Received message corruption!");
@@ -366,6 +410,25 @@ mod tests {
         match server.stop() {
             Ok(_) => (),
             Err(e) => panic!("Failed to stop server because {}", e),
+        };
+    }
+
+    #[test]
+    fn test_server_get_address_info() {
+        let msg = RUMString::from("Hello World!");
+        let mut server = match rumtk_create_server!("localhost", 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start(false) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        };
+        println!("Sleeping");
+        rumtk_sleep!(1);
+        match server.get_address_info() {
+            Some(addr) => println!("Server address info => {}", addr),
+            None => panic!("No address. Perhaps the server was never initialized?"),
         };
     }
 
