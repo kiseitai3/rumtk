@@ -166,11 +166,22 @@ pub mod tcp {
     /// List of client IDs that you can interact with.
     pub type ClientList = Vec<RUMString>;
     type SafeQueue<T> = Arc<AsyncMutex<VecDeque<T>>>;
-    type SafeClients = Arc<AsyncMutex<Vec<RUMClient>>>;
+    pub type SafeClient = Arc<AsyncMutex<RUMClient>>;
+    type SafeClients = Arc<AsyncRwLock<HashMap<RUMString, SafeClient>>>;
     type SafeMappedQueues = Arc<AsyncMutex<HashMap<RUMString, SafeQueue<RUMNetMessage>>>>;
     pub type SafeListener = Arc<AsyncMutex<TcpListener>>;
     pub type SafeServer = Arc<AsyncRwLock<RUMServer>>;
-    pub type SafeClient = Arc<AsyncMutex<RUMClient>>;
+
+    ///
+    /// Enum used for selecting which clients to iterate through.
+    /// Pass [SOCKET_READINESS_TYPE::NONE] to ignore filtering by readiness type.
+    ///
+    pub enum SOCKET_READINESS_TYPE {
+        NONE,
+        READ_READY,
+        WRITE_READY,
+        READWRITE_READY,
+    }
 
     ///
     /// This is the Server primitive that listens for incoming connections and manages "low-level"
@@ -227,7 +238,8 @@ pub mod tcp {
                 RUMString,
                 SafeQueue<RUMNetMessage>,
             >::new()));
-            let clients = SafeClients::new(AsyncMutex::new(Vec::new()));
+            let client_list = HashMap::<RUMString, SafeClient>::new();
+            let clients = SafeClients::new(AsyncRwLock::new(client_list));
             let tcp_listener = Arc::new(AsyncMutex::new(tcp_listener_handle));
             Ok(RUMServer {
                 tcp_listener,
@@ -333,18 +345,23 @@ pub mod tcp {
         ///
         /// Contains basic logic for listening for incoming connections.
         ///
-        async fn handle_accept(listener: SafeListener, clients: SafeClients) {
+        async fn handle_accept(listener: SafeListener, clients: SafeClients) -> RUMResult<()> {
             let server = listener.lock().await;
             match server.accept().await {
                 Ok((socket, _)) => {
-                    let mut client_list = clients.lock().await;
-                    let client = match RUMClient::accept(socket).await {
-                        Ok(client) => client,
-                        Err(e) => return (),
+                    let client = RUMClient::accept(socket).await?;
+                    let client_id = match client.get_address(false).await {
+                        Some(client_id) => client_id,
+                        None => return Err(format_compact!("Accepted client returned no peer address. This should not be happening!"))
                     };
-                    client_list.push(client);
+                    let mut client_list = clients.write().await;
+                    client_list.insert(client_id, SafeClient::new(AsyncMutex::new(client)));
+                    Ok(())
                 }
-                Err(e) => (),
+                Err(e) => Err(format_compact!(
+                    "Error accepting incoming client! Error: {}",
+                    e
+                )),
             }
         }
 
@@ -353,76 +370,138 @@ pub mod tcp {
         /// of [SafeMappedQueues] which is a hash map of [SafeQueue<RUMNetMessage>] whose keys are
         /// the client's peer address string.
         ///
-        async fn handle_send(clients: SafeClients, tx_out: SafeMappedQueues) {
-            let mut client_list = clients.lock().await;
-            for mut client in client_list.iter_mut() {
-                let ready = client.write_ready().await;
-                if ready {
-                    let addr = client
-                        .get_address(false)
-                        .await
-                        .expect("No address found! Malformed client");
-                    let mut queues = tx_out.lock().await;
-                    let mut queue = match queues.get_mut(&addr) {
-                        Some(queue) => queue,
-                        None => continue,
-                    };
-                    let mut locked_queue = queue.lock().await;
-                    for msg in locked_queue.iter() {
-                        match client.send(&msg).await {
-                            Ok(_) => (),
-                            Err(e) => return (),
-                        }
-                    }
-                    locked_queue.clear();
+        async fn handle_send(clients: SafeClients, tx_out: SafeMappedQueues) -> RUMResult<()> {
+            let mut client_list =
+                RUMServer::get_client_ids(&clients, SOCKET_READINESS_TYPE::WRITE_READY).await;
+            for client in client_list.iter() {
+                let messages = match RUMServer::pop_queue(&tx_out, client).await {
+                    Some(messages) => messages,
+                    None => continue,
+                };
+                for msg in messages.iter() {
+                    RUMServer::send(&clients, client, msg).await?;
                 }
             }
+            Ok(())
         }
 
         ///
         /// Contains the logic for handling receiving messages from clients. Incoming messages are
         /// all placed into a queue that the "outside" world can interact with.
         ///
-        async fn handle_receive(clients: SafeClients, tx_in: SafeMappedQueues) {
-            let mut client_list = clients.lock().await;
-            for mut client in client_list.iter_mut() {
-                let ready = client.read_ready().await;
+        async fn handle_receive(clients: SafeClients, tx_in: SafeMappedQueues) -> RUMResult<()> {
+            let mut client_list =
+                RUMServer::get_client_ids(&clients, SOCKET_READINESS_TYPE::READ_READY).await;
+            for client in client_list.iter_mut() {
+                let msg = RUMServer::receive(&clients, client).await?;
+                RUMServer::push_queue(&tx_in, client, msg).await;
+            }
+            Ok(())
+        }
+
+        pub async fn push_queue(
+            tx_queues: &SafeMappedQueues,
+            client: &RUMString,
+            msg: RUMNetMessage,
+        ) {
+            let mut queues = tx_queues.lock().await;
+            let mut queue = match queues.get_mut(client) {
+                Some(queue) => queue,
+                None => {
+                    let new_queue =
+                        SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+                    queues.insert(client.clone(), new_queue);
+                    queues.get_mut(client).unwrap()
+                }
+            };
+            let mut locked_queue = queue.lock().await;
+            locked_queue.push_back(msg);
+        }
+
+        pub async fn pop_queue(
+            tx_queues: &SafeMappedQueues,
+            client: &RUMString,
+        ) -> Option<Vec<RUMNetMessage>> {
+            let mut queues = tx_queues.lock().await;
+            let mut queue = match queues.get_mut(client) {
+                Some(queue) => queue,
+                None => return None,
+            };
+            let mut locked_queue = queue.lock().await;
+            let mut messages = Vec::<RUMNetMessage>::with_capacity(locked_queue.len());
+            while !locked_queue.is_empty() {
+                let message = match locked_queue.pop_front() {
+                    Some(message) => message,
+                    None => break,
+                };
+                messages.push(message);
+            }
+            locked_queue.clear();
+            Some(messages)
+        }
+
+        pub async fn send(
+            clients: &SafeClients,
+            client: &RUMString,
+            msg: &RUMNetMessage,
+        ) -> RUMResult<()> {
+            let owned_clients = clients.write().await;
+            match owned_clients.get(client) {
+                Some(connected_client) => connected_client.lock().await.send(msg).await,
+                _ => Err(format_compact!(
+                    "Failed to send data! No client with address {} found!",
+                    client
+                )),
+            }
+        }
+
+        pub async fn receive(
+            clients: &SafeClients,
+            client: &RUMString,
+        ) -> RUMResult<RUMNetMessage> {
+            let owned_clients = clients.write().await;
+            match owned_clients.get(client) {
+                Some(connected_client) => connected_client.lock().await.recv().await,
+                _ => Err(format_compact!(
+                    "Failed to receive data! No client with address {} found!",
+                    client
+                )),
+            }
+        }
+
+        pub async fn get_client_ids(
+            clients: &SafeClients,
+            ready_type: SOCKET_READINESS_TYPE,
+        ) -> ClientList {
+            let clients = clients.read().await;
+            let mut client_ids = ClientList::with_capacity(clients.len());
+            for c in clients.iter() {
+                let owned_client = c.1.lock().await;
+                let ready = match ready_type {
+                    SOCKET_READINESS_TYPE::NONE => true,
+                    SOCKET_READINESS_TYPE::READ_READY => owned_client.read_ready().await,
+                    SOCKET_READINESS_TYPE::WRITE_READY => owned_client.write_ready().await,
+                    SOCKET_READINESS_TYPE::READWRITE_READY => {
+                        owned_client.read_ready().await && owned_client.write_ready().await
+                    }
+                };
                 if ready {
-                    let addr = client
-                        .get_address(false)
-                        .await
-                        .expect("No address found! Malformed client");
-                    let mut queues = tx_in.lock().await;
-                    let mut queue = match queues.get_mut(&addr) {
-                        Some(queue) => queue,
-                        None => {
-                            let new_queue =
-                                SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
-                            queues.insert(addr.clone(), new_queue);
-                            queues.get_mut(&addr).unwrap()
-                        }
-                    };
-                    let mut locked_queue = queue.lock().await;
-                    let msg = client.recv().await.unwrap();
-                    locked_queue.push_back(msg);
+                    client_ids.push(
+                        owned_client
+                            .get_address(false)
+                            .await
+                            .expect("No address found! Malformed client"),
+                    );
                 }
             }
+            client_ids
         }
 
         ///
         /// Return list of clients.
         ///
         pub async fn get_clients(&self) -> ClientList {
-            let clients = self.clients.lock().await;
-            let mut client_ids = ClientList::with_capacity(clients.len());
-            for c in clients.iter() {
-                client_ids.push(
-                    c.get_address(false)
-                        .await
-                        .expect("No address found! Malformed client"),
-                );
-            }
-            client_ids
+            RUMServer::get_client_ids(&self.clients, SOCKET_READINESS_TYPE::NONE).await
         }
 
         ///

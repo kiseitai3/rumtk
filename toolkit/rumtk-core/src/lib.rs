@@ -395,6 +395,34 @@ mod tests {
     }
 
     #[test]
+    fn test_server_get_clients() {
+        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start(false) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        };
+        println!("Sleeping");
+        rumtk_sleep!(1);
+        let mut client = match rumtk_connect!(55555) {
+            Ok(client) => client,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        rumtk_sleep!(1);
+        let expected_client_id = client.get_address().expect("Failed to get client id");
+        let clients = server.get_clients();
+        let incoming_client_id = clients.get(0).expect("Expected client to have connected!");
+        println!("Connected client id => {}", &incoming_client_id);
+        assert_eq!(
+            &incoming_client_id, &expected_client_id,
+            "Connected client does not match the connecting client! Client id => {}",
+            &incoming_client_id
+        );
+    }
+
+    #[test]
     fn test_server_stop() {
         let msg = RUMString::from("Hello World!");
         let mut server = match rumtk_create_server!("localhost", 55555) {
