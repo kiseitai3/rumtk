@@ -475,26 +475,37 @@ pub mod tcp {
         ) -> ClientList {
             let clients = clients.read().await;
             let mut client_ids = ClientList::with_capacity(clients.len());
-            for c in clients.iter() {
-                let owned_client = c.1.lock().await;
-                let ready = match ready_type {
-                    SOCKET_READINESS_TYPE::NONE => true,
-                    SOCKET_READINESS_TYPE::READ_READY => owned_client.read_ready().await,
-                    SOCKET_READINESS_TYPE::WRITE_READY => owned_client.write_ready().await,
-                    SOCKET_READINESS_TYPE::READWRITE_READY => {
-                        owned_client.read_ready().await && owned_client.write_ready().await
-                    }
-                };
+            for (client_id, client) in clients.iter() {
+                let ready = RUMServer::get_client_readiness(client, &ready_type).await;
                 if ready {
-                    client_ids.push(
-                        owned_client
-                            .get_address(false)
-                            .await
-                            .expect("No address found! Malformed client"),
-                    );
+                    client_ids.push(RUMServer::get_client_id(client).await);
                 }
             }
             client_ids
+        }
+
+        pub async fn get_client_id(client: &SafeClient) -> RUMString {
+            client
+                .lock()
+                .await
+                .get_address(false)
+                .await
+                .expect("No address found! Malformed client")
+        }
+
+        pub async fn get_client_readiness(
+            client: &SafeClient,
+            socket_readiness_type: &SOCKET_READINESS_TYPE,
+        ) -> bool {
+            match socket_readiness_type {
+                SOCKET_READINESS_TYPE::NONE => true,
+                SOCKET_READINESS_TYPE::READ_READY => client.lock().await.read_ready().await,
+                SOCKET_READINESS_TYPE::WRITE_READY => client.lock().await.write_ready().await,
+                SOCKET_READINESS_TYPE::READWRITE_READY => {
+                    client.lock().await.read_ready().await
+                        && client.lock().await.write_ready().await
+                }
+            }
         }
 
         ///
