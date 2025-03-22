@@ -193,8 +193,10 @@ pub mod mllp_v2 {
     use rumtk_core::net::tcp::{
         ClientList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
     };
-    use rumtk_core::strings::{escape, filter_non_printable_ascii, try_decode, RUMString};
-    use rumtk_core::{rumtk_connect, rumtk_create_server};
+    use rumtk_core::strings::{
+        escape, filter_non_printable_ascii, try_decode, RUMString, ToCompactString,
+    };
+    use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_start_server};
     use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
@@ -283,7 +285,8 @@ pub mod mllp_v2 {
         pub fn init(ip: &str, port: u16, as_server: bool) -> RUMResult<LowerLayer> {
             match as_server {
                 true => {
-                    let server = rumtk_create_server!(ip, port)?;
+                    let mut server = rumtk_create_server!(ip, port)?;
+                    rumtk_start_server!(&mut server);
                     Ok(LowerLayer::SERVER(server))
                 }
                 false => {
@@ -315,8 +318,15 @@ pub mod mllp_v2 {
             match *self {
                 LowerLayer::SERVER(ref server) => server.get_clients(),
                 LowerLayer::CLIENT(ref client) => {
-                    vec![client.get_address()]
+                    vec![client.get_address().expect("No client address!")]
                 }
+            }
+        }
+
+        pub fn get_address_info(&self) -> Option<RUMString> {
+            match *self {
+                LowerLayer::SERVER(ref server) => server.get_address_info(),
+                LowerLayer::CLIENT(ref client) => client.get_address(),
             }
         }
     }
@@ -425,6 +435,11 @@ pub mod mllp_v2 {
         pub fn is_server(&self) -> bool {
             self.server
         }
+
+        pub fn get_address_info(&self) -> Option<RUMString> {
+            let lower_layer = self.next_layer().unwrap();
+            lower_layer.get_address_info()
+        }
     }
 
     pub type SafeMLLP = Arc<Mutex<MLLP>>;
@@ -461,7 +476,12 @@ pub mod mllp_v2 {
         /// the endpoint listening interface.
         ///
         pub fn from_client(mllp_instance: &SafeMLLP) -> Vec<RUMResult<MLLPChannel>> {
-            let endpoint = mllp_instance.lock().unwrap().get_clients().get(0).unwrap();
+            let locked_mllp = match mllp_instance.lock() {
+                Ok(mllp) => mllp,
+                Err(_) => return vec![Err("Could not lock mllp instance!".to_compact_string())],
+            };
+            let clients = locked_mllp.get_clients();
+            let endpoint = clients.get(0).unwrap();
             vec![MLLPChannel::open(endpoint, mllp_instance)]
         }
 
@@ -514,8 +534,8 @@ pub mod mllp_v2_api {
     macro_rules! rumtk_v2_mllp_get_channels {
         ( $mllp:expr ) => {{
             match $mllp.is_server() {
-                true => MLLP::from_server($mllp),
-                false => MLLP::from_client($mllp),
+                true => MLLPChannel::from_server($mllp),
+                false => MLLPChannel::from_client($mllp),
             }
         }};
     }

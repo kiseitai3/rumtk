@@ -24,19 +24,19 @@ pub mod hl7_v2_complex_types;
 pub mod hl7_v2_constants;
 pub mod hl7_v2_field_descriptors;
 pub mod hl7_v2_interpreter;
+mod hl7_v2_mllp;
 mod hl7_v2_optionality_rules;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
 pub mod hl7_v2_types;
-mod hl7_v2_mllp;
 /*****************************************Tests****************************************/
 #[cfg(test)]
 mod tests {
-    use std::convert::Infallible;
     use super::*;
     use crate::hl7_v2_field_descriptors::v2_field_descriptor::{
         Optionality, V2ComponentType, V2ComponentTypeDescriptor,
     };
+    use crate::hl7_v2_mllp::mllp_v2::MLLP_FILTER_POLICY;
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
     use hl7_v2_complex_types::hl7_v2_complex_types::cast_component;
@@ -44,8 +44,9 @@ mod tests {
     use hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use hl7_v2_parser::v2_parser::*;
     use hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
+    use rumtk_core::rumtk_sleep;
     use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils};
+    use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils, ToCompactString};
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -865,6 +866,47 @@ mod tests {
 
     // TODO: Add tests for sequenceid and telephonestring
     // TODO: Add fuzzing test for to_datetime().
+
+    #[test]
+    fn test_mllp_listen() {
+        let mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_layer) => mllp_layer,
+            Err(e) => panic!("{}", e),
+        };
+        assert_eq!(
+            mllp_layer.get_address_info(),
+            Some("127.0.0.1:55555".to_compact_string()),
+            "Failed to bind local port!"
+        )
+    }
+
+    #[test]
+    fn test_mllp_connect() {
+        let mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_layer) => mllp_layer,
+            Err(e) => panic!("{}", e),
+        };
+        let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
+            Ok(client) => client,
+            Err(e) => panic!("{}", e),
+        };
+        rumtk_sleep!(1);
+        let mut connected_clients = mllp_layer.get_clients();
+        for i in 0..10 {
+            if connected_clients.is_empty() {
+                rumtk_sleep!(1);
+                connected_clients = mllp_layer.get_clients();
+            }
+        }
+        let connected_address = connected_clients.get(0).unwrap();
+        assert_eq!(
+            connected_address,
+            client.get_address_info().unwrap(),
+            "Failed to bind local port!"
+        )
+    }
+
+    ////////////////////////////Fuzzed Tests/////////////////////////////////
 
     #[test]
     fn test_fuzzed_garbage_parsing() {
