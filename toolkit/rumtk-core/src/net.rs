@@ -166,7 +166,7 @@ pub mod tcp {
     /// List of client IDs that you can interact with.
     pub type ClientList = Vec<RUMString>;
     type SafeQueue<T> = Arc<AsyncMutex<VecDeque<T>>>;
-    pub type SafeClient = Arc<AsyncMutex<RUMClient>>;
+    pub type SafeClient = Arc<AsyncRwLock<RUMClient>>;
     type SafeClients = Arc<AsyncRwLock<HashMap<RUMString, SafeClient>>>;
     type SafeMappedQueues = Arc<AsyncMutex<HashMap<RUMString, SafeQueue<RUMNetMessage>>>>;
     pub type SafeListener = Arc<AsyncMutex<TcpListener>>;
@@ -355,7 +355,7 @@ pub mod tcp {
                         None => return Err(format_compact!("Accepted client returned no peer address. This should not be happening!"))
                     };
                     let mut client_list = clients.write().await;
-                    client_list.insert(client_id, SafeClient::new(AsyncMutex::new(client)));
+                    client_list.insert(client_id, SafeClient::new(AsyncRwLock::new(client)));
                     Ok(())
                 }
                 Err(e) => Err(format_compact!(
@@ -447,7 +447,7 @@ pub mod tcp {
         ) -> RUMResult<()> {
             let owned_clients = clients.write().await;
             match owned_clients.get(client) {
-                Some(connected_client) => connected_client.lock().await.send(msg).await,
+                Some(connected_client) => connected_client.write().await.send(msg).await,
                 _ => Err(format_compact!(
                     "Failed to send data! No client with address {} found!",
                     client
@@ -461,7 +461,7 @@ pub mod tcp {
         ) -> RUMResult<RUMNetMessage> {
             let owned_clients = clients.write().await;
             match owned_clients.get(client) {
-                Some(connected_client) => connected_client.lock().await.recv().await,
+                Some(connected_client) => connected_client.write().await.recv().await,
                 _ => Err(format_compact!(
                     "Failed to receive data! No client with address {} found!",
                     client
@@ -486,7 +486,7 @@ pub mod tcp {
 
         pub async fn get_client_id(client: &SafeClient) -> RUMString {
             client
-                .lock()
+                .read()
                 .await
                 .get_address(false)
                 .await
@@ -499,11 +499,11 @@ pub mod tcp {
         ) -> bool {
             match socket_readiness_type {
                 SOCKET_READINESS_TYPE::NONE => true,
-                SOCKET_READINESS_TYPE::READ_READY => client.lock().await.read_ready().await,
-                SOCKET_READINESS_TYPE::WRITE_READY => client.lock().await.write_ready().await,
+                SOCKET_READINESS_TYPE::READ_READY => client.read().await.read_ready().await,
+                SOCKET_READINESS_TYPE::WRITE_READY => client.read().await.write_ready().await,
                 SOCKET_READINESS_TYPE::READWRITE_READY => {
-                    client.lock().await.read_ready().await
-                        && client.lock().await.write_ready().await
+                    client.read().await.read_ready().await
+                        && client.read().await.write_ready().await
                 }
             }
         }
@@ -576,7 +576,7 @@ pub mod tcp {
                 .pop()
                 .unwrap();
             Ok(RUMClientHandle {
-                client: SafeClient::new(AsyncMutex::new(client)),
+                client: SafeClient::new(AsyncRwLock::new(client)),
                 runtime,
             })
         }
@@ -612,7 +612,7 @@ pub mod tcp {
             let locked_args = lock_future.await;
             let (client_lock_ref, msg) = locked_args.get(0).unwrap();
             let mut client_ref = Arc::clone(client_lock_ref);
-            let mut client = client_ref.lock().await;
+            let mut client = client_ref.write().await;
             client.send(msg).await
         }
 
@@ -623,7 +623,7 @@ pub mod tcp {
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
             let mut client_ref = locked_args.get(0).unwrap();
-            let mut client = client_ref.lock().await;
+            let mut client = client_ref.write().await;
             client.recv().await
         }
 
@@ -644,7 +644,7 @@ pub mod tcp {
             let owned_args = Arc::clone(args).clone();
             let locked_args = owned_args.read().await;
             let client_ref = locked_args.get(0).unwrap();
-            let mut client = client_ref.lock().await;
+            let mut client = client_ref.read().await;
             client.get_address(true).await
         }
     }
