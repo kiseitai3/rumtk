@@ -26,7 +26,7 @@
 ///
 pub mod tcp {
     use crate::core::RUMResult;
-    use crate::strings::RUMString;
+    use crate::strings::{RUMArrayConversions, RUMString};
     use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskResult};
     use crate::threading::threading_functions::get_default_system_thread_count;
     use crate::{
@@ -91,6 +91,11 @@ pub mod tcp {
         /// Send message to server.
         ///
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
+            println!(
+                "Sending message to {}: {}",
+                self.get_address(false).await.unwrap(),
+                msg.to_rumstring()
+            );
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format_compact!(
@@ -114,19 +119,34 @@ pub mod tcp {
                     break;
                 }
             }
+            if msg.len() > 0 {
+                println!(
+                    "Received message from {}: {}",
+                    self.get_address(false).await.unwrap(),
+                    msg.to_rumstring()
+                );
+            }
             Ok(msg)
         }
 
         async fn recv_some(&mut self) -> RUMResult<RUMNetPartialMessage> {
             let mut buf: [u8; MESSAGE_BUFFER_SIZE] = [0; MESSAGE_BUFFER_SIZE];
+            let client_id = &self.socket.peer_addr().unwrap().to_compact_string();
             match self.socket.try_read(&mut buf) {
-                Ok(n) => Ok((RUMNetMessage::from(buf), true)),
+                Ok(n) => match n {
+                    0 => Err(format_compact!(
+                        "Received 0 bytes from {}! It might have disconnected!",
+                        &client_id
+                    )),
+                    MESSAGE_BUFFER_SIZE => Ok((RUMNetMessage::from(buf), true)),
+                    _ => Ok((RUMNetMessage::from(buf[0..n].to_vec()), false)),
+                },
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     Ok((RUMNetMessage::from(buf), false))
                 }
                 Err(e) => Err(format_compact!(
                     "Error receiving message from {} because {}",
-                    &self.socket.peer_addr().unwrap().to_compact_string(),
+                    &client_id,
                     &e
                 )),
             }
@@ -445,7 +465,7 @@ pub mod tcp {
             client: &RUMString,
             msg: &RUMNetMessage,
         ) -> RUMResult<()> {
-            let owned_clients = clients.write().await;
+            let owned_clients = clients.read().await;
             match owned_clients.get(client) {
                 Some(connected_client) => connected_client.write().await.send(msg).await,
                 _ => Err(format_compact!(
@@ -459,7 +479,7 @@ pub mod tcp {
             clients: &SafeClients,
             client: &RUMString,
         ) -> RUMResult<RUMNetMessage> {
-            let owned_clients = clients.write().await;
+            let owned_clients = clients.read().await;
             match owned_clients.get(client) {
                 Some(connected_client) => connected_client.write().await.recv().await,
                 _ => Err(format_compact!(

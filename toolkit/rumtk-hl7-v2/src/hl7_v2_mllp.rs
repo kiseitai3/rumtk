@@ -189,13 +189,12 @@ pub mod mllp_v2 {
     //!     <SB><NAK><EB><CR>
     //!
 
+    use crate::hl7_v2_parser::v2_parser::format_compact;
     use rumtk_core::core::RUMResult;
     use rumtk_core::net::tcp::{
         ClientList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
     };
-    use rumtk_core::strings::{
-        escape, filter_non_printable_ascii, try_decode, RUMString, ToCompactString,
-    };
+    use rumtk_core::strings::{escape, filter_non_printable_ascii, try_decode, RUMString};
     use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_start_server};
     use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
@@ -244,10 +243,18 @@ pub mod mllp_v2 {
     /// we use the [try_decode] function from the strings module to attempt auto-detection of encoding
     /// and forcing the output to be in UTF-8.
     ///
-    pub fn mllp_decode(message: &RUMNetMessage) -> RUMString {
-        let mut stripped = message.clone();
-        stripped.retain(|c| c != &SB && c != &EB && c != &CR);
-        try_decode(message)
+    pub fn mllp_decode(message: &RUMNetMessage) -> RUMResult<RUMString> {
+        if message.len() < 3 {
+            return Err(format_compact!("Message is empty! Got: {:?}", message));
+        }
+        let end_index = message.len() - 2;
+        if message[0] != SB || message[end_index] != EB || message[message.len() - 1] != CR {
+            return Err(format_compact!(
+                "Message is not encoded properly! Got: {:?}",
+                message
+            ));
+        }
+        Ok(try_decode(&message[1..end_index]))
     }
 
     ///
@@ -420,12 +427,13 @@ pub mod mllp_v2 {
         pub fn send_message(&mut self, message: &RUMString, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
+            println!("Encoded message: {:?}", &encoded);
             self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
         pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
             let message = self.next_layer().unwrap().receive_message(endpoint)?;
-            Ok(mllp_decode(&message))
+            mllp_decode(&message)
         }
 
         pub fn get_clients(&self) -> ClientList {
@@ -462,9 +470,9 @@ pub mod mllp_v2 {
         ///
         /// Create vector iterable using the shared [MLLP] instance to obtain channels to clients.
         ///
-        pub fn from_server(mllp_instance: &SafeMLLP) -> Vec<RUMResult<MLLPChannel>> {
+        pub fn from_server(mllp_instance: &SafeMLLP) -> Vec<MLLPChannel> {
             let endpoints = mllp_instance.lock().unwrap().get_clients();
-            let mut channels = Vec::<RUMResult<MLLPChannel>>::with_capacity(endpoints.len());
+            let mut channels = Vec::<MLLPChannel>::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
                 channels.push(MLLPChannel::open(endpoint, mllp_instance));
             }
@@ -475,21 +483,21 @@ pub mod mllp_v2 {
         /// Create vector iterable using the shared [MLLP] instance to obtain a single channel to
         /// the endpoint listening interface.
         ///
-        pub fn from_client(mllp_instance: &SafeMLLP) -> Vec<RUMResult<MLLPChannel>> {
+        pub fn from_client(mllp_instance: &SafeMLLP) -> Vec<MLLPChannel> {
             let locked_mllp = match mllp_instance.lock() {
                 Ok(mllp) => mllp,
-                Err(_) => return vec![Err("Could not lock mllp instance!".to_compact_string())],
+                Err(_) => return vec![],
             };
             let clients = locked_mllp.get_clients();
             let endpoint = clients.get(0).unwrap();
             vec![MLLPChannel::open(endpoint, mllp_instance)]
         }
 
-        pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> RUMResult<MLLPChannel> {
-            Ok(MLLPChannel {
+        pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> MLLPChannel {
+            MLLPChannel {
                 peer: endpoint.clone(),
                 channel: Arc::clone(mllp_instance),
-            })
+            }
         }
 
         pub fn next_layer(&self) -> GuardedMLLPLayer {
@@ -531,11 +539,13 @@ pub mod mllp_v2_api {
     }
 
     #[macro_export]
-    macro_rules! rumtk_v2_mllp_get_channels {
+    macro_rules! rumtk_v2_iter_channels {
         ( $mllp:expr ) => {{
-            match $mllp.is_server() {
-                true => MLLPChannel::from_server($mllp),
-                false => MLLPChannel::from_client($mllp),
+            use $crate::hl7_v2_mllp::mllp_v2::MLLPChannel;
+            let is_server = $mllp.lock().unwrap().is_server();
+            match is_server {
+                true => MLLPChannel::from_server(&$mllp),
+                false => MLLPChannel::from_client(&$mllp),
             }
         }};
     }

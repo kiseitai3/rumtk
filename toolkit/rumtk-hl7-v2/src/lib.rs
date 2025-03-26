@@ -36,7 +36,9 @@ mod tests {
     use crate::hl7_v2_field_descriptors::v2_field_descriptor::{
         Optionality, V2ComponentType, V2ComponentTypeDescriptor,
     };
-    use crate::hl7_v2_mllp::mllp_v2::MLLP_FILTER_POLICY;
+    use crate::hl7_v2_mllp::mllp_v2::{
+        mllp_decode, mllp_encode, MLLPChannel, SafeMLLP, CR, EB, MLLP_FILTER_POLICY, SB,
+    };
     use hl7_v2_base_types::v2_base_types::*;
     use hl7_v2_base_types::v2_primitives::*;
     use hl7_v2_complex_types::hl7_v2_complex_types::cast_component;
@@ -46,7 +48,10 @@ mod tests {
     use hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use rumtk_core::rumtk_sleep;
     use rumtk_core::search::rumtk_search::*;
-    use rumtk_core::strings::{format_compact, AsStr, RUMString, StringUtils, ToCompactString};
+    use rumtk_core::strings::{
+        format_compact, AsStr, RUMArrayConversions, RUMString, StringUtils, ToCompactString,
+    };
+    use std::sync::Mutex;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -868,6 +873,71 @@ mod tests {
     // TODO: Add fuzzing test for to_datetime().
 
     #[test]
+    fn test_mllp_encode() {
+        let expected_message = RUMString::from("I ❤ my wife!");
+        let encoded = mllp_encode(&expected_message);
+        let payload = &encoded[1..encoded.len() - 2];
+
+        assert_eq!(encoded[0], SB, "Incorrect start byte in MLLP message!");
+
+        assert_eq!(
+            encoded[encoded.len() - 2],
+            EB,
+            "Incorrect end byte in MLLP message!"
+        );
+
+        assert_eq!(
+            encoded[encoded.len() - 1],
+            CR,
+            "Missing mandatory carriage return in MLLP message!"
+        );
+
+        assert_eq!(
+            expected_message,
+            payload.to_rumstring(),
+            "{}",
+            format_compact!(
+                "Malformed payload! Expected: {} Found: {}",
+                expected_message,
+                payload.to_rumstring()
+            )
+        );
+    }
+
+    #[test]
+    fn test_mllp_decode() {
+        let expected_message = RUMString::from("I ❤ my wife!");
+        let message_size = expected_message.len();
+        let encoded = mllp_encode(&expected_message);
+        let encoded_size = encoded.len();
+
+        assert_eq!(
+            encoded_size,
+            message_size + 3,
+            "Incorrect encoded message size!"
+        );
+
+        let decoded = mllp_decode(&encoded).unwrap();
+        let decoded_size = decoded.len();
+
+        assert_eq!(
+            decoded_size, message_size,
+            "Incorrect decoded message size!"
+        );
+
+        assert_eq!(
+            expected_message,
+            decoded,
+            "{}",
+            format_compact!(
+                "Malformed decoded message! Expected: {} Found: {}",
+                expected_message,
+                decoded
+            )
+        );
+    }
+
+    #[test]
     fn test_mllp_listen() {
         let mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
             Ok(mllp_layer) => mllp_layer,
@@ -903,6 +973,41 @@ mod tests {
             connected_address,
             client.get_address_info().unwrap(),
             "Failed to bind local port!"
+        )
+    }
+
+    #[test]
+    fn test_mllp_channel() {
+        let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
+        let mut mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_layer) => mllp_layer,
+            Err(e) => panic!("{}", e),
+        };
+        let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
+            Ok(client) => client,
+            Err(e) => panic!("{}", e),
+        };
+        rumtk_sleep!(1);
+        let client_id = client.get_address_info().unwrap();
+        let safe_client = SafeMLLP::new(Mutex::new(client));
+        let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
+        let mut server_channel = server_channels.get_mut(0).unwrap();
+        let expected_message = RUMString::from("I ❤ my wife!");
+        server_channel.send_message(&expected_message).unwrap();
+        rumtk_sleep!(1);
+        let mut received_message = mllp_layer.receive_message(&client_id).unwrap();
+        while received_message.len() == 0 {
+            received_message = mllp_layer.receive_message(&client_id).unwrap();
+        }
+        assert_eq!(
+            &expected_message,
+            &received_message,
+            "{}",
+            format_compact!(
+                "Issue sending message through channel! Expected: {} Received: {}",
+                &expected_message,
+                &received_message
+            )
         )
     }
 
