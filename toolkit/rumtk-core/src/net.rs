@@ -26,7 +26,7 @@
 ///
 pub mod tcp {
     use crate::core::RUMResult;
-    use crate::strings::{RUMArrayConversions, RUMString};
+    use crate::strings::RUMString;
     use crate::threading::thread_primitives::{SafeTaskArgs, SafeTokioRuntime, TaskResult};
     use crate::threading::threading_functions::get_default_system_thread_count;
     use crate::{
@@ -91,11 +91,6 @@ pub mod tcp {
         /// Send message to server.
         ///
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
-            println!(
-                "Sending message to {}: {}",
-                self.get_address(false).await.unwrap(),
-                msg.to_rumstring()
-            );
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format_compact!(
@@ -118,13 +113,6 @@ pub mod tcp {
                 if fragment.1 == false {
                     break;
                 }
-            }
-            if msg.len() > 0 {
-                println!(
-                    "Received message from {}: {}",
-                    self.get_address(false).await.unwrap(),
-                    msg.to_rumstring()
-                );
             }
             Ok(msg)
         }

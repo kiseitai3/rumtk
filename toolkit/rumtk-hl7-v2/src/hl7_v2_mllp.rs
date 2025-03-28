@@ -427,7 +427,6 @@ pub mod mllp_v2 {
         pub fn send_message(&mut self, message: &RUMString, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
-            println!("Encoded message: {:?}", &encoded);
             self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
