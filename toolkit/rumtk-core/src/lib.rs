@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn test_server_send() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+        let mut server = match rumtk_create_server!(LOCALHOST, 55555, 1) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -358,12 +358,24 @@ mod tests {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
+        let client_id = client.get_address().unwrap();
         rumtk_sleep!(1);
-        match client.send(&msg.to_raw()) {
+        match server.send(&client_id, &msg.to_raw()) {
             Ok(_) => (),
-            Err(e) => panic!("Failed to send message because {}", e),
+            Err(e) => panic!("Server failed to send message because {}", e),
         };
-        rumtk_sleep!(1);
+        //assert_eq!(1, 0, "");
+        rumtk_sleep!(5);
+        let received_message = client.receive().unwrap();
+        assert_eq!(
+            &msg.to_raw(),
+            &received_message,
+            "{}",
+            format_compact!(
+                "Received message does not match sent message by server {:?}",
+                &received_message
+            )
+        );
     }
 
     #[test]
@@ -412,7 +424,7 @@ mod tests {
         };
         rumtk_sleep!(1);
         let expected_client_id = client.get_address().expect("Failed to get client id");
-        let clients = server.get_clients();
+        let clients = server.get_client_ids();
         let incoming_client_id = clients.get(0).expect("Expected client to have connected!");
         println!("Connected client id => {}", &incoming_client_id);
         assert_eq!(
@@ -458,6 +470,42 @@ mod tests {
             Some(addr) => println!("Server address info => {}", addr),
             None => panic!("No address. Perhaps the server was never initialized?"),
         };
+    }
+
+    #[test]
+    fn test_client_send() {
+        let msg = RUMString::from("Hello World!");
+        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+            Ok(server) => server,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        match server.start(false) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to start server because {}", e),
+        };
+        println!("Sleeping");
+        rumtk_sleep!(1);
+        let mut client = match rumtk_connect!(55555) {
+            Ok(client) => client,
+            Err(e) => panic!("Failed to create server because {}", e),
+        };
+        let client_id = client.get_address().unwrap();
+        rumtk_sleep!(1);
+        match client.send(&msg.to_raw()) {
+            Ok(_) => (),
+            Err(e) => panic!("Failed to send message because {}", e),
+        };
+        rumtk_sleep!(1);
+        let received_message = server.receive(&client_id).unwrap();
+        assert_eq!(
+            &msg.to_raw(),
+            &received_message,
+            "{}",
+            format_compact!(
+                "Received message does not match sent message by client {:?}",
+                &received_message
+            )
+        );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

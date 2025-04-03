@@ -17,13 +17,12 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-use std::ffi::CStr;
-use std::fmt::Display;
+use crate::core::RUMResult;
 use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
 use encoding_rs::Encoding;
+use std::fmt::Display;
 use unicode_segmentation::UnicodeSegmentation;
-use crate::core::RUMResult;
 /**************************** Constants**************************************/
 const ESCAPED_STRING_WINDOW: usize = 6;
 const ASCII_ESCAPE_CHAR: char = '\\';
@@ -237,11 +236,7 @@ pub trait RUMArrayConversions {
 
 impl RUMArrayConversions for Vec<u8> {
     fn to_rumstring(&self) -> RUMString {
-        let stripped = match CStr::from_bytes_until_nul(&self) {
-            Ok(cstr) => cstr,
-            Err(err) => return RUMString::new(""),
-        };
-        RUMString::from_utf8(stripped.to_bytes()).unwrap()
+        self.as_slice().to_rumstring()
     }
 }
 
@@ -544,12 +539,13 @@ pub fn filter_ascii(unescaped_str: &str, closure: fn(char) -> bool) -> RUMString
     let mut filtered = unescaped_str.to_rumstring();
     filtered.retain(closure);
     filtered
-
 }
 
 ///
 /// Removes all non ASCII and all non printable characters from string.
 ///
 pub fn filter_non_printable_ascii(unescaped_str: &str) -> RUMString {
-    filter_ascii(unescaped_str, |c: char| !c.is_ascii() && (' ' <= c || c <= '~'))
+    filter_ascii(unescaped_str, |c: char| {
+        !c.is_ascii() && (' ' <= c || c <= '~')
+    })
 }
