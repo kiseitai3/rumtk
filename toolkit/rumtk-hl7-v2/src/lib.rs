@@ -1011,6 +1011,59 @@ mod tests {
         )
     }
 
+    #[test]
+    fn test_mllp_hl7_echo() {
+        let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
+        let mut mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_layer) => mllp_layer,
+            Err(e) => panic!("{}", e),
+        };
+        let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
+            Ok(client) => client,
+            Err(e) => panic!("{}", e),
+        };
+        rumtk_sleep!(1);
+        let client_id = client.get_address_info().unwrap();
+        let safe_client = SafeMLLP::new(Mutex::new(client));
+        let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
+        let mut server_channel = server_channels.get_mut(0).unwrap();
+        server_channel.send_message(&HL7_V2_PDF_MESSAGE).unwrap();
+        rumtk_sleep!(1);
+        let mut received_message = mllp_layer.receive_message(&client_id).unwrap();
+        while received_message.len() == 0 {
+            received_message = mllp_layer.receive_message(&client_id).unwrap();
+        }
+        assert_eq!(
+            &HL7_V2_PDF_MESSAGE,
+            &received_message,
+            "{}",
+            format_compact!(
+                "Issue sending message through channel! Expected: {} Received: {}",
+                &HL7_V2_PDF_MESSAGE,
+                &received_message
+            )
+        );
+        mllp_layer
+            .send_message(&received_message, &client_id)
+            .unwrap();
+        rumtk_sleep!(1);
+        let echoed_message = safe_client
+            .lock()
+            .unwrap()
+            .receive_message(&client_id)
+            .unwrap();
+        assert_eq!(
+            &HL7_V2_PDF_MESSAGE,
+            &echoed_message,
+            "{}",
+            format_compact!(
+                "Issue echoing message through channel! Expected: {} Received: {}",
+                &HL7_V2_PDF_MESSAGE,
+                &echoed_message
+            )
+        )
+    }
+
     ////////////////////////////Fuzzed Tests/////////////////////////////////
 
     #[test]

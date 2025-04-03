@@ -194,7 +194,10 @@ pub mod mllp_v2 {
     use rumtk_core::net::tcp::{
         ClientList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
     };
-    use rumtk_core::strings::{escape, filter_non_printable_ascii, try_decode, RUMString};
+    use rumtk_core::strings::{
+        escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
+        RUMStringConversions,
+    };
     use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_start_server};
     use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
@@ -244,8 +247,16 @@ pub mod mllp_v2 {
     /// and forcing the output to be in UTF-8.
     ///
     pub fn mllp_decode(message: &RUMNetMessage) -> RUMResult<RUMString> {
+        if message.len() == 0 {
+            // Nothing to decode, and it would be helpful to upper layers to be able to decide if to
+            // try again.
+            return Ok(message.to_rumstring());
+        }
         if message.len() < 3 {
-            return Err(format_compact!("Message is empty! Got: {:?}", message));
+            return Err(format_compact!(
+                "Message is empty and malformed! Got: {:?}",
+                message
+            ));
         }
         let end_index = message.len() - 2;
         if message[0] != SB || message[end_index] != EB || message[message.len() - 1] != CR {
@@ -268,12 +279,9 @@ pub mod mllp_v2 {
     /// I made this function to allow utilities to better control what kind of outbound message
     /// sanitization to enforce in the production environment.
     ///
-    pub fn mllp_filter_message(
-        msg: &RUMString,
-        mllp_filter_policy: &MLLP_FILTER_POLICY,
-    ) -> RUMString {
+    pub fn mllp_filter_message(msg: &str, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
         match mllp_filter_policy {
-            MLLP_FILTER_POLICY::NONE => msg.clone(),
+            MLLP_FILTER_POLICY::NONE => msg.to_rumstring(),
             MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
             MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
         }
@@ -424,7 +432,7 @@ pub mod mllp_v2 {
             self.transport_layer.lock()
         }
 
-        pub fn send_message(&mut self, message: &RUMString, endpoint: &RUMString) -> RUMResult<()> {
+        pub fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
             self.next_layer().unwrap().send_message(&encoded, endpoint)
@@ -503,7 +511,7 @@ pub mod mllp_v2 {
             self.channel.lock()
         }
 
-        pub fn send_message(&mut self, message: &RUMString) -> RUMResult<()> {
+        pub fn send_message(&mut self, message: &str) -> RUMResult<()> {
             self.next_layer().unwrap().send_message(message, &self.peer)
         }
 
