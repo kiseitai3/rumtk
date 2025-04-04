@@ -364,8 +364,7 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Server failed to send message because {}", e),
         };
-        //assert_eq!(1, 0, "");
-        rumtk_sleep!(5);
+        rumtk_sleep!(1);
         let received_message = client.receive().unwrap();
         assert_eq!(
             &msg.to_raw(),
