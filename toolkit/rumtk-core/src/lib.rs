@@ -488,14 +488,19 @@ mod tests {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
-        let client_id = client.get_address().unwrap();
         rumtk_sleep!(1);
         match client.send(&msg.to_raw()) {
             Ok(_) => (),
             Err(e) => panic!("Failed to send message because {}", e),
         };
         rumtk_sleep!(1);
-        let received_message = server.receive(&client_id).unwrap();
+        let clients = server.get_client_ids();
+        let incoming_client_id = clients.get(0).expect("Expected client to have connected!");
+        let mut received_message = server.receive(&incoming_client_id).unwrap();
+        if received_message.is_empty() {
+            rumtk_sleep!(1);
+            received_message = server.receive(&incoming_client_id).unwrap();
+        }
         assert_eq!(
             &msg.to_raw(),
             &received_message,

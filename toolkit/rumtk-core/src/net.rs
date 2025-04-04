@@ -418,7 +418,9 @@ pub mod tcp {
             let mut client_list = clients.write().await;
             for (client_id, client) in client_list.iter_mut() {
                 let msg = RUMServer::receive(&client).await?;
-                RUMServer::push_queue(&tx_in, &client_id, msg).await;
+                if !msg.is_empty() {
+                    RUMServer::push_queue(&tx_in, &client_id, msg).await;
+                }
             }
             if client_list.is_empty() {
                 rumtk_async_sleep!(0.1).await;
