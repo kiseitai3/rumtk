@@ -886,7 +886,6 @@ pub mod tcp {
 /// The API here is defined in the form of macros!
 ///
 pub mod tcp_macros {
-
     ///
     /// Macro for creating a server instance.
     ///
