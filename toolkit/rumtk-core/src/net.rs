@@ -40,7 +40,7 @@ pub mod tcp {
     use tokio::io;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     pub use tokio::net::{TcpListener, TcpStream};
-    use tokio::sync::{
+    pub use tokio::sync::{
         Mutex as AsyncMutex, RwLock as AsyncRwLock, RwLockReadGuard, RwLockWriteGuard,
     };
 

@@ -192,7 +192,7 @@ pub mod mllp_v2 {
     use crate::hl7_v2_parser::v2_parser::format_compact;
     use rumtk_core::core::RUMResult;
     use rumtk_core::net::tcp::{
-        ClientList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
+        ClientIDList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
     };
     use rumtk_core::strings::{
         escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
@@ -329,9 +329,9 @@ pub mod mllp_v2 {
             }
         }
 
-        pub fn get_clients(&self) -> ClientList {
+        pub fn get_client_ids(&self) -> ClientIDList {
             match *self {
-                LowerLayer::SERVER(ref server) => server.get_clients(),
+                LowerLayer::SERVER(ref server) => server.get_client_ids(),
                 LowerLayer::CLIENT(ref client) => {
                     vec![client.get_address().expect("No client address!")]
                 }
@@ -443,8 +443,8 @@ pub mod mllp_v2 {
             mllp_decode(&message)
         }
 
-        pub fn get_clients(&self) -> ClientList {
-            self.next_layer().unwrap().get_clients()
+        pub fn get_client_ids(&self) -> ClientIDList {
+            self.next_layer().unwrap().get_client_ids()
         }
 
         pub fn is_server(&self) -> bool {
@@ -478,7 +478,7 @@ pub mod mllp_v2 {
         /// Create vector iterable using the shared [MLLP] instance to obtain channels to clients.
         ///
         pub fn from_server(mllp_instance: &SafeMLLP) -> Vec<MLLPChannel> {
-            let endpoints = mllp_instance.lock().unwrap().get_clients();
+            let endpoints = mllp_instance.lock().unwrap().get_client_ids();
             let mut channels = Vec::<MLLPChannel>::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
                 channels.push(MLLPChannel::open(endpoint, mllp_instance));
@@ -495,7 +495,7 @@ pub mod mllp_v2 {
                 Ok(mllp) => mllp,
                 Err(_) => return vec![],
             };
-            let clients = locked_mllp.get_clients();
+            let clients = locked_mllp.get_client_ids();
             let endpoint = clients.get(0).unwrap();
             vec![MLLPChannel::open(endpoint, mllp_instance)]
         }

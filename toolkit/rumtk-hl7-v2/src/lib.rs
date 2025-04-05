@@ -961,11 +961,11 @@ mod tests {
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let mut connected_clients = mllp_layer.get_clients();
+        let mut connected_clients = mllp_layer.get_client_ids();
         for i in 0..10 {
             if connected_clients.is_empty() {
                 rumtk_sleep!(1);
-                connected_clients = mllp_layer.get_clients();
+                connected_clients = mllp_layer.get_client_ids();
             }
         }
         let connected_address = connected_clients.get(0).unwrap();
