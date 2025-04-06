@@ -22,15 +22,13 @@
 /// This module provides all of the primitives needed to build a multithreaded application.
 ///
 pub mod thread_primitives {
-    use std::future::{Future, IntoFuture};
-    use std::pin::Pin;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::sync::mpsc::{Receiver, Sender};
-    use tokio::sync::{futures, RwLock};
-    use tokio::runtime::Runtime as TokioRuntime;
-    use tokio::task::JoinHandle;
-    use crate::core::{RUMResult, RUMVec};
     use crate::cache::{new_cache, LazyRUMCache};
+    use crate::core::{RUMResult, RUMVec};
+    use std::future::IntoFuture;
+    use std::sync::Arc;
+    use tokio::runtime::Runtime as TokioRuntime;
+    use tokio::sync::RwLock;
+    use tokio::task::JoinHandle;
 
     /**************************** Globals **************************************/
     pub static mut rt_cache: TokioRtCache = new_cache();
@@ -41,7 +39,10 @@ pub mod thread_primitives {
         builder.enable_all();
         match builder.build() {
             Ok(handle) => Arc::new(handle),
-            Err(e) => panic!("Unable to initialize threading tokio runtime because {}!", &e),
+            Err(e) => panic!(
+                "Unable to initialize threading tokio runtime because {}!",
+                &e
+            ),
         }
     }
 
@@ -68,10 +69,10 @@ pub mod thread_primitives {
 /// The sleep family of functions are also here.
 ///
 pub mod threading_functions {
-    use std::time::Duration;
-    use std::thread::{available_parallelism, sleep as std_sleep};
-    use tokio::time::sleep as tokio_sleep;
     use num_cpus;
+    use std::thread::{available_parallelism, sleep as std_sleep};
+    use std::time::Duration;
+    use tokio::time::sleep as tokio_sleep;
 
     pub const NANOS_PER_SEC: u64 = 1000000000;
     pub const MILLIS_PER_SEC: u64 = 1000;
@@ -81,7 +82,7 @@ pub mod threading_functions {
         let cpus: usize = num_cpus::get();
         let parallelism = match available_parallelism() {
             Ok(n) => n.get(),
-            Err(_) => 0
+            Err(_) => 0,
         };
 
         if parallelism >= cpus {
@@ -155,15 +156,19 @@ pub mod threading_macros {
     #[macro_export]
     macro_rules! rumtk_init_threads {
         ( ) => {{
-            use crate::threading::thread_primitives::{rt_cache, init_cache};
-            use crate::threading::threading_functions::get_default_system_thread_count;
-            use crate::rumtk_cache_fetch;
-            let rt = rumtk_cache_fetch!(&mut rt_cache, &get_default_system_thread_count(), init_cache);
+            use $crate::rumtk_cache_fetch;
+            use $crate::threading::thread_primitives::{init_cache, rt_cache};
+            use $crate::threading::threading_functions::get_default_system_thread_count;
+            let rt = rumtk_cache_fetch!(
+                &mut rt_cache,
+                &get_default_system_thread_count(),
+                init_cache
+            );
             rt
         }};
         ( $threads:expr ) => {{
-            use crate::threading::thread_primitives::{rt_cache, init_cache};
-            use crate::rumtk_cache_fetch;
+            use $crate::rumtk_cache_fetch;
+            use $crate::threading::thread_primitives::{init_cache, rt_cache};
             let rt = rumtk_cache_fetch!(&mut rt_cache, $threads, init_cache);
             rt
         }};
@@ -232,9 +237,7 @@ pub mod threading_macros {
     #[macro_export]
     macro_rules! rumtk_resolve_task {
         ( $rt:expr, $future:expr ) => {{
-            $rt.block_on(async move {
-                $future.await
-            }).unwrap()
+            $rt.block_on(async move { $future.await }).unwrap()
         }};
     }
 
@@ -287,7 +290,7 @@ pub mod threading_macros {
     #[macro_export]
     macro_rules! rumtk_sleep {
         ( $dur:expr) => {{
-            use $crate::threading::threading_functions::{sleep};
+            use $crate::threading::threading_functions::sleep;
             sleep($dur as f32)
         }};
     }
@@ -312,7 +315,7 @@ pub mod threading_macros {
     #[macro_export]
     macro_rules! rumtk_async_sleep {
         ( $dur:expr) => {{
-            use $crate::threading::threading_functions::{async_sleep};
+            use $crate::threading::threading_functions::async_sleep;
             async_sleep($dur as f32)
         }};
     }
