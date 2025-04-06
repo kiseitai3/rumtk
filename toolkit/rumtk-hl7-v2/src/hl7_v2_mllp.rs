@@ -258,14 +258,23 @@ pub mod mllp_v2 {
                 message
             ));
         }
-        let end_index = message.len() - 2;
-        if message[0] != SB || message[end_index] != EB || message[message.len() - 1] != CR {
-            return Err(format_compact!(
-                "Message is not encoded properly! Got: {:?}",
-                message
-            ));
-        }
-        Ok(try_decode(&message[1..end_index]))
+        let start_index = match message.iter().position(|&c| c == SB) {
+            Some(i) => i + 1,
+            None => {
+                return Err(format_compact!(
+                    "Message is malformed! No Start Block character found!"
+                ))
+            }
+        };
+        let end_index = match message.iter().position(|&c| c == EB) {
+            Some(i) => i,
+            None => {
+                return Err(format_compact!(
+                    "Message is malformed! No End Block character found!"
+                ))
+            }
+        };
+        Ok(try_decode(&message[start_index..end_index]))
     }
 
     ///

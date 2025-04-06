@@ -922,7 +922,8 @@ mod tests {
 
         assert_eq!(
             decoded_size, message_size,
-            "Incorrect decoded message size!"
+            "Incorrect decoded message size! Expected: {} Got: {}",
+            expected_message, decoded
         );
 
         assert_eq!(
