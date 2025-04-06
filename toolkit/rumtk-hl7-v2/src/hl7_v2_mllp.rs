@@ -196,9 +196,9 @@ pub mod mllp_v2 {
     };
     use rumtk_core::strings::{
         escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
-        RUMStringConversions,
+        RUMStringConversions, ToCompactString,
     };
-    use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_start_server};
+    use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_sleep, rumtk_start_server};
     use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
@@ -245,6 +245,11 @@ pub mod mllp_v2 {
     /// The remaining data is considered an ASCII or UTF-8 payload. However, to be on the safe side,
     /// we use the [try_decode] function from the strings module to attempt auto-detection of encoding
     /// and forcing the output to be in UTF-8.
+    ///
+    /// # Steps
+    ///
+    /// 1. Receive and ignore any received bytes until the start of a Block is found.
+    /// 2. Continue to receive bytes until the end of a Block is found, or until a Timeout occurs.
     ///
     pub fn mllp_decode(message: &RUMNetMessage) -> RUMResult<RUMString> {
         if message.len() == 0 {
@@ -294,6 +299,20 @@ pub mod mllp_v2 {
             MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
             MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
         }
+    }
+
+    ///
+    /// Tests if message is an [ACK] message.
+    ///
+    pub fn is_ack(msg: &RUMString) -> bool {
+        msg.len() == 1 && msg == ACK.to_compact_string()
+    }
+
+    ///
+    /// Tests if message is an [NACK] message.
+    ///
+    pub fn is_nack(msg: &RUMString) -> bool {
+        msg.len() == 1 && msg == NACK.to_compact_string()
     }
 
     ///
@@ -441,15 +460,132 @@ pub mod mllp_v2 {
             self.transport_layer.lock()
         }
 
+        ///
+        /// # Intro
+        ///
+        /// Attempts to send a message and then waits for a response.
+        /// This method returns successfully if neither the response is a [NACK] nor the timeout
+        /// [TIMEOUT_SOURCE] is reached.
+        ///
+        /// We reattempt sending the message every [TIMEOUT_STEP_SOURCE] seconds until we receive
+        /// a valid response or reach the maximum timeout defined in [TIMEOUT_SOURCE].
+        ///
         pub fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
+            for i in 0..TIMEOUT_SOURCE {
+                self.send(&message, &endpoint)?;
+                let response = self.receive_message(&endpoint)?;
+                if is_ack(&response) {
+                    return Ok(());
+                }
+
+                if is_nack(&response) {
+                    return Err(format_compact!(
+                        "Endpoint {} responded with a negative \
+                    acknowledgement. That means they failed to parse or store our message!",
+                        &endpoint
+                    ));
+                }
+
+                if !response.is_empty() {
+                    return Err(format_compact!(
+                        "The peer [{}] responded with an unexpected message.\
+                     Message: {}",
+                        &endpoint,
+                        &response
+                    ));
+                }
+
+                rumtk_sleep!(TIMEOUT_STEP_SOURCE)
+            }
+            Err(format_compact!(
+                "Timeout reached attempting to send message to {}!",
+                &endpoint
+            ))
+        }
+
+        pub fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
             self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
+        ///
+        /// # Intro
+        ///
+        /// Attempts to receive a message.
+        /// If we receive nothing within [TIMEOUT_DESTINATION] duration, we exit with a timeout error.
+        /// The timeout error is likely because there is nothing incoming at this moment.
+        /// We check for a message on [TIMEOUT_STEP_DESTINATION] intervals within the
+        /// [TIMEOUT_DESTINATION] interval.
+        ///
+        /// # Steps in Standard
+        ///
+        /// 4. Once an entire Block has been received, attempt to commit the HL7 Content to storage.
+        /// 5. In case the HL7 Content has been successfully committed to storage, send an Affirmative Commit Acknowledgement (ACK); go to step 1.
+        /// 6. In case the HL7 Content can't be committed to storage, send a Negative Commit Acknowledgement (NAK); go to step 1.
+        ///
+        /// # Notes
+        ///
+        /// Because we do not commit to storage at this level and in fact leave that decision to
+        /// the higher layers, this implementation **always** [ACK] incoming messages if
+        /// successfully decoded. Otherwise, we emit a [NACK] response.
+        ///
+        /// This method uses [MLLP::receive] to attempt to get a message if any is available in the
+        /// queue.
+        ///
+        /// This implementation skips [ACK] if the incoming message itself is an [ACK] or [NACK]
+        /// message.
+        ///
         pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            let message = self.next_layer().unwrap().receive_message(endpoint)?;
+            for i in 0..TIMEOUT_DESTINATION {
+                let message = match self.receive(&endpoint) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        self.nack(&endpoint)?;
+                        return Err(e);
+                    }
+                };
+                println!("Received message: {}", &message);
+                if !message.is_empty() {
+                    if !(is_ack(&message) || is_nack(&message)) {
+                        self.ack(&endpoint)?;
+                    }
+                    return Ok(message);
+                }
+                rumtk_sleep!(TIMEOUT_STEP_DESTINATION)
+            }
+            Err(format_compact!(
+                "Timeout reached while awaiting for message!"
+            ))
+        }
+
+        ///
+        /// Simply receives a message and decodes it.
+        ///
+        pub fn receive(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
+            let message = self.next_layer().unwrap().receive_message(&endpoint)?;
             mllp_decode(&message)
+        }
+
+        ///
+        /// Sends an acknowledgement receipt to endpoint. This is done to let a peer know we have
+        /// received the message they sent!
+        ///
+        pub fn ack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
+            self.next_layer()
+                .unwrap()
+                .send_message(&vec![ACK], endpoint)
+        }
+
+        ///
+        /// Sends a negative acknowledgement receipt to endpoint. This is done to let a peer know
+        /// we have received the message they sent but were unable to commit it in storage or had
+        /// to reject it!
+        ///
+        pub fn nack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
+            self.next_layer()
+                .unwrap()
+                .send_message(&vec![NACK], endpoint)
         }
 
         pub fn get_client_ids(&self) -> ClientIDList {

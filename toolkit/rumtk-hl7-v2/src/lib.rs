@@ -1015,8 +1015,8 @@ mod tests {
     #[test]
     fn test_mllp_hl7_echo() {
         let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
-        let mut mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
-            Ok(mllp_layer) => mllp_layer,
+        let mut mllp_listener = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_listener) => mllp_listener,
             Err(e) => panic!("{}", e),
         };
         let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
@@ -1029,10 +1029,9 @@ mod tests {
         let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
         let mut server_channel = server_channels.get_mut(0).unwrap();
         server_channel.send_message(&HL7_V2_PDF_MESSAGE).unwrap();
-        rumtk_sleep!(1);
-        let mut received_message = mllp_layer.receive_message(&client_id).unwrap();
+        let mut received_message = mllp_listener.receive_message(&client_id).unwrap();
         while received_message.len() == 0 {
-            received_message = mllp_layer.receive_message(&client_id).unwrap();
+            received_message = mllp_listener.receive_message(&client_id).unwrap();
         }
         assert_eq!(
             &HL7_V2_PDF_MESSAGE,
