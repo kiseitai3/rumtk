@@ -664,40 +664,147 @@ pub mod mllp_v2 {
             self.next_layer().unwrap().receive_message(&self.peer)
         }
     }
+
+    pub type SafeMLLPChannel = Arc<Mutex<MLLPChannel>>;
+    pub type MLLPChannels = Vec<SafeMLLPChannel>;
 }
 
 pub mod mllp_v2_api {
+    ///
+    /// # Intro
+    ///
+    /// Attempt to connect to an MLLP server.
+    /// Returns [SafeMLLP].
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_connect {
         ( $port:expr, $policy:expr ) => {{
-            use $crate::hl7_v2_mllp::mllp_v2::MLLP;
-            MLLP::local($port, $policy, false)
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
+            match MLLP::local($port, $policy, false) {
+                Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                Err(e) => Err(e),
+            }
         }};
         ( $ip:expr, $port:expr, $policy:expr ) => {{
-            use $crate::hl7_v2_mllp::mllp_v2::MLLP;
-            MLLP::new($ip, $port, $policy, false)
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! rumtk_v2_mllp_listen {
-        ( $port:expr, $policy:expr, $local:expr ) => {{
-            use $crate::hl7_v2_mllp::mllp_v2::MLLP;
-            match $local {
-                true => MLLP::local($port, $policy, true),
-                false => MLLP::net($port, $policy, true),
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
+            match MLLP::new($port, $policy, false) {
+                Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                Err(e) => Err(e),
             }
         }};
     }
 
+    ///
+    /// # Intro
+    ///
+    /// Create a server listener for MLLP communications.
+    /// Returns [SafeMLLP].
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_mllp_listen {
+        ( $port:expr, $policy:expr, $local:expr ) => {{
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
+            match $local {
+                true => match MLLP::local($port, $policy, true) {
+                    Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                    Err(e) => Err(e),
+                },
+                false => match MLLP::net($port, $policy, true) {
+                    Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                    Err(e) => Err(e),
+                },
+            }
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Create vector iterable using the shared [MLLP] instance to obtain a single
+    /// [SafeMLLPChannel] to the endpoint listening interface. In other words, this macro creates
+    /// a thread safe instance of [SafeMLLPChannel] from the client to the server. The channel
+    /// provides bidirectional communication.
+    ///
+    /// # Example Usage
+    ///
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_iter_channels};
+    ///     let safe_listener = rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let channels = rumtk_v2_iter_channels!(&safe_listener);
+    ///
+    ///     for channel in channels.iter() {
+    ///         // Add your logic here!
+    ///     }
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_open_client_channel {
+        ( $safe_mllp:expr ) => {{
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{MLLPChannel, SafeMLLPChannel};
+            let clients = $safe_mllp.lock().unwrap().get_client_ids();
+            let endpoint = clients.get(0).unwrap();
+            let new_channel =
+                SafeMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
+            vec![new_channel]
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Create vector iterable using the shared [SafeMLLP] instance to obtain channels to clients.
+    /// This macro creates thread safe instances of [SafeMLLPChannels]. These are channels from
+    /// the server to the clients. These channels provide bidirectional communication with the
+    /// clients.
+    ///
+    /// # Example Usage
+    ///
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_open_server_channels};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let channels = rumtk_v2_open_server_channels!(&safe_listener);
+    ///
+    ///     for channel in channels.iter() {
+    ///         // Add your logic here!
+    ///     }
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_open_server_channels {
+        ( $safe_mllp:expr ) => {{
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{MLLPChannel, MLLPChannels, SafeMLLPChannel};
+            let endpoints = $safe_mllp.lock().unwrap().get_client_ids();
+            let mut channels = MLLPChannels::with_capacity(endpoints.len());
+            for endpoint in endpoints.iter() {
+                let new_channel =
+                    SafeMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
+                channels.push(new_channel);
+            }
+            channels
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Convenience macro for generating [MLLPChannels] that you can use to communicate with the
+    /// peer endpoint(s).
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_iter_channels {
-        ( $mllp:expr ) => {{
-            use $crate::hl7_v2_mllp::mllp_v2::MLLPChannel;
-            let is_server = $mllp.lock().unwrap().is_server();
+        ( $safe_mllp:expr ) => {{
+            use $crate::{rumtk_v2_open_client_channel, rumtk_v2_open_server_channels};
+            let is_server = $safe_mllp.lock().unwrap().is_server();
             match is_server {
-                true => MLLPChannel::from_server(&$mllp),
-                false => MLLPChannel::from_client(&$mllp),
+                true => rumtk_v2_open_server_channels!($safe_mllp),
+                false => rumtk_v2_open_client_channel!($safe_mllp),
             }
         }};
     }

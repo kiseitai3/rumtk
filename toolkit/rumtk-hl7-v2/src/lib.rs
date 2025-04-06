@@ -24,7 +24,7 @@ pub mod hl7_v2_complex_types;
 pub mod hl7_v2_constants;
 pub mod hl7_v2_field_descriptors;
 pub mod hl7_v2_interpreter;
-mod hl7_v2_mllp;
+pub mod hl7_v2_mllp;
 mod hl7_v2_optionality_rules;
 pub mod hl7_v2_parser;
 pub mod hl7_v2_search;
@@ -46,11 +46,11 @@ mod tests {
     use hl7_v2_constants::{V2_SEGMENT_IDS, V2_SEGMENT_NAMES};
     use hl7_v2_parser::v2_parser::*;
     use hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
-    use rumtk_core::rumtk_sleep;
     use rumtk_core::search::rumtk_search::*;
     use rumtk_core::strings::{
         format_compact, AsStr, RUMArrayConversions, RUMString, StringUtils, ToCompactString,
     };
+    use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_sleep, rumtk_spawn_task};
     use std::sync::Mutex;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
@@ -944,8 +944,9 @@ mod tests {
             Ok(mllp_layer) => mllp_layer,
             Err(e) => panic!("{}", e),
         };
+        let client_id = mllp_layer.lock().unwrap().get_address_info();
         assert_eq!(
-            mllp_layer.get_address_info(),
+            client_id,
             Some("127.0.0.1:55555".to_compact_string()),
             "Failed to bind local port!"
         )
@@ -962,43 +963,51 @@ mod tests {
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let mut connected_clients = mllp_layer.get_client_ids();
+        let mut connected_clients = mllp_layer.lock().unwrap().get_client_ids();
         for i in 0..10 {
             if connected_clients.is_empty() {
                 rumtk_sleep!(1);
-                connected_clients = mllp_layer.get_client_ids();
+                connected_clients = mllp_layer.lock().unwrap().get_client_ids();
             }
         }
         let connected_address = connected_clients.get(0).unwrap();
-        assert_eq!(
-            connected_address,
-            client.get_address_info().unwrap(),
-            "Failed to bind local port!"
-        )
+        let client_id = client.lock().unwrap().get_address_info().unwrap();
+        assert_eq!(connected_address, client_id, "Failed to bind local port!")
     }
 
     #[test]
     fn test_mllp_channel() {
         let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
-        let mut mllp_layer = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+        let mut safe_listener = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
             Ok(mllp_layer) => mllp_layer,
             Err(e) => panic!("{}", e),
         };
-        let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
+        let safe_client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
             Ok(client) => client,
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let client_id = client.get_address_info().unwrap();
-        let safe_client = SafeMLLP::new(Mutex::new(client));
+        let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
         let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
         let mut server_channel = server_channels.get_mut(0).unwrap();
         let expected_message = RUMString::from("I ❤ my wife!");
-        server_channel.send_message(&expected_message).unwrap();
+        server_channel
+            .lock()
+            .unwrap()
+            .send_message(&expected_message)
+            .unwrap();
         rumtk_sleep!(1);
-        let mut received_message = mllp_layer.receive_message(&client_id).unwrap();
+        let mut received_message = safe_listener
+            .lock()
+            .unwrap()
+            .receive_message(&client_id)
+            .unwrap();
         while received_message.len() == 0 {
-            received_message = mllp_layer.receive_message(&client_id).unwrap();
+            received_message = safe_listener
+                .lock()
+                .unwrap()
+                .receive_message(&client_id)
+                .unwrap();
         }
         assert_eq!(
             &expected_message,
@@ -1015,23 +1024,38 @@ mod tests {
     #[test]
     fn test_mllp_hl7_echo() {
         let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
-        let mut mllp_listener = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
+        let mut safe_listener = match rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true) {
             Ok(mllp_listener) => mllp_listener,
             Err(e) => panic!("{}", e),
         };
-        let client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
+        let safe_client = match rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE) {
             Ok(client) => client,
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let client_id = client.get_address_info().unwrap();
-        let safe_client = SafeMLLP::new(Mutex::new(client));
+        let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
         let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
-        let mut server_channel = server_channels.get_mut(0).unwrap();
-        server_channel.send_message(&HL7_V2_PDF_MESSAGE).unwrap();
-        let mut received_message = mllp_listener.receive_message(&client_id).unwrap();
+        let mut server_channel = server_channels.get_mut(0).unwrap().clone();
+        let rt = rumtk_init_threads!();
+        let task = rumtk_spawn_task!(&rt, async move {
+            server_channel
+                .lock()
+                .unwrap()
+                .send_message(&HL7_V2_PDF_MESSAGE)
+                .unwrap();
+        });
+        rumtk_resolve_task!(&rt, task);
+        let mut received_message = safe_listener
+            .lock()
+            .unwrap()
+            .receive_message(&client_id)
+            .unwrap();
         while received_message.len() == 0 {
-            received_message = mllp_listener.receive_message(&client_id).unwrap();
+            received_message = safe_listener
+                .lock()
+                .unwrap()
+                .receive_message(&client_id)
+                .unwrap();
         }
         assert_eq!(
             &HL7_V2_PDF_MESSAGE,
@@ -1043,7 +1067,9 @@ mod tests {
                 &received_message
             )
         );
-        mllp_layer
+        safe_listener
+            .lock()
+            .unwrap()
             .send_message(&received_message, &client_id)
             .unwrap();
         rumtk_sleep!(1);
