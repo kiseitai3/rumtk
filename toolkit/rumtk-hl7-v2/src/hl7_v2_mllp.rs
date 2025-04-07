@@ -191,8 +191,9 @@ pub mod mllp_v2 {
 
     use crate::hl7_v2_parser::v2_parser::format_compact;
     use rumtk_core::core::RUMResult;
-    use rumtk_core::net::tcp::{
-        ClientIDList, RUMClientHandle, RUMNetMessage, RUMServerHandle, ANYHOST, LOCALHOST,
+    pub use rumtk_core::net::tcp::{
+        AsyncMutex, AsyncMutexGuard, ClientIDList, RUMClientHandle, RUMNetMessage, RUMServerHandle,
+        ANYHOST, LOCALHOST,
     };
     use rumtk_core::strings::{
         escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
@@ -619,32 +620,6 @@ pub mod mllp_v2 {
     }
 
     impl MLLPChannel {
-        ///
-        /// Create vector iterable using the shared [MLLP] instance to obtain channels to clients.
-        ///
-        pub fn from_server(mllp_instance: &SafeMLLP) -> Vec<MLLPChannel> {
-            let endpoints = mllp_instance.lock().unwrap().get_client_ids();
-            let mut channels = Vec::<MLLPChannel>::with_capacity(endpoints.len());
-            for endpoint in endpoints.iter() {
-                channels.push(MLLPChannel::open(endpoint, mllp_instance));
-            }
-            channels
-        }
-
-        ///
-        /// Create vector iterable using the shared [MLLP] instance to obtain a single channel to
-        /// the endpoint listening interface.
-        ///
-        pub fn from_client(mllp_instance: &SafeMLLP) -> Vec<MLLPChannel> {
-            let locked_mllp = match mllp_instance.lock() {
-                Ok(mllp) => mllp,
-                Err(_) => return vec![],
-            };
-            let clients = locked_mllp.get_client_ids();
-            let endpoint = clients.get(0).unwrap();
-            vec![MLLPChannel::open(endpoint, mllp_instance)]
-        }
-
         pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> MLLPChannel {
             MLLPChannel {
                 peer: endpoint.clone(),

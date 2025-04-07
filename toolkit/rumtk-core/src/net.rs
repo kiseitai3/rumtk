@@ -41,7 +41,8 @@ pub mod tcp {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     pub use tokio::net::{TcpListener, TcpStream};
     pub use tokio::sync::{
-        Mutex as AsyncMutex, RwLock as AsyncRwLock, RwLockReadGuard, RwLockWriteGuard,
+        Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard, RwLock as AsyncRwLock, RwLockReadGuard,
+        RwLockWriteGuard,
     };
 
     const MESSAGE_BUFFER_SIZE: usize = 1024;
