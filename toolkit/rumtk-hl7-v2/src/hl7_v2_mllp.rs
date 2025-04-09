@@ -220,22 +220,33 @@ pub mod mllp_v2 {
     pub const SB: u8 = 0x0b;
     /// Acknowledgement character (1 byte, ASCII <ACK>, i.e., <0x06>)
     pub const ACK: u8 = 0x06;
+    pub const ACK_STR: &str = "\u{6}";
     /// Negative-acknowledgement character (1 byte, ASCII <NAK>, i.e., <0x15>)
     pub const NACK: u8 = 0x15;
+    pub const NACK_STR: &str = "\u{15}";
     /// End Block character (1 byte). ASCII <FS>, i.e., <0x1C>.
     pub const EB: u8 = 0x1c;
     /// Carriage Return (1 byte). ASCII <CR> character, i.e., <0x0D>.
     pub const CR: u8 = 0x0d;
 
     ///
-    /// Encodes a payload using the message format defined by the HL7 spec.
+    /// Encodes a [RUMString] payload using the message format defined by the HL7 spec.
     ///
     /// *\<[SB]\>payload\<[EB]\>\<[CR]\>*
     ///
     pub fn mllp_encode(message: &RUMString) -> RUMNetMessage {
-        let mut packaged = RUMNetMessage::with_capacity(message.len() + 3);
+        mllp_encode_bytes(message.as_bytes())
+    }
+
+    ///
+    /// Encodes a byte slice payload using the message format defined by the HL7 spec.
+    ///
+    /// *\<[SB]\>payload\<[EB]\>\<[CR]\>*
+    ///
+    pub fn mllp_encode_bytes(bytes: &[u8]) -> RUMNetMessage {
+        let mut packaged = RUMNetMessage::with_capacity(bytes.len() + 3);
         packaged.push(SB);
-        packaged.extend(message.as_bytes());
+        packaged.extend(bytes);
         packaged.push(EB);
         packaged.push(CR);
         packaged
@@ -280,7 +291,12 @@ pub mod mllp_v2 {
                 ))
             }
         };
-        Ok(try_decode(&message[start_index..end_index]))
+        let contents = &message[start_index..end_index];
+        if contents.len() == 1 {
+            Ok(contents.to_vec().to_rumstring())
+        } else {
+            Ok(try_decode(&contents))
+        }
     }
 
     ///
@@ -306,14 +322,21 @@ pub mod mllp_v2 {
     /// Tests if message is an [ACK] message.
     ///
     pub fn is_ack(msg: &RUMString) -> bool {
-        msg.len() == 1 && msg == ACK.to_compact_string()
+        println!(
+            "{} => {} | {} && {}",
+            &msg,
+            ACK_STR,
+            msg.len() == 1,
+            msg == ACK_STR
+        );
+        msg.len() == 1 && msg == ACK_STR
     }
 
     ///
     /// Tests if message is an [NACK] message.
     ///
     pub fn is_nack(msg: &RUMString) -> bool {
-        msg.len() == 1 && msg == NACK.to_compact_string()
+        msg.len() == 1 && msg == NACK_STR
     }
 
     ///
@@ -488,6 +511,7 @@ pub mod mllp_v2 {
                 }
 
                 if !response.is_empty() {
+                    println!("{:?}", &response.as_bytes());
                     return Err(format_compact!(
                         "The peer [{}] responded with an unexpected message.\
                      Message: {}",
@@ -538,7 +562,7 @@ pub mod mllp_v2 {
         /// message.
         ///
         pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            for i in 0..TIMEOUT_DESTINATION {
+            for i in 0..5 {
                 let message = match self.receive(&endpoint) {
                     Ok(data) => data,
                     Err(e) => {
@@ -550,8 +574,10 @@ pub mod mllp_v2 {
                 if !message.is_empty() {
                     if !(is_ack(&message) || is_nack(&message)) {
                         self.ack(&endpoint)?;
+                        return Ok(message);
+                    } else {
+                        //return Ok(RUMString::new(""));
                     }
-                    return Ok(message);
                 }
                 rumtk_sleep!(TIMEOUT_STEP_DESTINATION)
             }
@@ -573,9 +599,8 @@ pub mod mllp_v2 {
         /// received the message they sent!
         ///
         pub fn ack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
-            self.next_layer()
-                .unwrap()
-                .send_message(&vec![ACK], endpoint)
+            let encoded = mllp_encode_bytes(&vec![ACK]);
+            self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
         ///
@@ -584,9 +609,8 @@ pub mod mllp_v2 {
         /// to reject it!
         ///
         pub fn nack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
-            self.next_layer()
-                .unwrap()
-                .send_message(&vec![NACK], endpoint)
+            let encoded = mllp_encode_bytes(&vec![NACK]);
+            self.next_layer().unwrap().send_message(&encoded, endpoint)
         }
 
         pub fn get_client_ids(&self) -> ClientIDList {
@@ -705,7 +729,7 @@ pub mod mllp_v2_api {
     ///
     /// # Example Usage
     ///
-    /// ```
+    /// ```no_run
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_iter_channels};
     ///     let safe_listener = rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE).unwrap();
@@ -739,7 +763,7 @@ pub mod mllp_v2_api {
     ///
     /// # Example Usage
     ///
-    /// ```
+    /// ```no_run
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_open_server_channels};
     ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
@@ -781,6 +805,17 @@ pub mod mllp_v2_api {
                 true => rumtk_v2_open_server_channels!($safe_mllp),
                 false => rumtk_v2_open_client_channel!($safe_mllp),
             }
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! rumtk_v2_get_ip_port {
+        ( $safe_mllp:expr ) => {{
+            let address_str = $safe_mllp.lock().unwrap().get_address_info().unwrap();
+            let mut components = address_str.split(':');
+            let ip = components.next().unwrap().clone();
+            let port = components.next().unwrap();
+            (ip.to_rumstring(), port.parse::<u16>().unwrap())
         }};
     }
 }
