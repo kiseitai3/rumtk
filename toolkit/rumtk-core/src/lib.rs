@@ -284,6 +284,28 @@ mod tests {
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
     }
 
+    #[test]
+    fn test_execute_job_macros_one_line() {
+        let rt = rumtk_init_threads!();
+        let expected = vec![1, 2, 3];
+        let result = rumtk_exec_task!(
+            async |args: &SafeTaskArgs<i32>| -> TaskResult<i32> {
+                let owned_args = Arc::clone(args);
+                let lock_future = owned_args.read();
+                let locked_args = lock_future.await;
+                let mut results = TaskItems::<i32>::with_capacity(locked_args.len());
+                print!("Contents: ");
+                for arg in locked_args.iter() {
+                    results.push(arg.clone());
+                    println!("{} ", &arg);
+                }
+                Ok(results)
+            },
+            vec![1, 2, 3]
+        );
+        assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
+    }
+
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use crate::net::tcp::LOCALHOST;
     use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
