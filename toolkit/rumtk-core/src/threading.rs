@@ -114,6 +114,7 @@ pub mod threading_functions {
 ///
 pub mod threading_macros {
     use crate::threading::thread_primitives;
+    use crate::threading::thread_primitives::SafeTaskArgs;
 
     ///
     /// First, let's make sure we have *tokio* initialized at least once. The runtime created here
@@ -130,14 +131,15 @@ pub mod threading_macros {
     ///
     /// ```
     ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///     use rumtk_core::core::RUMResult;
     ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(args: &SafeTaskArgs<i32>) -> Vec<i32> {
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
     ///         let mut result = Vec::<i32>::new();
     ///         for arg in args.read().await.iter() {
     ///             result.push(*arg);
     ///         }
-    ///         result
+    ///         Ok(result)
     ///     }
     ///
     ///     let rt = rumtk_init_threads!();                                      // Creates runtime instance
@@ -148,14 +150,15 @@ pub mod threading_macros {
     ///
     /// ```
     ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///     use rumtk_core::core::RUMResult;
     ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(args: &SafeTaskArgs<i32>) -> Vec<i32> {
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
     ///         let mut result = Vec::<i32>::new();
     ///         for arg in args.read().await.iter() {
     ///             result.push(*arg);
     ///         }
-    ///         result
+    ///         Ok(result)
     ///     }
     ///
     ///     let thread_count: usize = 10;
@@ -234,14 +237,15 @@ pub mod threading_macros {
     ///
     /// ```
     ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///     use rumtk_core::core::RUMResult;
     ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(args: &SafeTaskArgs<i32>) -> Vec<i32> {
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
     ///         let mut result = Vec::<i32>::new();
     ///         for arg in args.read().await.iter() {
     ///             result.push(*arg);
     ///         }
-    ///         result
+    ///         Ok(result)
     ///     }
     ///
     ///     let rt = rumtk_init_threads!();
@@ -300,58 +304,81 @@ pub mod threading_macros {
     ///
     /// ## Examples
     ///
+    /// ### 1
     /// ```
     ///     use rumtk_core::{rumtk_exec_task};
+    ///     use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
-    ///         i
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
+    ///         let mut result = Vec::<i32>::new();
+    ///         for arg in args.read().await.iter() {
+    ///             result.push(*arg);
+    ///         }
+    ///         Ok(result)
     ///     }
     ///
-    ///     rumtk_exec_task!(test, 1, "Hello World", 5);
+    ///     let result = rumtk_exec_task!(test, vec![1]);
     /// ```
     ///
+    /// ### 2
     /// ```
-    ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    ///     use rumtk_core::{rumtk_exec_task};
+    ///     use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
-    ///         i
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
+    ///         let mut result = Vec::<i32>::new();
+    ///         for arg in args.read().await.iter() {
+    ///             result.push(*arg);
+    ///         }
+    ///         Ok(result)
     ///     }
     ///
-    ///     let rt = rumtk_init_threads!();
-    ///     let args = rumtk_create_task_args!(1);
-    ///     let task = rumtk_create_task!(test, args);
-    ///     rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task));
+    ///     let result = rumtk_exec_task!(test, vec![1, 5], 6);
     /// ```
     ///
     /// ## Equivalent To
     ///
     /// ```
     ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
+    /// use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
-    ///     async fn test(i: Vec<i32>) -> Vec<i32> {
-    ///         i
+    ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
+    ///         let mut result = Vec::<i32>::new();
+    ///         for arg in args.read().await.iter() {
+    ///             result.push(*arg);
+    ///         }
+    ///         Ok(result)
     ///     }
     ///
     ///     let rt = rumtk_init_threads!();
     ///     let args = rumtk_create_task_args!(1);
     ///     let task = rumtk_create_task!(test, args);
-    ///     rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task));
+    ///     let result = rumtk_resolve_task!(&rt, rumtk_spawn_task!(&rt, task));
     /// ```
     ///
     #[macro_export]
     macro_rules! rumtk_exec_task {
-        ($func:expr, $($args:expr),+ ) => {{
-            use $crate::{rumtk_init_threads, rumtk_create_task_args, rumtk_create_task, rumtk_resolve_task};
+        ($func:expr, $args:expr ) => {{
+            use tokio::sync::RwLock;
+            use $crate::{
+                rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_resolve_task,
+            };
             let rt = rumtk_init_threads!();
-            let args = rumtk_create_task_args!($($args:expr),+)
-            let task = rumtk_create_task!($func:expr, args)
+            let args = SafeTaskArgs::new(RwLock::new($args));
+            let task = rumtk_create_task!($func, args);
             rumtk_resolve_task!(&rt, task)
         }};
-        ($func:expr, $($args:expr),+, $threads:expr ) => {{
-            use $crate::{rumtk_init_threads, rumtk_create_task_args, rumtk_create_task, rumtk_resolve_task};
-            let rt = rumtk_init_threads!($threads);
-            let args = rumtk_create_task_args!($($args:expr),+)
-            let task = rumtk_create_task!($func:expr, args)
+        ($func:expr, $args:expr , $threads:expr ) => {{
+            use tokio::sync::RwLock;
+            use $crate::{
+                rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_resolve_task,
+            };
+            let rt = rumtk_init_threads!(&$threads);
+            let args = SafeTaskArgs::new(RwLock::new($args));
+            let task = rumtk_create_task!($func, args);
             rumtk_resolve_task!(&rt, task)
         }};
     }
