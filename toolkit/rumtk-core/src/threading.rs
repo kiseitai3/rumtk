@@ -342,7 +342,7 @@ pub mod threading_macros {
     ///
     /// ```
     ///     use rumtk_core::{rumtk_init_threads, rumtk_resolve_task, rumtk_create_task_args, rumtk_create_task, rumtk_spawn_task};
-    /// use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::core::RUMResult;
     ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     ///
     ///     async fn test(args: &SafeTaskArgs<i32>) -> RUMResult<Vec<i32>> {
