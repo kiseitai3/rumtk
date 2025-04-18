@@ -257,7 +257,12 @@ pub mod threading_macros {
     #[macro_export]
     macro_rules! rumtk_resolve_task {
         ( $rt:expr, $future:expr ) => {{
-            $rt.block_on(async move { $future.await }).unwrap()
+            use $crate::strings::format_compact;
+            //$rt.block_on(async move { $future.await }).unwrap()
+            match $rt.block_on(async move { $future.await }) {
+                Ok(r) => Ok(r),
+                Err(e) => Err(format_compact!("Task failed with {}", e)),
+            }
         }};
     }
 

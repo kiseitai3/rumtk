@@ -756,7 +756,7 @@ pub mod tcp {
                 msg.clone()
             ));
             let task = rumtk_create_task!(RUMServerHandle::send_helper, args);
-            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))?
         }
 
         ///
@@ -766,7 +766,7 @@ pub mod tcp {
         pub fn receive(&mut self, client_id: &RUMString) -> RUMResult<RUMNetMessage> {
             let args = rumtk_create_task_args!((Arc::clone(&mut self.server), client_id.clone()));
             let task = rumtk_create_task!(RUMServerHandle::receive_helper, args);
-            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))?
         }
 
         ///
@@ -775,7 +775,7 @@ pub mod tcp {
         pub fn get_clients(&self) -> ClientList {
             let args = rumtk_create_task_args!((Arc::clone(&self.server)));
             let task = rumtk_create_task!(RUMServerHandle::get_clients_helper, args);
-            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task)).unwrap()
         }
 
         ///
@@ -784,7 +784,7 @@ pub mod tcp {
         pub fn get_client_ids(&self) -> ClientIDList {
             let args = rumtk_create_task_args!((Arc::clone(&self.server)));
             let task = rumtk_create_task!(RUMServerHandle::get_client_ids_helper, args);
-            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task)).unwrap()
         }
 
         ///
@@ -794,6 +794,7 @@ pub mod tcp {
             let args = rumtk_create_task_args!(Arc::clone(&self.server));
             let task = rumtk_create_task!(RUMServerHandle::get_address_helper, args);
             rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))
+                .expect("Expected an address:port for this client.")
         }
 
         async fn send_helper(args: &SafeTaskArgs<Self::SendArgs>) -> RUMResult<()> {

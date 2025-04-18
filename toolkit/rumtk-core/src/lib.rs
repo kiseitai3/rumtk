@@ -302,7 +302,8 @@ mod tests {
                 Ok(results)
             },
             vec![1, 2, 3]
-        );
+        )
+        .unwrap();
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
     }
 

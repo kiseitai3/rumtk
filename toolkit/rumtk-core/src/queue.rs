@@ -18,24 +18,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 pub mod queue {
-    use std::future::Future;
-    use std::sync::Mutex;
-    use std::time::Duration;
-    use std::thread::{sleep};
-    use tokio::runtime::Runtime;
     use crate::core::RUMResult;
-    use crate::{rumtk_init_threads, rumtk_resolve_task, rumtk_spawn_task, threading};
-    use crate::strings::RUMString;
     use crate::threading::thread_primitives::*;
+    use crate::{rumtk_init_threads, rumtk_resolve_task, rumtk_spawn_task, threading};
+    use std::future::Future;
+    use std::thread::sleep;
+    use std::time::Duration;
 
     pub const DEFAULT_SLEEP_DURATION: Duration = Duration::from_millis(1);
     pub const DEFAULT_QUEUE_CAPACITY: usize = 10;
     pub const DEFAULT_MICROTASK_QUEUE_CAPACITY: usize = 5;
 
-
     pub struct TaskQueue<R> {
         tasks: AsyncTaskHandles<R>,
-        runtime: &'static SafeTokioRuntime
+        runtime: &'static SafeTokioRuntime,
     }
 
     impl<R> TaskQueue<R>
@@ -62,7 +58,7 @@ pub mod queue {
         pub fn new(worker_num: &usize) -> RUMResult<TaskQueue<R>> {
             let tasks = AsyncTaskHandles::with_capacity(DEFAULT_QUEUE_CAPACITY);
             let runtime = rumtk_init_threads!(&worker_num);
-            Ok(TaskQueue{tasks, runtime})
+            Ok(TaskQueue { tasks, runtime })
         }
 
         ///
@@ -71,7 +67,7 @@ pub mod queue {
         ///
         pub fn add_task<F>(&mut self, task: F)
         where
-            F: Future<Output=TaskResult<R>> + Send + Sync + 'static,
+            F: Future<Output = TaskResult<R>> + Send + Sync + 'static,
             F::Output: Send + 'static,
         {
             let handle = rumtk_spawn_task!(&self.runtime, task);
@@ -114,7 +110,7 @@ pub mod queue {
             let mut accumulator: usize = 0;
 
             if self.tasks.is_empty() {
-                return false
+                return false;
             }
 
             for task in self.tasks.iter() {
@@ -134,7 +130,7 @@ pub mod queue {
             let mut result_queue = TaskResults::<R>::with_capacity(self.tasks.len());
             for i in 0..self.tasks.len() {
                 let task = self.tasks.pop().unwrap();
-                result_queue.push(rumtk_resolve_task!(&self.runtime, task));
+                result_queue.push(rumtk_resolve_task!(&self.runtime, task).unwrap());
             }
             result_queue
         }
@@ -145,7 +141,7 @@ pub mod queue_macros {
     #[macro_export]
     macro_rules! rumtk_new_task_queue {
         ( $worker_num:expr ) => {{
-            use $crate::queue::queue::{TaskQueue};
+            use $crate::queue::queue::TaskQueue;
             TaskQueue::new($worker_num);
         }};
     }
