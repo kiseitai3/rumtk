@@ -271,6 +271,12 @@ pub mod threading_macros {
     ///
     #[macro_export]
     macro_rules! rumtk_create_task {
+        ( $func:expr ) => {{
+            async move {
+                let f = $func;
+                f().await
+            }
+        }};
         ( $func:expr, $args:expr ) => {{
             async move {
                 let f = $func;
@@ -288,6 +294,11 @@ pub mod threading_macros {
     ///
     #[macro_export]
     macro_rules! rumtk_create_task_args {
+        ( ) => {{
+            use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs, TaskItems};
+            use tokio::sync::RwLock;
+            SafeTaskArgs::new(RwLock::new(vec![]))
+        }};
         ( $($args:expr),+ ) => {{
             use $crate::threading::thread_primitives::{TaskArgs, SafeTaskArgs, TaskItems};
             use tokio::sync::RwLock;
@@ -309,7 +320,7 @@ pub mod threading_macros {
     ///
     /// ## Examples
     ///
-    /// ### 1
+    /// ### With Default Thread Count
     /// ```
     ///     use rumtk_core::{rumtk_exec_task};
     ///     use rumtk_core::core::RUMResult;
@@ -323,10 +334,12 @@ pub mod threading_macros {
     ///         Ok(result)
     ///     }
     ///
-    ///     let result = rumtk_exec_task!(test, vec![1]);
+    ///     let result = rumtk_exec_task!(test, vec![5]);
+    ///     assert_eq!(&result.clone().unwrap(), &vec![5], "Results mismatch");
+    ///     assert_ne!(&result.clone().unwrap(), &vec![5, 10], "Results do not mismatch as expected!");
     /// ```
     ///
-    /// ### 2
+    /// ### With Custom Thread Count
     /// ```
     ///     use rumtk_core::{rumtk_exec_task};
     ///     use rumtk_core::core::RUMResult;
@@ -340,7 +353,43 @@ pub mod threading_macros {
     ///         Ok(result)
     ///     }
     ///
-    ///     let result = rumtk_exec_task!(test, vec![1, 5], 6);
+    ///     let result = rumtk_exec_task!(test, vec![5], 5);
+    ///     assert_eq!(&result.clone().unwrap(), &vec![5], "Results mismatch");
+    ///     assert_ne!(&result.clone().unwrap(), &vec![5, 10], "Results do not mismatch as expected!");
+    /// ```
+    ///
+    /// ### With Async Function Body
+    /// ```
+    ///     use rumtk_core::{rumtk_exec_task};
+    ///     use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
+    ///
+    ///     let result = rumtk_exec_task!(
+    ///     async move |args: &SafeTaskArgs<i32>| -> RUMResult<Vec<i32>> {
+    ///         let mut result = Vec::<i32>::new();
+    ///         for arg in args.read().await.iter() {
+    ///             result.push(*arg);
+    ///         }
+    ///         Ok(result)
+    ///     },
+    ///     vec![5]);
+    ///     assert_eq!(&result.clone().unwrap(), &vec![5], "Results mismatch");
+    ///     assert_ne!(&result.clone().unwrap(), &vec![5, 10], "Results do not mismatch as expected!");
+    /// ```
+    ///
+    /// ### With Async Function Body and No Args
+    /// ```
+    ///     use rumtk_core::{rumtk_exec_task};
+    ///     use rumtk_core::core::RUMResult;
+    ///     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
+    ///
+    ///     let result = rumtk_exec_task!(
+    ///     async || -> RUMResult<Vec<i32>> {
+    ///         let mut result = Vec::<i32>::new();
+    ///         Ok(result)
+    ///     });
+    ///     assert_eq!(&result.clone().unwrap(), &vec![], "Results mismatch");
+    ///     assert_ne!(&result.clone().unwrap(), &vec![5, 10], "Results do not mismatch as expected!");
     /// ```
     ///
     /// ## Equivalent To
@@ -366,6 +415,15 @@ pub mod threading_macros {
     ///
     #[macro_export]
     macro_rules! rumtk_exec_task {
+        ($func:expr ) => {{
+            use tokio::sync::RwLock;
+            use $crate::{
+                rumtk_create_task, rumtk_create_task_args, rumtk_init_threads, rumtk_resolve_task,
+            };
+            let rt = rumtk_init_threads!();
+            let task = rumtk_create_task!($func);
+            rumtk_resolve_task!(&rt, task)
+        }};
         ($func:expr, $args:expr ) => {{
             use tokio::sync::RwLock;
             use $crate::{
