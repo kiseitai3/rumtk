@@ -290,7 +290,7 @@ pub mod tcp {
         /// to progress the state of other futures and allow sync code to interact with the server
         /// state. In most situations, this step should yield a no-op.
         ///
-        async fn run(ctx: &SafeServer) -> RUMResult<()> {
+        pub async fn run(ctx: &SafeServer) -> RUMResult<()> {
             // Bootstrapping the main server loop.
             let mut reowned_self = ctx.read().await;
             let mut accept_handle = tokio::spawn(RUMServer::handle_accept(
@@ -348,7 +348,7 @@ pub mod tcp {
         /// Then, this method waits for run to cleanup before exiting.
         /// Meaning, this method's exit is enough to signal everything went through smoothly.
         ///
-        async fn stop_server(ctx: &SafeServer) -> RUMResult<RUMString> {
+        pub async fn stop_server(ctx: &SafeServer) -> RUMResult<RUMString> {
             println!("Attempting to stop server!");
             let mut reowned_self = ctx.write().await;
             let mut shutdown_completed = reowned_self.shutdown_completed;
@@ -369,7 +369,7 @@ pub mod tcp {
         ///
         /// Contains basic logic for listening for incoming connections.
         ///
-        async fn handle_accept(listener: SafeListener, clients: SafeClients) -> RUMResult<()> {
+        pub async fn handle_accept(listener: SafeListener, clients: SafeClients) -> RUMResult<()> {
             let server = listener.lock().await;
             match server.accept().await {
                 Ok((socket, _)) => {
@@ -394,7 +394,7 @@ pub mod tcp {
         /// of [SafeMappedQueues] which is a hash map of [SafeQueue<RUMNetMessage>] whose keys are
         /// the client's peer address string.
         ///
-        async fn handle_send(clients: SafeClients, tx_out: SafeMappedQueues) -> RUMResult<()> {
+        pub async fn handle_send(clients: SafeClients, tx_out: SafeMappedQueues) -> RUMResult<()> {
             let mut client_list = clients.write().await;
             for (client_id, client) in client_list.iter_mut() {
                 let messages = match RUMServer::pop_queue(&tx_out, client_id).await {
@@ -415,7 +415,10 @@ pub mod tcp {
         /// Contains the logic for handling receiving messages from clients. Incoming messages are
         /// all placed into a queue that the "outside" world can interact with.
         ///
-        async fn handle_receive(clients: SafeClients, tx_in: SafeMappedQueues) -> RUMResult<()> {
+        pub async fn handle_receive(
+            clients: SafeClients,
+            tx_in: SafeMappedQueues,
+        ) -> RUMResult<()> {
             let mut client_list = clients.write().await;
             for (client_id, client) in client_list.iter_mut() {
                 let msg = RUMServer::receive(&client).await?;
@@ -472,6 +475,11 @@ pub mod tcp {
 
         pub async fn send(client: &SafeClient, msg: &RUMNetMessage) -> RUMResult<()> {
             let mut owned_client = lock_client_ex(client).await;
+            println!(
+                "Sent {} bytes to {}!",
+                msg.len(),
+                owned_client.get_address(false).await.unwrap()
+            );
             owned_client.send(msg).await
         }
 
