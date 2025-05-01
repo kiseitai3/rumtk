@@ -195,12 +195,18 @@ pub mod mllp_v2 {
         AsyncMutex, AsyncMutexGuard, ClientIDList, RUMClientHandle, RUMNetMessage, RUMServerHandle,
         ANYHOST, LOCALHOST,
     };
+    use rumtk_core::net::tcp::{AsyncRwLock, RUMClient, RUMServer, SafeClient, SafeServer};
     use rumtk_core::strings::{
         escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
         RUMStringConversions, ToCompactString,
     };
-    use rumtk_core::{rumtk_connect, rumtk_create_server, rumtk_sleep, rumtk_start_server};
-    use std::sync::{Arc, LockResult, Mutex, MutexGuard};
+    use rumtk_core::threading::thread_primitives::SafeTaskArgs;
+    use rumtk_core::{
+        rumtk_async_sleep, rumtk_create_task, rumtk_exec_task, rumtk_init_threads,
+        rumtk_resolve_task,
+    };
+    use std::sync::{Arc, Mutex};
+    use tokio::sync::RwLock;
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
@@ -322,13 +328,6 @@ pub mod mllp_v2 {
     /// Tests if message is an [ACK] message.
     ///
     pub fn is_ack(msg: &RUMString) -> bool {
-        println!(
-            "{} => {} | {} && {}",
-            &msg,
-            ACK_STR,
-            msg.len() == 1,
-            msg == ACK_STR
-        );
         msg.len() == 1 && msg == ACK_STR
     }
 
@@ -344,56 +343,85 @@ pub mod mllp_v2 {
     /// connection layer such that we can establish a two way single channel communication.
     ///
     pub enum LowerLayer {
-        SERVER(RUMServerHandle),
-        CLIENT(RUMClientHandle),
+        SERVER(SafeServer),
+        CLIENT(SafeClient),
     }
 
     impl LowerLayer {
-        pub fn init(ip: &str, port: u16, as_server: bool) -> RUMResult<LowerLayer> {
+        pub async fn init(ip: &str, port: u16, as_server: bool) -> RUMResult<LowerLayer> {
             match as_server {
                 true => {
-                    let mut server = rumtk_create_server!(ip, port)?;
-                    rumtk_start_server!(&mut server);
-                    Ok(LowerLayer::SERVER(server))
+                    let mut server = RUMServer::new(ip, port).await?;
+                    let mut safe_server = SafeServer::new(AsyncRwLock::new(server));
+                    match RUMServer::run(&safe_server).await {
+                        Ok(()) => Ok(LowerLayer::SERVER(safe_server)),
+                        Err(e) => Err(e),
+                    }
                 }
                 false => {
-                    let client = rumtk_connect!(&ip, port)?;
-                    Ok(LowerLayer::CLIENT(client))
+                    let client = RUMClient::connect(&ip, port).await?;
+                    let mut safe_client = SafeClient::new(AsyncRwLock::new(client));
+                    Ok(LowerLayer::CLIENT(safe_client))
                 }
             }
         }
 
-        pub fn send_message(
+        pub async fn send_message(
             &mut self,
             message: &RUMNetMessage,
             client_id: &RUMString,
         ) -> RUMResult<()> {
             match *self {
-                LowerLayer::SERVER(ref mut server) => server.send(&client_id, &message),
-                LowerLayer::CLIENT(ref mut client) => client.send(&message),
+                LowerLayer::SERVER(ref mut server) => {
+                    println!("Message queued!");
+                    server
+                        .write()
+                        .await
+                        .push_message(&client_id, message.clone())
+                        .await;
+                    Ok(())
+                }
+                LowerLayer::CLIENT(ref mut client) => client.write().await.send(&message).await,
             }
         }
 
-        pub fn receive_message(&mut self, client_id: &RUMString) -> RUMResult<RUMNetMessage> {
+        pub async fn receive_message(&mut self, client_id: &RUMString) -> RUMResult<RUMNetMessage> {
             match *self {
-                LowerLayer::SERVER(ref mut server) => server.receive(client_id),
-                LowerLayer::CLIENT(ref mut client) => Ok(client.receive()?),
+                LowerLayer::SERVER(ref mut server) => {
+                    match server.write().await.pop_message(client_id).await {
+                        Some(msg) => Ok(msg),
+                        None => Ok(vec![]),
+                    }
+                }
+                LowerLayer::CLIENT(ref mut client) => Ok(client.write().await.recv().await?),
             }
         }
 
-        pub fn get_client_ids(&self) -> ClientIDList {
+        pub async fn get_client_ids(&self) -> ClientIDList {
             match *self {
-                LowerLayer::SERVER(ref server) => server.get_client_ids(),
+                LowerLayer::SERVER(ref server) => {
+                    let clients = server.read().await.get_clients().await;
+                    let mut ids = ClientIDList::with_capacity(clients.len());
+                    for c in clients.iter() {
+                        ids.push(c.write().await.get_address(false).await.unwrap());
+                    }
+                    ids
+                }
                 LowerLayer::CLIENT(ref client) => {
-                    vec![client.get_address().expect("No client address!")]
+                    vec![client
+                        .read()
+                        .await
+                        .get_address(true)
+                        .await
+                        .expect("No client address!")]
                 }
             }
         }
 
-        pub fn get_address_info(&self) -> Option<RUMString> {
+        pub async fn get_address_info(&self) -> Option<RUMString> {
             match *self {
-                LowerLayer::SERVER(ref server) => server.get_address_info(),
-                LowerLayer::CLIENT(ref client) => client.get_address(),
+                LowerLayer::SERVER(ref server) => server.read().await.get_address_info().await,
+                LowerLayer::CLIENT(ref client) => client.read().await.get_address(true).await,
             }
         }
     }
@@ -419,8 +447,8 @@ pub mod mllp_v2 {
         FILTER_INPUT = 2,
     }
 
-    pub type SafeLowerLayer = Arc<Mutex<LowerLayer>>;
-    pub type GuardedLowerLayer<'a> = LockResult<MutexGuard<'a, LowerLayer>>;
+    pub type SafeLowerLayer = Arc<AsyncMutex<LowerLayer>>;
+    pub type GuardedLowerLayer<'a> = AsyncMutexGuard<'a, LowerLayer>;
 
     ///
     /// # Minimal Lower Layer Protocol
@@ -431,57 +459,67 @@ pub mod mllp_v2 {
     /// Parsing is left to [v2_parser_interface::v2_parse_message]. This struct only deals with
     /// the low level encoding.
     ///
-    pub struct MLLP {
+    pub struct AsyncMLLP {
         transport_layer: SafeLowerLayer,
         filter_policy: MLLP_FILTER_POLICY,
         server: bool,
     }
 
-    impl MLLP {
+    impl AsyncMLLP {
         ///
-        /// Establish an [MLLP] connection on any available network interface.
+        /// Establish an [AsyncMLLP] connection on any available network interface.
         ///
-        pub fn net(port: u16, filter_policy: MLLP_FILTER_POLICY, server: bool) -> RUMResult<MLLP> {
-            Ok(MLLP {
-                transport_layer: Arc::new(Mutex::new(LowerLayer::init(ANYHOST, port, server)?)),
-                filter_policy,
-                server,
-            })
-        }
-
-        ///
-        /// Establish an [MLLP] connection within this machine. It only looks at the localhost address.
-        ///
-        pub fn local(
+        pub async fn net(
             port: u16,
             filter_policy: MLLP_FILTER_POLICY,
             server: bool,
-        ) -> RUMResult<MLLP> {
-            Ok(MLLP {
-                transport_layer: Arc::new(Mutex::new(LowerLayer::init(LOCALHOST, port, server)?)),
+        ) -> RUMResult<AsyncMLLP> {
+            Ok(AsyncMLLP {
+                transport_layer: Arc::new(AsyncMutex::new(
+                    LowerLayer::init(ANYHOST, port, server).await?,
+                )),
                 filter_policy,
                 server,
             })
         }
 
         ///
-        /// Establish an [MLLP] connection on the specified IP/Host and Port.
+        /// Establish an [AsyncMLLP] connection within this machine. It only looks at the localhost address.
         ///
-        pub fn new(
+        pub async fn local(
+            port: u16,
+            filter_policy: MLLP_FILTER_POLICY,
+            server: bool,
+        ) -> RUMResult<AsyncMLLP> {
+            Ok(AsyncMLLP {
+                transport_layer: Arc::new(AsyncMutex::new(
+                    LowerLayer::init(LOCALHOST, port, server).await?,
+                )),
+                filter_policy,
+                server,
+            })
+        }
+
+        ///
+        /// Establish an [AsyncMLLP] connection on the specified IP/Host and Port.
+        ///
+        pub async fn new(
             ip: &str,
             port: u16,
             filter_policy: MLLP_FILTER_POLICY,
             server: bool,
-        ) -> RUMResult<MLLP> {
-            Ok(MLLP {
-                transport_layer: Arc::new(Mutex::new(LowerLayer::init(ip, port, server)?)),
+        ) -> RUMResult<AsyncMLLP> {
+            Ok(AsyncMLLP {
+                transport_layer: Arc::new(AsyncMutex::new(
+                    LowerLayer::init(ip, port, server).await?,
+                )),
                 filter_policy,
                 server,
             })
         }
 
-        fn next_layer(&self) -> GuardedLowerLayer {
-            self.transport_layer.lock()
+        async fn next_layer(&self) -> GuardedLowerLayer {
+            self.transport_layer.lock().await
         }
 
         ///
@@ -494,10 +532,10 @@ pub mod mllp_v2 {
         /// We reattempt sending the message every [TIMEOUT_STEP_SOURCE] seconds until we receive
         /// a valid response or reach the maximum timeout defined in [TIMEOUT_SOURCE].
         ///
-        pub fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
+        pub async fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             for i in 0..TIMEOUT_SOURCE {
-                self.send(&message, &endpoint)?;
-                let response = self.receive_message(&endpoint)?;
+                self.send(&message, &endpoint).await?;
+                let response = self.receive_message(&endpoint).await?;
                 if is_ack(&response) {
                     return Ok(());
                 }
@@ -511,7 +549,6 @@ pub mod mllp_v2 {
                 }
 
                 if !response.is_empty() {
-                    println!("{:?}", &response.as_bytes());
                     return Err(format_compact!(
                         "The peer [{}] responded with an unexpected message.\
                      Message: {}",
@@ -520,7 +557,7 @@ pub mod mllp_v2 {
                     ));
                 }
 
-                rumtk_sleep!(TIMEOUT_STEP_SOURCE)
+                rumtk_async_sleep!(TIMEOUT_STEP_SOURCE).await
             }
             Err(format_compact!(
                 "Timeout reached attempting to send message to {}!",
@@ -528,10 +565,14 @@ pub mod mllp_v2 {
             ))
         }
 
-        pub fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
+        pub async fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
-            self.next_layer().unwrap().send_message(&encoded, endpoint)
+            println!("Sending message: {}", &message);
+            self.next_layer()
+                .await
+                .send_message(&encoded, endpoint)
+                .await
         }
 
         ///
@@ -555,31 +596,30 @@ pub mod mllp_v2 {
         /// the higher layers, this implementation **always** [ACK] incoming messages if
         /// successfully decoded. Otherwise, we emit a [NACK] response.
         ///
-        /// This method uses [MLLP::receive] to attempt to get a message if any is available in the
+        /// This method uses [AsyncMLLP::receive] to attempt to get a message if any is available in the
         /// queue.
         ///
         /// This implementation skips [ACK] if the incoming message itself is an [ACK] or [NACK]
         /// message.
         ///
-        pub fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            for i in 0..5 {
-                let message = match self.receive(&endpoint) {
+        pub async fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
+            for i in 0..TIMEOUT_DESTINATION {
+                let message = match self.receive(&endpoint).await {
                     Ok(data) => data,
                     Err(e) => {
-                        self.nack(&endpoint)?;
+                        self.nack(&endpoint).await?;
                         return Err(e);
                     }
                 };
                 println!("Received message: {}", &message);
                 if !message.is_empty() {
                     if !(is_ack(&message) || is_nack(&message)) {
-                        self.ack(&endpoint)?;
+                        self.ack(&endpoint).await?;
                         return Ok(message);
-                    } else {
-                        //return Ok(RUMString::new(""));
                     }
+                    //return Ok(RUMString::new(""));
                 }
-                rumtk_sleep!(TIMEOUT_STEP_DESTINATION)
+                rumtk_async_sleep!(TIMEOUT_STEP_DESTINATION).await
             }
             Err(format_compact!(
                 "Timeout reached while awaiting for message!"
@@ -589,8 +629,8 @@ pub mod mllp_v2 {
         ///
         /// Simply receives a message and decodes it.
         ///
-        pub fn receive(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            let message = self.next_layer().unwrap().receive_message(&endpoint)?;
+        pub async fn receive(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
+            let message = self.next_layer().await.receive_message(&endpoint).await?;
             mllp_decode(&message)
         }
 
@@ -598,9 +638,12 @@ pub mod mllp_v2 {
         /// Sends an acknowledgement receipt to endpoint. This is done to let a peer know we have
         /// received the message they sent!
         ///
-        pub fn ack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
+        pub async fn ack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
             let encoded = mllp_encode_bytes(&vec![ACK]);
-            self.next_layer().unwrap().send_message(&encoded, endpoint)
+            self.next_layer()
+                .await
+                .send_message(&encoded, endpoint)
+                .await
         }
 
         ///
@@ -608,59 +651,119 @@ pub mod mllp_v2 {
         /// we have received the message they sent but were unable to commit it in storage or had
         /// to reject it!
         ///
-        pub fn nack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
+        pub async fn nack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
             let encoded = mllp_encode_bytes(&vec![NACK]);
-            self.next_layer().unwrap().send_message(&encoded, endpoint)
+            self.next_layer()
+                .await
+                .send_message(&encoded, endpoint)
+                .await
         }
 
-        pub fn get_client_ids(&self) -> ClientIDList {
-            self.next_layer().unwrap().get_client_ids()
+        pub async fn get_client_ids(&self) -> ClientIDList {
+            self.next_layer().await.get_client_ids().await
         }
 
-        pub fn is_server(&self) -> bool {
+        pub async fn is_server(&self) -> bool {
             self.server
         }
 
-        pub fn get_address_info(&self) -> Option<RUMString> {
-            let lower_layer = self.next_layer().unwrap();
-            lower_layer.get_address_info()
+        pub async fn get_address_info(&self) -> Option<RUMString> {
+            let lower_layer = self.next_layer().await;
+            lower_layer.get_address_info().await
         }
     }
 
-    pub type SafeMLLP = Arc<Mutex<MLLP>>;
-    pub type GuardedMLLPLayer<'a> = LockResult<MutexGuard<'a, MLLP>>;
+    pub type SafeAsyncMLLP = Arc<AsyncMutex<AsyncMLLP>>;
+    pub type GuardedMLLPLayer<'a> = AsyncMutexGuard<'a, AsyncMLLP>;
 
     ///
     /// # Minimal Lower Layer Protocol
     ///
     /// ## Intro
     ///
-    /// Using the [MLLP] layer and the [LowerLayer] as the lowest layer, create the concept of a
+    /// Using the [AsyncMLLP] layer and the [LowerLayer] as the lowest layer, create the concept of a
+    /// bidirectional channel such that an application can talk to another.
+    ///
+    pub struct AsyncMLLPChannel {
+        channel: SafeAsyncMLLP,
+        peer: RUMString,
+    }
+
+    impl AsyncMLLPChannel {
+        pub fn open(endpoint: &RUMString, mllp_instance: &SafeAsyncMLLP) -> AsyncMLLPChannel {
+            AsyncMLLPChannel {
+                peer: endpoint.clone(),
+                channel: Arc::clone(mllp_instance),
+            }
+        }
+
+        pub async fn next_layer(&self) -> GuardedMLLPLayer {
+            self.channel.lock().await
+        }
+
+        pub async fn send_message(&mut self, message: &str) -> RUMResult<()> {
+            self.next_layer()
+                .await
+                .send_message(message, &self.peer)
+                .await
+        }
+
+        pub async fn receive_message(&mut self) -> RUMResult<RUMString> {
+            self.next_layer().await.receive_message(&self.peer).await
+        }
+    }
+
+    ///
+    /// # Minimal Lower Layer Protocol
+    ///
+    /// ## Intro
+    ///
+    /// Using the [AsyncMLLP] layer and the [LowerLayer] as the lowest layer, create the concept of a
     /// bidirectional channel such that an application can talk to another.
     ///
     pub struct MLLPChannel {
-        channel: SafeMLLP,
+        channel: SafeAsyncMLLP,
         peer: RUMString,
     }
 
     impl MLLPChannel {
-        pub fn open(endpoint: &RUMString, mllp_instance: &SafeMLLP) -> MLLPChannel {
+        type SendArgs = (SafeAsyncMLLP, RUMString, RUMString);
+        type ReceiveArgs = (SafeAsyncMLLP, RUMString);
+
+        pub fn open(endpoint: &RUMString, mllp_instance: &SafeAsyncMLLP) -> MLLPChannel {
             MLLPChannel {
                 peer: endpoint.clone(),
                 channel: Arc::clone(mllp_instance),
             }
         }
 
-        pub fn next_layer(&self) -> GuardedMLLPLayer {
-            self.channel.lock()
-        }
-
         pub fn send_message(&mut self, message: &str) -> RUMResult<()> {
-            self.next_layer().unwrap().send_message(message, &self.peer)
+            rumtk_exec_task!(
+                async |args: &SafeTaskArgs<Self::SendArgs>| -> RUMResult<()> {
+                    let owned_args = args.write().await;
+                    let (channel, message, peer) = owned_args.get(0).unwrap();
+                    let result = channel.lock().await.send(message, peer).await;
+                    result
+                },
+                vec![(
+                    self.channel.clone(),
+                    message.to_rumstring(),
+                    self.peer.clone()
+                )]
+            )
         }
 
         pub fn receive_message(&mut self) -> RUMResult<RUMString> {
-            self.next_layer().unwrap().receive_message(&self.peer)
+            rumtk_exec_task!(
+                async |args: &SafeTaskArgs<Self::ReceiveArgs>| -> RUMResult<RUMString> {
+                    let owned_args = args.write().await;
+                    let owned_arg = owned_args.get(0);
+                    let (channel, peer) = owned_arg.unwrap();
+                    let result = channel.lock().await.receive_message(&peer).await;
+                    result
+                },
+                vec![(self.channel.clone(), self.peer.clone())]
+            )
         }
     }
 
@@ -673,23 +776,27 @@ pub mod mllp_v2_api {
     /// # Intro
     ///
     /// Attempt to connect to an MLLP server.
-    /// Returns [SafeMLLP].
+    /// Returns [SafeAsyncMLLP].
     ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_connect {
         ( $port:expr, $policy:expr ) => {{
-            use std::sync::{Arc, Mutex};
-            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
-            match MLLP::local($port, $policy, false) {
-                Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+            use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
+            use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
+            let rt = rumtk_init_threads!();
+            match rumtk_resolve_task!(&rt, AsyncMLLP::local($port, $policy, false)) {
+                Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                 Err(e) => Err(e),
             }
         }};
         ( $ip:expr, $port:expr, $policy:expr ) => {{
-            use std::sync::{Arc, Mutex};
-            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
-            match MLLP::new($port, $policy, false) {
-                Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+            use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
+            use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
+            let rt = rumtk_init_threads!();
+            match rumtk_resolve_task!(&rt, AsyncMLLP::new($port, $policy, false)) {
+                Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                 Err(e) => Err(e),
             }
         }};
@@ -699,20 +806,22 @@ pub mod mllp_v2_api {
     /// # Intro
     ///
     /// Create a server listener for MLLP communications.
-    /// Returns [SafeMLLP].
+    /// Returns [SafeAsyncMLLP].
     ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_listen {
         ( $port:expr, $policy:expr, $local:expr ) => {{
-            use std::sync::{Arc, Mutex};
-            use $crate::hl7_v2_mllp::mllp_v2::{SafeMLLP, MLLP};
+            use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
+            use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
+            let rt = rumtk_init_threads!();
             match $local {
-                true => match MLLP::local($port, $policy, true) {
-                    Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                true => match rumtk_resolve_task!(&rt, AsyncMLLP::local($port, $policy, true)) {
+                    Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                     Err(e) => Err(e),
                 },
-                false => match MLLP::net($port, $policy, true) {
-                    Ok(mllp) => Ok(SafeMLLP::new(Mutex::new(mllp))),
+                false => match rumtk_resolve_task!(&rt, AsyncMLLP::net($port, $policy, true)) {
+                    Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                     Err(e) => Err(e),
                 },
             }
@@ -723,13 +832,13 @@ pub mod mllp_v2_api {
     /// # Intro
     ///
     /// Create vector iterable using the shared [MLLP] instance to obtain a single
-    /// [SafeMLLPChannel] to the endpoint listening interface. In other words, this macro creates
-    /// a thread safe instance of [SafeMLLPChannel] from the client to the server. The channel
+    /// [SafeAsyncMLLPChannel] to the endpoint listening interface. In other words, this macro creates
+    /// a thread safe instance of [SafeAsyncMLLPChannel] from the client to the server. The channel
     /// provides bidirectional communication.
     ///
     /// # Example Usage
     ///
-    /// ```no_run
+    /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_iter_channels};
     ///     let safe_listener = rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE).unwrap();
@@ -748,7 +857,7 @@ pub mod mllp_v2_api {
             let clients = $safe_mllp.lock().unwrap().get_client_ids();
             let endpoint = clients.get(0).unwrap();
             let new_channel =
-                SafeMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
+                SafeAsyncMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
             vec![new_channel]
         }};
     }
@@ -756,14 +865,14 @@ pub mod mllp_v2_api {
     ///
     /// # Intro
     ///
-    /// Create vector iterable using the shared [SafeMLLP] instance to obtain channels to clients.
-    /// This macro creates thread safe instances of [SafeMLLPChannels]. These are channels from
+    /// Create vector iterable using the shared [SafeAsyncMLLP] instance to obtain channels to clients.
+    /// This macro creates thread safe instances of [SafeAsyncMLLPChannels]. These are channels from
     /// the server to the clients. These channels provide bidirectional communication with the
     /// clients.
     ///
     /// # Example Usage
     ///
-    /// ```no_run
+    /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_open_server_channels};
     ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
@@ -777,8 +886,8 @@ pub mod mllp_v2_api {
     #[macro_export]
     macro_rules! rumtk_v2_open_server_channels {
         ( $safe_mllp:expr ) => {{
-            use std::sync::{Arc, Mutex};
-            use $crate::hl7_v2_mllp::mllp_v2::{MLLPChannel, MLLPChannels, SafeMLLPChannel};
+            use std::sync::Arc;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMutex, MLLPChannels, SafeMLLPChannel};
             let endpoints = $safe_mllp.lock().unwrap().get_client_ids();
             let mut channels = MLLPChannels::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
@@ -808,10 +917,29 @@ pub mod mllp_v2_api {
         }};
     }
 
+    ///
+    /// Convenience macro for obtaining the ip and port off an instance of [SafeAsyncMLLP].
+    ///
+    /// # Example Usage
+    ///
+    /// ```
+    /// use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY, LOCALHOST};
+    /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_get_ip_port};
+    /// let mllp = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true);
+    /// let (ip, port) = rumtk_v2_get_ip_port!(&mllp);
+    /// assert_eq!(55555, &port, "Ports are different????");
+    /// assert_eq!(&LOCALHOST, &ip, "IPs are different????");
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_get_ip_port {
         ( $safe_mllp:expr ) => {{
-            let address_str = $safe_mllp.lock().unwrap().get_address_info().unwrap();
+            use rumtk_core::{rumtk_exec_task}
+            let address_str = rumtk_exec_task!(
+                async || {
+                    $safe_mllp.lock().await.unwrap().get_address_info().unwrap()
+                }
+            );
             let mut components = address_str.split(':');
             let ip = components.next().unwrap().clone();
             let port = components.next().unwrap();
