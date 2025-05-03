@@ -929,11 +929,26 @@ pub mod mllp_v2_api {
     /// Convenience macro for generating [MLLPChannels] that you can use to communicate with the
     /// peer endpoint(s).
     ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let channels = rumtk_v2_mllp_iter_channels!(&safe_listener);
+    ///
+    ///     for channel in channels.iter() {
+    ///         // Add your logic here!
+    ///     }
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_iter_channels {
         ( $safe_mllp:expr ) => {{
-            use $crate::{rumtk_v2_mllp_open_client_channel, rumtk_v2_mllp_open_server_channels};
-            let is_server = $safe_mllp.lock().unwrap().is_server();
+            use $crate::{
+                rumtk_v2_mllp_is_server, rumtk_v2_mllp_open_client_channel,
+                rumtk_v2_mllp_open_server_channels,
+            };
+            let is_server = rumtk_v2_mllp_is_server!($safe_mllp);
             match is_server {
                 true => rumtk_v2_mllp_open_server_channels!($safe_mllp),
                 false => rumtk_v2_mllp_open_client_channel!($safe_mllp),
@@ -1026,6 +1041,44 @@ pub mod mllp_v2_api {
                 Err(e) => vec![],
             };
             endpoints
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Convenience macro for querying if an [AsyncMLLP] instance is a server instance or a client
+    /// instance.
+    ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_is_server, rumtk_v2_mllp_listen, rumtk_v2_mllp_connect};
+    ///     let port = 55555;
+    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let is_listener_server = rumtk_v2_mllp_is_server!(&safe_listener);
+    ///     let is_client_server = rumtk_v2_mllp_is_server!(&safe_client);
+    ///
+    ///     assert_eq!(true, is_listener_server, "Expected listener to reply as server!");
+    ///     assert_eq!(false, is_client_server, "Expected connecting client to reply as client!");
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_mllp_is_server {
+        ( $safe_mllp:expr ) => {{
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+            use $crate::hl7_v2_mllp::mllp_v2::ClientIDList;
+            let mllp_ref = $safe_mllp.clone();
+            let result = rumtk_exec_task!(async || -> RUMResult<bool> {
+                Ok(mllp_ref.lock().await.is_server().await)
+            });
+            match result {
+                Ok(is_server) => is_server,
+                Err(e) => false,
+            }
         }};
     }
 }
