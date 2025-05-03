@@ -711,6 +711,9 @@ pub mod mllp_v2 {
         }
     }
 
+    pub type SafeAsyncMLLPChannel = Arc<AsyncMutex<AsyncMLLPChannel>>;
+    pub type AsyncMLLPChannels = Vec<SafeAsyncMLLPChannel>;
+
     ///
     /// # Minimal Lower Layer Protocol
     ///
@@ -884,9 +887,20 @@ pub mod mllp_v2_api {
     #[macro_export]
     macro_rules! rumtk_v2_open_server_channels {
         ( $safe_mllp:expr ) => {{
-            use std::sync::Arc;
-            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMutex, MLLPChannels, SafeMLLPChannel};
-            let endpoints = $safe_mllp.lock().unwrap().get_client_ids();
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use std::sync::{Arc, Mutex};
+            use $crate::hl7_v2_mllp::mllp_v2::{
+                AsyncMutex, ClientIDList, MLLPChannel, MLLPChannels, SafeMLLPChannel,
+            };
+            let mllp_ref = $safe_mllp.clone();
+            let endpoint_list = rumtk_exec_task!(async || -> RUMResult<ClientIDList> {
+                Ok(mllp_ref.lock().await.get_client_ids().await)
+            });
+            let endpoints = match endpoint_list {
+                Ok(endpoints) => endpoints,
+                Err(e) => vec![],
+            };
             let mut channels = MLLPChannels::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
                 let new_channel =
