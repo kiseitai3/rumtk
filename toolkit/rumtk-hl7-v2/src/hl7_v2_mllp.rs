@@ -852,9 +852,9 @@ pub mod mllp_v2_api {
     ///
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
     ///     let port = 55555;
-    ///     let safe_listener = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
     ///     let channel = rumtk_v2_open_client_channel!(&safe_listener);
     /// ```
