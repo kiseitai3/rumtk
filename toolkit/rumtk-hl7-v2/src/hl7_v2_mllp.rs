@@ -207,6 +207,7 @@ pub mod mllp_v2 {
     };
     use std::sync::{Arc, Mutex};
     use tokio::sync::RwLock;
+    use tokio::task::JoinHandle;
 
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
@@ -338,6 +339,8 @@ pub mod mllp_v2 {
         msg.len() == 1 && msg == NACK_STR
     }
 
+    pub type ServerRunner = Option<JoinHandle<RUMResult<()>>>;
+
     ///
     /// Abstraction wrapper that allows us to treat a server or a client connection as a singular
     /// connection layer such that we can establish a two way single channel communication.
@@ -351,9 +354,8 @@ pub mod mllp_v2 {
         pub async fn init(ip: &str, port: u16, as_server: bool) -> RUMResult<LowerLayer> {
             match as_server {
                 true => {
-                    let server = RUMServer::new(ip, port).await?;
+                    let server = RUMServer::new(&ip, port).await?;
                     let safe_server = SafeServer::new(AsyncRwLock::new(server));
-                    rumtk_spawn_task!(RUMServer::run(safe_server.clone()));
                     Ok(LowerLayer::SERVER(safe_server))
                 }
                 false => {
@@ -361,6 +363,15 @@ pub mod mllp_v2 {
                     let safe_client = SafeClient::new(AsyncRwLock::new(client));
                     Ok(LowerLayer::CLIENT(safe_client))
                 }
+            }
+        }
+
+        pub async fn start(&self) -> ServerRunner {
+            match *self {
+                LowerLayer::SERVER(ref server) => {
+                    Some(rumtk_spawn_task!(RUMServer::run(server.clone())))
+                }
+                LowerLayer::CLIENT(ref client) => None,
             }
         }
 
@@ -460,6 +471,7 @@ pub mod mllp_v2 {
     pub struct AsyncMLLP {
         transport_layer: SafeLowerLayer,
         filter_policy: MLLP_FILTER_POLICY,
+        server_handle: ServerRunner,
         server: bool,
     }
 
@@ -472,13 +484,7 @@ pub mod mllp_v2 {
             filter_policy: MLLP_FILTER_POLICY,
             server: bool,
         ) -> RUMResult<AsyncMLLP> {
-            Ok(AsyncMLLP {
-                transport_layer: Arc::new(AsyncMutex::new(
-                    LowerLayer::init(ANYHOST, port, server).await?,
-                )),
-                filter_policy,
-                server,
-            })
+            AsyncMLLP::new(ANYHOST, port, filter_policy, server).await
         }
 
         ///
@@ -489,13 +495,7 @@ pub mod mllp_v2 {
             filter_policy: MLLP_FILTER_POLICY,
             server: bool,
         ) -> RUMResult<AsyncMLLP> {
-            Ok(AsyncMLLP {
-                transport_layer: Arc::new(AsyncMutex::new(
-                    LowerLayer::init(LOCALHOST, port, server).await?,
-                )),
-                filter_policy,
-                server,
-            })
+            AsyncMLLP::new(LOCALHOST, port, filter_policy, server).await
         }
 
         ///
@@ -507,11 +507,13 @@ pub mod mllp_v2 {
             filter_policy: MLLP_FILTER_POLICY,
             server: bool,
         ) -> RUMResult<AsyncMLLP> {
+            let transport_layer =
+                Arc::new(AsyncMutex::new(LowerLayer::init(ip, port, server).await?));
+            let server_handle = transport_layer.lock().await.start().await;
             Ok(AsyncMLLP {
-                transport_layer: Arc::new(AsyncMutex::new(
-                    LowerLayer::init(ip, port, server).await?,
-                )),
+                transport_layer,
                 filter_policy,
+                server_handle,
                 server,
             })
         }
@@ -779,6 +781,15 @@ pub mod mllp_v2_api {
     /// Attempt to connect to an MLLP server.
     /// Returns [SafeAsyncMLLP].
     ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
+    ///     let port = 55555;
+    ///     let safe_listener = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_connect {
         ( $port:expr, $policy:expr ) => {{
@@ -841,13 +852,11 @@ pub mod mllp_v2_api {
     ///
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_iter_channels};
-    ///     let safe_listener = rumtk_v2_mllp_connect!(55555, MLLP_FILTER_POLICY::NONE).unwrap();
-    ///     let channels = rumtk_v2_iter_channels!(&safe_listener);
-    ///
-    ///     for channel in channels.iter() {
-    ///         // Add your logic here!
-    ///     }
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
+    ///     let port = 55555;
+    ///     let safe_listener = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
+    ///     let channel = rumtk_v2_open_client_channel!(&safe_listener);
     /// ```
     ///
     #[macro_export]
@@ -855,10 +864,11 @@ pub mod mllp_v2_api {
         ( $safe_mllp:expr ) => {{
             use std::sync::{Arc, Mutex};
             use $crate::hl7_v2_mllp::mllp_v2::{MLLPChannel, SafeMLLPChannel};
-            let clients = $safe_mllp.lock().unwrap().get_client_ids();
-            let endpoint = clients.get(0).unwrap();
+            use $crate::rumtk_v2_mllp_get_client_ids;
+            let endpoints = rumtk_v2_mllp_get_client_ids!(&$safe_mllp);
+            let endpoint = endpoints.get(0).unwrap();
             let new_channel =
-                SafeAsyncMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
+                SafeMLLPChannel::new(Mutex::new(MLLPChannel::open(&endpoint, &$safe_mllp)));
             vec![new_channel]
         }};
     }
@@ -893,14 +903,8 @@ pub mod mllp_v2_api {
             use $crate::hl7_v2_mllp::mllp_v2::{
                 AsyncMutex, ClientIDList, MLLPChannel, MLLPChannels, SafeMLLPChannel,
             };
-            let mllp_ref = $safe_mllp.clone();
-            let endpoint_list = rumtk_exec_task!(async || -> RUMResult<ClientIDList> {
-                Ok(mllp_ref.lock().await.get_client_ids().await)
-            });
-            let endpoints = match endpoint_list {
-                Ok(endpoints) => endpoints,
-                Err(e) => vec![],
-            };
+            use $crate::rumtk_v2_mllp_get_client_ids;
+            let endpoints = rumtk_v2_mllp_get_client_ids!(&$safe_mllp);
             let mut channels = MLLPChannels::with_capacity(endpoints.len());
             for endpoint in endpoints.iter() {
                 let new_channel =
@@ -937,25 +941,26 @@ pub mod mllp_v2_api {
     /// ```
     /// use rumtk_core::core::RUMResult;
     /// use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY, LOCALHOST};
-    /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_get_ip_port};
+    /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
     /// use rumtk_core::strings::{RUMString, RUMStringConversions};
     ///
     /// let ip = LOCALHOST.to_rumstring();
     /// let port: u16 = 55555;
     /// let expected = (ip, port);
     /// let mllp = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
-    /// let results = rumtk_v2_get_ip_port!(&mllp);
+    /// let results = rumtk_v2_mllp_get_ip_port!(&mllp);
     /// assert_eq!(expected, results, "IPs or Ports are different????");
     /// ```
     ///
     #[macro_export]
-    macro_rules! rumtk_v2_get_ip_port {
+    macro_rules! rumtk_v2_mllp_get_ip_port {
         ( $safe_mllp:expr ) => {{
             use rumtk_core::core::RUMResult;
             use rumtk_core::rumtk_exec_task;
             use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+            let mllp_ref = $safe_mllp.clone();
             let address_str = rumtk_exec_task!(async || -> RUMResult<RUMString> {
-                match $safe_mllp.lock().await.get_address_info().await {
+                match mllp_ref.lock().await.get_address_info().await {
                     Some(ip) => Ok(ip.to_rumstring()),
                     None => Err(format_compact!(
                         "MLLP instance is missing an IP address. This is not expected!!!"
@@ -971,6 +976,48 @@ pub mod mllp_v2_api {
                 components.next().unwrap().to_rumstring(),
                 components.next().unwrap().parse::<u16>().unwrap(),
             )
+        }};
+    }
+
+    ///
+    /// Convenience macro for obtaining the client id list ([ClientIDList]) off an instance of [SafeAsyncMLLP].
+    ///
+    /// # Example Usage
+    ///
+    /// ```
+    /// use rumtk_core::core::RUMResult;
+    /// use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY, LOCALHOST};
+    /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_ip_port};
+    /// use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+    ///
+    /// let ip = LOCALHOST.to_rumstring();
+    /// let port: u16 = 55555;
+    /// let expected = format_compact!("{}:{}", ip, port);
+    /// let mllp = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    /// let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    /// let results = rumtk_v2_mllp_get_client_ids!(&mllp);
+    /// let client_id = results.get(0).unwrap();
+    /// let (client_ip, client_port) = rumtk_v2_mllp_get_ip_port!(safe_client);
+    /// let expected = format_compact!("{}:{}", client_ip, client_port);
+    /// assert_eq!(expected, client_id, "Expected to see client with ID: {}", expected);
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_mllp_get_client_ids {
+        ( $safe_mllp:expr ) => {{
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+            use $crate::hl7_v2_mllp::mllp_v2::ClientIDList;
+            let mllp_ref = $safe_mllp.clone();
+            let endpoint_list = rumtk_exec_task!(async || -> RUMResult<ClientIDList> {
+                Ok(mllp_ref.lock().await.get_client_ids().await)
+            });
+            let endpoints = match endpoint_list {
+                Ok(endpoints) => endpoints,
+                Err(e) => vec![],
+            };
+            endpoints
         }};
     }
 }
