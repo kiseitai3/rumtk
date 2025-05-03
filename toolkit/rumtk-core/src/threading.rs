@@ -198,6 +198,10 @@ pub mod threading_macros {
     ///
     #[macro_export]
     macro_rules! rumtk_spawn_task {
+        ( $func:expr ) => {{
+            let rt = rumtk_init_threads!();
+            rt.spawn($func)
+        }};
         ( $rt:expr, $func:expr ) => {{
             $rt.spawn($func)
         }};
@@ -481,11 +485,16 @@ pub mod threading_macros {
     /// ## Examples
     ///
     /// ```
-    ///     use rumtk_core::rumtk_async_sleep;
-    ///     rumtk_async_sleep!(1).await;           // Sleeps for 1 second.
-    ///     rumtk_async_sleep!(0.001).await;       // Sleeps for 1 millisecond
-    ///     rumtk_async_sleep!(0.000001).await;    // Sleeps for 1 microsecond
-    ///     rumtk_async_sleep!(0.000000001).await; // Sleeps for 1 nanosecond
+    ///     use rumtk_core::{rumtk_async_sleep, rumtk_exec_task};
+    ///     use rumtk_core::core::RUMResult;
+    ///     rumtk_exec_task!( async || -> RUMResult<()> {
+    ///             rumtk_async_sleep!(1).await;           // Sleeps for 1 second.
+    ///             rumtk_async_sleep!(0.001).await;       // Sleeps for 1 millisecond
+    ///             rumtk_async_sleep!(0.000001).await;    // Sleeps for 1 microsecond
+    ///             rumtk_async_sleep!(0.000000001).await; // Sleeps for 1 nanosecond
+    ///             Ok(())
+    ///         }
+    ///     );
     /// ```
     ///
     #[macro_export]

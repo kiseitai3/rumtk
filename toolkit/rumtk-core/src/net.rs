@@ -290,9 +290,9 @@ pub mod tcp {
         /// to progress the state of other futures and allow sync code to interact with the server
         /// state. In most situations, this step should yield a no-op.
         ///
-        pub async fn run(ctx: &SafeServer) -> RUMResult<()> {
+        pub async fn run(ctx: SafeServer) -> RUMResult<()> {
             // Bootstrapping the main server loop.
-            let mut reowned_self = ctx.read().await;
+            let reowned_self = ctx.read().await;
             let mut accept_handle = tokio::spawn(RUMServer::handle_accept(
                 Arc::clone(&reowned_self.tcp_listener),
                 Arc::clone(&reowned_self.clients),
@@ -310,7 +310,7 @@ pub mod tcp {
             std::mem::drop(reowned_self); //Bootstrap magic that let's the outside able to interact with our server while it runs autonomously in the background.
                                           // Essentially, repeat the above but inside a scope thus automatically freeing the handle to outside access on a routine basis.
             while !stop {
-                let mut reowned_self = ctx.read().await;
+                let reowned_self = ctx.read().await;
                 if accept_handle.is_finished() {
                     accept_handle = tokio::spawn(RUMServer::handle_accept(
                         Arc::clone(&reowned_self.tcp_listener),
@@ -835,7 +835,7 @@ pub mod tcp {
             let lock_future = owned_args.read();
             let locked_args = lock_future.await;
             let server_ref = locked_args.get(0).unwrap();
-            RUMServer::run(&server_ref).await
+            RUMServer::run(server_ref.clone()).await
         }
 
         async fn stop_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> RUMResult<RUMString> {

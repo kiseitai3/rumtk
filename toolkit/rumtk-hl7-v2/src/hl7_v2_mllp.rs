@@ -203,7 +203,7 @@ pub mod mllp_v2 {
     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     use rumtk_core::{
         rumtk_async_sleep, rumtk_create_task, rumtk_exec_task, rumtk_init_threads,
-        rumtk_resolve_task,
+        rumtk_resolve_task, rumtk_spawn_task,
     };
     use std::sync::{Arc, Mutex};
     use tokio::sync::RwLock;
@@ -351,16 +351,14 @@ pub mod mllp_v2 {
         pub async fn init(ip: &str, port: u16, as_server: bool) -> RUMResult<LowerLayer> {
             match as_server {
                 true => {
-                    let mut server = RUMServer::new(ip, port).await?;
-                    let mut safe_server = SafeServer::new(AsyncRwLock::new(server));
-                    match RUMServer::run(&safe_server).await {
-                        Ok(()) => Ok(LowerLayer::SERVER(safe_server)),
-                        Err(e) => Err(e),
-                    }
+                    let server = RUMServer::new(ip, port).await?;
+                    let safe_server = SafeServer::new(AsyncRwLock::new(server));
+                    rumtk_spawn_task!(RUMServer::run(safe_server.clone()));
+                    Ok(LowerLayer::SERVER(safe_server))
                 }
                 false => {
                     let client = RUMClient::connect(&ip, port).await?;
-                    let mut safe_client = SafeClient::new(AsyncRwLock::new(client));
+                    let safe_client = SafeClient::new(AsyncRwLock::new(client));
                     Ok(LowerLayer::CLIENT(safe_client))
                 }
             }
@@ -923,27 +921,42 @@ pub mod mllp_v2_api {
     /// # Example Usage
     ///
     /// ```
+    /// use rumtk_core::core::RUMResult;
     /// use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY, LOCALHOST};
     /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_get_ip_port};
-    /// let mllp = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true);
-    /// let (ip, port) = rumtk_v2_get_ip_port!(&mllp);
-    /// assert_eq!(55555, &port, "Ports are different????");
-    /// assert_eq!(&LOCALHOST, &ip, "IPs are different????");
+    /// use rumtk_core::strings::{RUMString, RUMStringConversions};
+    ///
+    /// let ip = LOCALHOST.to_rumstring();
+    /// let port: u16 = 55555;
+    /// let expected = (ip, port);
+    /// let mllp = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    /// let results = rumtk_v2_get_ip_port!(&mllp);
+    /// assert_eq!(expected, results, "IPs or Ports are different????");
     /// ```
     ///
     #[macro_export]
     macro_rules! rumtk_v2_get_ip_port {
         ( $safe_mllp:expr ) => {{
-            use rumtk_core::{rumtk_exec_task}
-            let address_str = rumtk_exec_task!(
-                async || {
-                    $safe_mllp.lock().await.unwrap().get_address_info().unwrap()
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+            let address_str = rumtk_exec_task!(async || -> RUMResult<RUMString> {
+                match $safe_mllp.lock().await.get_address_info().await {
+                    Some(ip) => Ok(ip.to_rumstring()),
+                    None => Err(format_compact!(
+                        "MLLP instance is missing an IP address. This is not expected!!!"
+                    )),
                 }
-            );
-            let mut components = address_str.split(':');
-            let ip = components.next().unwrap().clone();
-            let port = components.next().unwrap();
-            (ip.to_rumstring(), port.parse::<u16>().unwrap())
+            });
+            let ip = match address_str {
+                Ok(ip) => ip,
+                Err(e) => "".to_rumstring(),
+            };
+            let mut components = ip.split(':');
+            (
+                components.next().unwrap().to_rumstring(),
+                components.next().unwrap().parse::<u16>().unwrap(),
+            )
         }};
     }
 }
