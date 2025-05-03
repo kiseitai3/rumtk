@@ -774,6 +774,14 @@ pub mod mllp_v2 {
     pub type MLLPChannels = Vec<SafeMLLPChannel>;
 }
 
+///
+/// Main API macros for interacting with the MLLP primitives in sync code. The idea is to abstract
+/// away details concerning MLLP message processing while maintaining async internals wherever
+/// possible for performance reasons. I think this should keep the complexity for users lower than
+/// if they had to manually import the types and manage the messages. With that said, consider
+/// using the types in [crate::hl7_v2_mllp::mllp_v2] if your needs are not currently met by this
+/// module's architecture.
+///
 pub mod mllp_v2_api {
     ///
     /// # Intro
