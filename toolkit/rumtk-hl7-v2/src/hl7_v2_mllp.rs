@@ -782,6 +782,13 @@ pub mod mllp_v2 {
 /// using the types in [crate::hl7_v2_mllp::mllp_v2] if your needs are not currently met by this
 /// module's architecture.
 ///
+/// As you will see, most of the macros here provide an interface to the async primitives for sync
+/// code contexts. Only [rumtk_v2_mllp_listen] and [rumtk_v2_mllp_connect] are universally useful.
+/// Meaning, both sync and async code can use since they build instances of [SafeAsyncMLLP].
+/// The MLLP instances already have the interface ready to be consumed in the pure async context.
+/// [crate::hl7_v2_mllp::mllp_v2] provides the async equivalent to [SafeMLLPChannel] in the form of
+/// [SafeAsyncMLLPChannel].
+///
 pub mod mllp_v2_api {
     ///
     /// # Intro
@@ -1079,6 +1086,92 @@ pub mod mllp_v2_api {
                 Ok(is_server) => is_server,
                 Err(e) => false,
             }
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Convenience macro for receiving a message via an [AsyncMLLP] instance.
+    /// This macro, like the underlying function it calls, retrieves an optional which may be None
+    /// if no message was available in the internal queue buffer.
+    ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_core::strings::RUMString;
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_receive, rumtk_v2_mllp_get_client_ids};
+    ///     let port = 55555;
+    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let client_ids = rumtk_v2_mllp_get_client_ids!(safe_listener);
+    ///     let client_id = client_ids.get(0).unwrap();
+    ///     let result = rumtk_v2_mllp_receive!(&safe_listener, client_id.as_str());
+    ///
+    ///     // This bit of the example might look odd. Thing is, we never allow the automatic logic
+    ///     // to process send, receive, ack/nack loops on the message, so they timeout awaiting.
+    ///     // This is ok because this is only an example that is also used to confirm that the
+    ///     // macro is working at all!
+    ///     let expected = Err(RUMString::new("Task failed with Timeout reached while awaiting for message!"));
+    ///     assert_eq!(expected, result, "Expected to timeout while awaiting response!");
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_mllp_receive {
+        ( $safe_mllp:expr, $endpoint:expr ) => {{
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use rumtk_core::strings::RUMString;
+            let mllp_ref = $safe_mllp.clone();
+            let endpoint = RUMString::from($endpoint);
+            rumtk_exec_task!(async || -> RUMResult<RUMString> {
+                mllp_ref.lock().await.receive_message(&endpoint).await
+            })
+        }};
+    }
+
+    ///
+    /// # Intro
+    ///
+    /// Convenience macro for sending a message via an [AsyncMLLP] instance.
+    ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_core::strings::RUMString;
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_send, rumtk_v2_mllp_get_client_ids};
+    ///     let port = 55555;
+    ///     let message = RUMString::new("Hello World");
+    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     let client_ids = rumtk_v2_mllp_get_client_ids!(safe_listener);
+    ///     let client_id = client_ids.get(0).unwrap();
+    ///     let result = rumtk_v2_mllp_send!(&safe_client, message.as_str(), client_id.as_str());
+    ///
+    ///     // This bit of the example might look odd. Thing is, we never allow the automatic logic
+    ///     // to process send, receive, ack/nack loops on the message, so they timeout awaiting.
+    ///     // This is ok because this is only an example that is also used to confirm that the
+    ///     // macro is working at all!
+    ///     let expected = Err(RUMString::new("Task failed with Timeout reached while awaiting for message!"));
+    ///     assert_eq!(expected, result, "Expected to timeout while awaiting response!");
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_v2_mllp_send {
+        ( $safe_mllp:expr, $endpoint:expr, $message:expr ) => {{
+            use rumtk_core::core::RUMResult;
+            use rumtk_core::rumtk_exec_task;
+            use rumtk_core::strings::RUMString;
+            let mllp_ref = $safe_mllp.clone();
+            let endpoint = RUMString::from($endpoint);
+            let message = RUMString::from($message);
+            rumtk_exec_task!(async || -> RUMResult<()> {
+                mllp_ref
+                    .lock()
+                    .await
+                    .send_message(&message, &endpoint)
+                    .await
+            })
         }};
     }
 }
