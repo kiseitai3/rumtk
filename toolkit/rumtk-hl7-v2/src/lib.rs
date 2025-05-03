@@ -49,8 +49,8 @@ mod tests {
     use crate::hl7_v2_parser::v2_parser::{V2Field, V2Message};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use crate::{
-        rumtk_v2_iter_channels, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids,
-        rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_listen, tests, v2_find_component,
+        rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port,
+        rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen, tests, v2_find_component,
         v2_parse_message,
     };
     use rumtk_core::core::RUMResult;
@@ -59,6 +59,7 @@ mod tests {
         format_compact, AsStr, RUMArrayConversions, RUMString, RUMStringConversions, StringUtils,
     };
     use rumtk_core::{rumtk_exec_task, rumtk_sleep};
+    use std::thread::spawn;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
         "MSH|^~\\&|ADT1|GOOD HEALTH HOSPITAL|GHH LAB, INC.|GOOD HEALTH HOSPITAL|198808181126|SECURITY|ADT^A01^ADT_A01|MSG00001|P|2.8||\r\n\
@@ -1008,28 +1009,32 @@ mod tests {
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
+        let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_client);
+        let client_id = client_ids.get(0).unwrap();
         let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
-        let mut server_channel = server_channels.get_mut(0).unwrap();
+        let mut server_channel = server_channels.get_mut(0).unwrap().clone();
         let expected_message = RUMString::from("I ❤ my wife!");
-        server_channel
-            .lock()
-            .unwrap()
-            .send_message(&expected_message)
-            .unwrap();
+        let message_copy = expected_message.clone();
+        let send_thread = spawn(move || -> RUMResult<()> {
+            server_channel.lock().unwrap().send_message(&message_copy)
+        });
         rumtk_sleep!(1);
-        let mut received_message = safe_listener
-            .lock()
-            .unwrap()
-            .receive_message(&client_id)
-            .unwrap();
-        while received_message.len() == 0 {
-            received_message = safe_listener
+        let received_message = rumtk_exec_task!(async || -> RUMResult<RUMString> {
+            let mut received_message = safe_listener
                 .lock()
-                .unwrap()
+                .await
                 .receive_message(&client_id)
-                .unwrap();
-        }
+                .await?;
+            while received_message.len() == 0 {
+                received_message = safe_listener
+                    .lock()
+                    .await
+                    .receive_message(&client_id)
+                    .await?;
+            }
+            Ok(received_message)
+        })
+        .unwrap();
         assert_eq!(
             &expected_message,
             &received_message,
