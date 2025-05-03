@@ -792,7 +792,7 @@ pub mod mllp_v2_api {
     /// # Example Usage
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_mllp_open_client_channel};
     ///     let port = 55555;
     ///     let safe_listener = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
@@ -860,15 +860,15 @@ pub mod mllp_v2_api {
     ///
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_open_client_channel};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_open_client_channel};
     ///     let port = 55555;
     ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
-    ///     let channel = rumtk_v2_open_client_channel!(&safe_listener);
+    ///     let channel = rumtk_v2_mllp_open_client_channel!(&safe_listener);
     /// ```
     ///
     #[macro_export]
-    macro_rules! rumtk_v2_open_client_channel {
+    macro_rules! rumtk_v2_mllp_open_client_channel {
         ( $safe_mllp:expr ) => {{
             use std::sync::{Arc, Mutex};
             use $crate::hl7_v2_mllp::mllp_v2::{MLLPChannel, SafeMLLPChannel};
@@ -893,9 +893,9 @@ pub mod mllp_v2_api {
     ///
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_open_server_channels};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_open_server_channels};
     ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
-    ///     let channels = rumtk_v2_open_server_channels!(&safe_listener);
+    ///     let channels = rumtk_v2_mllp_open_server_channels!(&safe_listener);
     ///
     ///     for channel in channels.iter() {
     ///         // Add your logic here!
@@ -903,7 +903,7 @@ pub mod mllp_v2_api {
     /// ```
     ///
     #[macro_export]
-    macro_rules! rumtk_v2_open_server_channels {
+    macro_rules! rumtk_v2_mllp_open_server_channels {
         ( $safe_mllp:expr ) => {{
             use rumtk_core::core::RUMResult;
             use rumtk_core::rumtk_exec_task;
@@ -930,13 +930,13 @@ pub mod mllp_v2_api {
     /// peer endpoint(s).
     ///
     #[macro_export]
-    macro_rules! rumtk_v2_iter_channels {
+    macro_rules! rumtk_v2_mllp_iter_channels {
         ( $safe_mllp:expr ) => {{
-            use $crate::{rumtk_v2_open_client_channel, rumtk_v2_open_server_channels};
+            use $crate::{rumtk_v2_mllp_open_client_channel, rumtk_v2_mllp_open_server_channels};
             let is_server = $safe_mllp.lock().unwrap().is_server();
             match is_server {
-                true => rumtk_v2_open_server_channels!($safe_mllp),
-                false => rumtk_v2_open_client_channel!($safe_mllp),
+                true => rumtk_v2_mllp_open_server_channels!($safe_mllp),
+                false => rumtk_v2_mllp_open_client_channel!($safe_mllp),
             }
         }};
     }

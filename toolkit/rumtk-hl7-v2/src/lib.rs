@@ -49,7 +49,7 @@ mod tests {
     use crate::hl7_v2_parser::v2_parser::{V2Field, V2Message};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use crate::{
-        rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids,
+        rumtk_v2_iter_channels, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids,
         rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_listen, tests, v2_find_component,
         v2_parse_message,
     };
@@ -994,7 +994,7 @@ mod tests {
         let client_id = client_ids.get(0).unwrap();
         assert_eq!(connected_address, client_id, "Failed to bind local port!")
     }
-    /*
+
     #[test]
     fn test_mllp_channel() {
         let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
@@ -1009,7 +1009,7 @@ mod tests {
         };
         rumtk_sleep!(1);
         let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
-        let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
+        let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
         let mut server_channel = server_channels.get_mut(0).unwrap();
         let expected_message = RUMString::from("I ❤ my wife!");
         server_channel
@@ -1041,7 +1041,7 @@ mod tests {
             )
         )
     }
-    */
+
     /*
     #[test]
     fn test_mllp_channel_async_communication() {
@@ -1057,7 +1057,7 @@ mod tests {
         };
         rumtk_sleep!(1);
         let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
-        let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
+        let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
         let mut server_channel = server_channels.get_mut(0).unwrap();
         let expected_message = RUMString::from("I ❤ my wife!");
         let threads = rumtk_init_threads!();
@@ -1116,7 +1116,7 @@ mod tests {
             };
             rumtk_sleep!(1);
             let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
-            let mut server_channels = rumtk_v2_iter_channels!(&safe_client);
+            let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
             let mut server_channel = server_channels.get_mut(0).unwrap().clone();
             let server_channel_copy = server_channel.clone();
             let send_task = std::thread::spawn(move || {
