@@ -1045,7 +1045,11 @@ mod tests {
         let expected_message = RUMString::from("I ❤ my wife!");
         let message_copy = expected_message.clone();
         let send_thread = spawn(move || -> RUMResult<()> {
-            server_channel.lock().unwrap().send_message(&message_copy)
+            Ok(server_channel
+                .lock()
+                .unwrap()
+                .send_message(&message_copy)
+                .unwrap())
         });
         rumtk_sleep!(1);
         let received_message = rumtk_exec_task!(async || -> RUMResult<RUMString> {
@@ -1095,10 +1099,11 @@ mod tests {
         let mut server_channel = server_channels.get_mut(0).unwrap().clone();
         let server_channel_copy = server_channel.clone();
         let send_thread = spawn(move || -> RUMResult<()> {
-            server_channel
+            Ok(server_channel
                 .lock()
                 .unwrap()
                 .send_message(HL7_V2_PDF_MESSAGE)
+                .unwrap())
         });
         let safe_listener_copy = safe_listener.clone();
         let received_message = rumtk_exec_task!(async || -> RUMResult<RUMString> {
@@ -1132,7 +1137,7 @@ mod tests {
         println!("Echoing message back to client!");
         let echo_thread = spawn(move || {
             println!("Sending echo message!");
-            rumtk_v2_mllp_send!(safe_listener_copy2, HL7_V2_PDF_MESSAGE, client_id_copy);
+            rumtk_v2_mllp_send!(safe_listener_copy2, HL7_V2_PDF_MESSAGE, client_id_copy).unwrap();
             println!("Sent echo message!");
         });
         rumtk_sleep!(1);

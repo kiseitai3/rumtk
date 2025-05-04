@@ -560,14 +560,20 @@ pub mod tcp {
         ///
         /// Queues a message onto the server to send to client.
         ///
-        pub async fn push_message(&mut self, client_id: &RUMString, msg: RUMNetMessage) {
+        pub async fn push_message(
+            &mut self,
+            client_id: &RUMString,
+            msg: RUMNetMessage,
+        ) -> RUMResult<()> {
             let mut queue = self.tx_out.lock().await;
+            println!("Client in queue? {}", queue.contains_key(client_id));
             if !queue.contains_key(client_id) {
-                let new_queue = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
-                queue.insert(client_id.clone(), new_queue);
+                return Err(format_compact!("No client with id {} found!", &client_id));
             }
+            println!("Pushing to client ... ");
             let mut queue = queue[client_id].lock().await;
             queue.push_back(msg);
+            Ok(())
         }
 
         ///
@@ -827,7 +833,7 @@ pub mod tcp {
             let locked_args = owned_args.read().await;
             let (server_ref, client_id, msg) = locked_args.get(0).unwrap();
             let mut server = server_ref.write().await;
-            Ok(server.push_message(client_id, msg.clone()).await)
+            Ok(server.push_message(client_id, msg.clone()).await?)
         }
 
         async fn receive_helper(

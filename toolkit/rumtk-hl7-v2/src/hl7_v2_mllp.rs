@@ -212,14 +212,14 @@ pub mod mllp_v2 {
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
     /// Acknowledgement.
-    pub const TIMEOUT_SOURCE: u8 = 30;
+    pub const TIMEOUT_SOURCE: u8 = 5;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
     pub const TIMEOUT_STEP_SOURCE: u8 = 1;
     /// It is recommended that the Destination use a timeout that is at least
     /// twice as high as the Source's timeout (e.g. 40 seconds or more) before flushing its inbound
     /// buffer.
-    pub const TIMEOUT_DESTINATION: u8 = 60;
+    pub const TIMEOUT_DESTINATION: u8 = 5;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
@@ -382,12 +382,11 @@ pub mod mllp_v2 {
         ) -> RUMResult<()> {
             match *self {
                 LowerLayer::SERVER(ref mut server) => {
-                    println!("Message queued!");
                     server
                         .write()
                         .await
                         .push_message(&client_id, message.clone())
-                        .await;
+                        .await?;
                     Ok(())
                 }
                 LowerLayer::CLIENT(ref mut client) => client.write().await.send(&message).await,
@@ -398,7 +397,10 @@ pub mod mllp_v2 {
             match *self {
                 LowerLayer::SERVER(ref mut server) => {
                     match server.write().await.pop_message(client_id).await {
-                        Some(msg) => Ok(msg),
+                        Some(msg) => {
+                            println!("Received {} bytes from queued!", msg.len());
+                            Ok(msg)
+                        }
                         None => Ok(vec![]),
                     }
                 }
@@ -568,11 +570,16 @@ pub mod mllp_v2 {
         pub async fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
-            println!("Sending message: {} ...", &message);
-            self.next_layer()
+            println!(
+                "Sending {} bytes to client {} ...",
+                message.len(),
+                &endpoint
+            );
+            Ok(self
+                .next_layer()
                 .await
                 .send_message(&encoded, endpoint)
-                .await
+                .await?)
         }
 
         ///
