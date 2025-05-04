@@ -50,8 +50,8 @@ mod tests {
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use crate::{
         rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port,
-        rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen, tests, v2_find_component,
-        v2_parse_message,
+        rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen, rumtk_v2_mllp_send, tests,
+        v2_find_component, v2_parse_message,
     };
     use rumtk_core::core::RUMResult;
     use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
@@ -1076,85 +1076,88 @@ mod tests {
         )
     }
 
-    /*
-        #[test]
-        fn test_mllp_hl7_echo() {
-            let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
-            let mut safe_listener = match rumtk_v2_mllp_listen!(0, MLLP_FILTER_POLICY::NONE, true) {
-                Ok(mllp_listener) => mllp_listener,
-                Err(e) => panic!("{}", e),
-            };
-            let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
-            let safe_client = match rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE) {
-                Ok(client) => client,
-                Err(e) => panic!("{}", e),
-            };
-            rumtk_sleep!(1);
-            let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
-            let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
-            let mut server_channel = server_channels.get_mut(0).unwrap().clone();
-            let server_channel_copy = server_channel.clone();
-            let send_task = std::thread::spawn(move || {
-                server_channel_copy
-                    .lock()
-                    .unwrap()
-                    .send_message(&HL7_V2_PDF_MESSAGE)
-                    .unwrap()
-            });
-            let mut received_message = safe_listener
+    #[test]
+    fn test_mllp_hl7_echo() {
+        let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
+        let mut safe_listener = match rumtk_v2_mllp_listen!(0, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_listener) => mllp_listener,
+            Err(e) => panic!("{}", e),
+        };
+        let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+        let safe_client = match rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE) {
+            Ok(client) => client,
+            Err(e) => panic!("{}", e),
+        };
+        rumtk_sleep!(1);
+        let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_listener);
+        let client_id = client_ids.get(0).unwrap();
+        let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
+        let mut server_channel = server_channels.get_mut(0).unwrap().clone();
+        let server_channel_copy = server_channel.clone();
+        let send_thread = spawn(move || -> RUMResult<()> {
+            server_channel
                 .lock()
                 .unwrap()
+                .send_message(HL7_V2_PDF_MESSAGE)
+        });
+        let safe_listener_copy = safe_listener.clone();
+        let received_message = rumtk_exec_task!(async || -> RUMResult<RUMString> {
+            let mut received_message = safe_listener_copy
+                .lock()
+                .await
                 .receive_message(&client_id)
-                .unwrap();
+                .await?;
             while received_message.len() == 0 {
-                received_message = safe_listener
+                received_message = safe_listener_copy
                     .lock()
-                    .unwrap()
+                    .await
                     .receive_message(&client_id)
-                    .unwrap();
+                    .await?;
             }
-            assert_eq!(
+            Ok(received_message)
+        })
+        .unwrap();
+        assert_eq!(
+            &HL7_V2_PDF_MESSAGE,
+            &received_message,
+            "{}",
+            format_compact!(
+                "Issue sending message through channel! Expected: {} Received: {}",
                 &HL7_V2_PDF_MESSAGE,
-                &received_message,
-                "{}",
-                format_compact!(
-                    "Issue sending message through channel! Expected: {} Received: {}",
-                    &HL7_V2_PDF_MESSAGE,
-                    &received_message
-                )
-            );
-            let client_id_copy = client_id.clone();
-            let safe_listener_copy = safe_listener.clone();
-            println!("Echoing message back to client!");
-            let echo_task = std::thread::spawn(move || {
-                println!("Sending echo message!");
-                let result = safe_listener_copy
-                    .lock()
-                    .unwrap()
-                    .send_message(&received_message, &client_id_copy)
-                    .unwrap();
-                println!("Sent echo message!");
-                result
-            });
-            rumtk_sleep!(1);
-            let echoed_message = safe_client
-                .lock()
-                .unwrap()
-                .receive_message(&client_id)
-                .unwrap();
-            println!("Echoed message: {}", &echoed_message);
-            assert_eq!(
-                &HL7_V2_PDF_MESSAGE,
-                &echoed_message,
-                "{}",
-                format_compact!(
-                    "Issue echoing message through channel! Expected: {} Received: {}",
-                    &HL7_V2_PDF_MESSAGE,
-                    &echoed_message
-                )
+                &received_message
             )
-        }
-    */
+        );
+        let client_id_copy = client_id.clone();
+        let safe_listener_copy2 = safe_listener.clone();
+        println!("Echoing message back to client!");
+        let echo_thread = spawn(move || {
+            println!("Sending echo message!");
+            rumtk_v2_mllp_send!(safe_listener_copy2, HL7_V2_PDF_MESSAGE, client_id_copy);
+            println!("Sent echo message!");
+        });
+        rumtk_sleep!(1);
+        let echoed_message = rumtk_exec_task!(async || -> RUMResult<RUMString> {
+            println!("Echoing message back to client!");
+            let mut echoed_message = safe_client.lock().await.receive_message(&client_id).await?;
+            while echoed_message.len() == 0 {
+                echoed_message = safe_client.lock().await.receive_message(&client_id).await?;
+            }
+            println!("Echoed message: {}", &echoed_message);
+            Ok(echoed_message)
+        })
+        .unwrap();
+        assert_eq!(
+            &HL7_V2_PDF_MESSAGE,
+            &echoed_message,
+            "{}",
+            format_compact!(
+                "Issue echoing message through channel! Expected: {} Received: {}",
+                &HL7_V2_PDF_MESSAGE,
+                &echoed_message
+            )
+        )
+    }
+
     ////////////////////////////Fuzzed Tests/////////////////////////////////
 
     #[test]

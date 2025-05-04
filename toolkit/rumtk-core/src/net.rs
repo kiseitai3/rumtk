@@ -296,6 +296,8 @@ pub mod tcp {
             let mut accept_handle = tokio::spawn(RUMServer::handle_accept(
                 Arc::clone(&reowned_self.tcp_listener),
                 Arc::clone(&reowned_self.clients),
+                Arc::clone(&reowned_self.tx_in),
+                Arc::clone(&reowned_self.tx_out),
             ));
             let mut send_handle = tokio::spawn(RUMServer::handle_send(
                 Arc::clone(&reowned_self.clients),
@@ -315,6 +317,8 @@ pub mod tcp {
                     accept_handle = tokio::spawn(RUMServer::handle_accept(
                         Arc::clone(&reowned_self.tcp_listener),
                         Arc::clone(&reowned_self.clients),
+                        Arc::clone(&reowned_self.tx_in),
+                        Arc::clone(&reowned_self.tx_out),
                     ));
                 }
                 if send_handle.is_finished() {
@@ -369,7 +373,12 @@ pub mod tcp {
         ///
         /// Contains basic logic for listening for incoming connections.
         ///
-        pub async fn handle_accept(listener: SafeListener, clients: SafeClients) -> RUMResult<()> {
+        pub async fn handle_accept(
+            listener: SafeListener,
+            clients: SafeClients,
+            tx_in: SafeMappedQueues,
+            tx_out: SafeMappedQueues,
+        ) -> RUMResult<()> {
             let server = listener.lock().await;
             match server.accept().await {
                 Ok((socket, _)) => {
@@ -379,6 +388,8 @@ pub mod tcp {
                         None => return Err(format_compact!("Accepted client returned no peer address. This should not be happening!"))
                     };
                     let mut client_list = clients.write().await;
+                    RUMServer::register_queue(&tx_in, &client_id).await;
+                    RUMServer::register_queue(&tx_out, &client_id).await;
                     client_list.insert(client_id, SafeClient::new(AsyncRwLock::new(client)));
                     Ok(())
                 }
@@ -423,7 +434,7 @@ pub mod tcp {
             for (client_id, client) in client_list.iter_mut() {
                 let msg = RUMServer::receive(&client).await?;
                 if !msg.is_empty() {
-                    RUMServer::push_queue(&tx_in, &client_id, msg).await;
+                    RUMServer::push_queue(&tx_in, &client_id, msg).await?;
                 }
             }
             if client_list.is_empty() {
@@ -432,23 +443,29 @@ pub mod tcp {
             Ok(())
         }
 
+        pub async fn register_queue(tx_queues: &SafeMappedQueues, client: &RUMString) {
+            let mut queues = tx_queues.lock().await;
+            let new_queue = SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
+            queues.insert(client.clone(), new_queue);
+        }
+
         pub async fn push_queue(
             tx_queues: &SafeMappedQueues,
             client: &RUMString,
             msg: RUMNetMessage,
-        ) {
+        ) -> RUMResult<()> {
             let mut queues = tx_queues.lock().await;
             let mut queue = match queues.get_mut(client) {
                 Some(queue) => queue,
                 None => {
-                    let new_queue =
-                        SafeQueue::<RUMNetMessage>::new(AsyncMutex::new(VecDeque::new()));
-                    queues.insert(client.clone(), new_queue);
-                    queues.get_mut(client).unwrap()
+                    return Err(format_compact!("Attempted to queue message for non-connected \
+                    client! Make sure client was connected! The client might have been disconnected. \
+                    Client: {}", &client));
                 }
             };
             let mut locked_queue = queue.lock().await;
             locked_queue.push_back(msg);
+            Ok(())
         }
 
         pub async fn pop_queue(

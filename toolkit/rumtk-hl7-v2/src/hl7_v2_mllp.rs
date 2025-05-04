@@ -568,7 +568,7 @@ pub mod mllp_v2 {
         pub async fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
-            println!("Sending message: {}", &message);
+            println!("Sending message: {} ...", &message);
             self.next_layer()
                 .await
                 .send_message(&encoded, endpoint)
@@ -1167,7 +1167,7 @@ pub mod mllp_v2_api {
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
     ///     let client_ids = rumtk_v2_mllp_get_client_ids!(safe_listener);
     ///     let client_id = client_ids.get(0).unwrap();
-    ///     let result = rumtk_v2_mllp_send!(&safe_client, message.as_str(), client_id.as_str());
+    ///     let result = rumtk_v2_mllp_send!(&safe_client, client_id.as_str(), message.as_str());
     ///
     ///     // This bit of the example might look odd. Thing is, we never allow the automatic logic
     ///     // to process send, receive, ack/nack loops on the message, so they timeout awaiting.
