@@ -1137,7 +1137,7 @@ mod tests {
         println!("Echoing message back to client!");
         let echo_thread = spawn(move || {
             println!("Sending echo message!");
-            rumtk_v2_mllp_send!(safe_listener_copy2, HL7_V2_PDF_MESSAGE, client_id_copy).unwrap();
+            rumtk_v2_mllp_send!(safe_listener_copy2, client_id_copy, HL7_V2_PDF_MESSAGE).unwrap();
             println!("Sent echo message!");
         });
         rumtk_sleep!(1);

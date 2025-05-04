@@ -353,7 +353,6 @@ pub mod tcp {
         /// Meaning, this method's exit is enough to signal everything went through smoothly.
         ///
         pub async fn stop_server(ctx: &SafeServer) -> RUMResult<RUMString> {
-            println!("Attempting to stop server!");
             let mut reowned_self = ctx.write().await;
             let mut shutdown_completed = reowned_self.shutdown_completed;
             reowned_self.stop = true;
@@ -492,11 +491,6 @@ pub mod tcp {
 
         pub async fn send(client: &SafeClient, msg: &RUMNetMessage) -> RUMResult<()> {
             let mut owned_client = lock_client_ex(client).await;
-            println!(
-                "Sent {} bytes to {}!",
-                msg.len(),
-                owned_client.get_address(false).await.unwrap()
-            );
             owned_client.send(msg).await
         }
 
@@ -566,11 +560,9 @@ pub mod tcp {
             msg: RUMNetMessage,
         ) -> RUMResult<()> {
             let mut queue = self.tx_out.lock().await;
-            println!("Client in queue? {}", queue.contains_key(client_id));
             if !queue.contains_key(client_id) {
                 return Err(format_compact!("No client with id {} found!", &client_id));
             }
-            println!("Pushing to client ... ");
             let mut queue = queue[client_id].lock().await;
             queue.push_back(msg);
             Ok(())

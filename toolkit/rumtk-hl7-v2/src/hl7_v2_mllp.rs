@@ -209,17 +209,19 @@ pub mod mllp_v2 {
     use tokio::sync::RwLock;
     use tokio::task::JoinHandle;
 
+    /// Times to attempt sending message again upon initial error or lack of ACK
+    pub const RETRY_SOURCE: u8 = 5;
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
     /// Acknowledgement.
-    pub const TIMEOUT_SOURCE: u8 = 5;
+    pub const TIMEOUT_SOURCE: u8 = 30;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
     pub const TIMEOUT_STEP_SOURCE: u8 = 1;
     /// It is recommended that the Destination use a timeout that is at least
     /// twice as high as the Source's timeout (e.g. 40 seconds or more) before flushing its inbound
     /// buffer.
-    pub const TIMEOUT_DESTINATION: u8 = 5;
+    pub const TIMEOUT_DESTINATION: u8 = 60;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
@@ -397,10 +399,7 @@ pub mod mllp_v2 {
             match *self {
                 LowerLayer::SERVER(ref mut server) => {
                     match server.write().await.pop_message(client_id).await {
-                        Some(msg) => {
-                            println!("Received {} bytes from queued!", msg.len());
-                            Ok(msg)
-                        }
+                        Some(msg) => Ok(msg),
                         None => Ok(vec![]),
                     }
                 }
@@ -535,11 +534,43 @@ pub mod mllp_v2 {
         /// a valid response or reach the maximum timeout defined in [TIMEOUT_SOURCE].
         ///
         pub async fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
-            for i in 0..TIMEOUT_SOURCE {
+            let mut last_error = RUMString::new("");
+            for i in 0..RETRY_SOURCE {
                 self.send(&message, &endpoint).await?;
+                match self.wait_for_send_ack(&endpoint).await {
+                    Ok(_) => return Ok(()),
+                    Err(e) => {
+                        last_error = e;
+                        continue;
+                    }
+                }
+            }
+            Err(format_compact!(
+                "Attempted to send message to {} {} times, but they all failed! Last error \
+                message => {}",
+                &endpoint,
+                &RETRY_SOURCE,
+                last_error
+            ))
+        }
+
+        ///
+        /// Handles send acknowledgement logic.
+        /// After sending a message, we expect an [ACK] or [NACK] response.
+        ///
+        /// * If [ACK] is received, we kill the timeout loop and return true.
+        /// * If [NACK] is received, we kill the timeout loop and return an Error making it clear
+        ///     there was a response but the target had issues processing it.
+        /// * For all other cases, we sleep [TIMEOUT_STEP_SOURCE] seconds and check again for
+        ///     [TIMEOUT_SOURCE] times. Upon meeting this overall timeout, error out with message
+        ///     explaining we reached the timeout.
+        ///
+        pub async fn wait_for_send_ack(&mut self, endpoint: &RUMString) -> RUMResult<bool> {
+            for i in 0..TIMEOUT_SOURCE {
                 let response = self.receive_message(&endpoint).await?;
-                if is_ack(&response) {
-                    return Ok(());
+                let acked = is_ack(&response);
+                if acked {
+                    return Ok(true);
                 }
 
                 if is_nack(&response) {
@@ -549,17 +580,7 @@ pub mod mllp_v2 {
                         &endpoint
                     ));
                 }
-
-                if !response.is_empty() {
-                    return Err(format_compact!(
-                        "The peer [{}] responded with an unexpected message.\
-                     Message: {}",
-                        &endpoint,
-                        &response
-                    ));
-                }
-
-                rumtk_async_sleep!(TIMEOUT_STEP_SOURCE).await
+                rumtk_async_sleep!(TIMEOUT_STEP_SOURCE).await;
             }
             Err(format_compact!(
                 "Timeout reached attempting to send message to {}!",
@@ -570,11 +591,6 @@ pub mod mllp_v2 {
         pub async fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let filtered = mllp_filter_message(message, &self.filter_policy);
             let encoded = mllp_encode(&filtered);
-            println!(
-                "Sending {} bytes to client {} ...",
-                message.len(),
-                &endpoint
-            );
             Ok(self
                 .next_layer()
                 .await
@@ -610,21 +626,28 @@ pub mod mllp_v2 {
         /// message.
         ///
         pub async fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            for i in 0..TIMEOUT_DESTINATION {
-                let message = match self.receive(&endpoint).await {
-                    Ok(data) => data,
-                    Err(e) => {
-                        self.nack(&endpoint).await?;
-                        return Err(e);
-                    }
-                };
-                println!("Received message: {}", &message);
-                if !message.is_empty() {
-                    if !(is_ack(&message) || is_nack(&message)) {
-                        self.ack(&endpoint).await?;
-                        return Ok(message);
-                    }
-                    //return Ok(RUMString::new(""));
+            self.wait_on_message(&endpoint, TIMEOUT_DESTINATION).await
+        }
+
+        ///
+        /// Handles the actual logic for receiving messages.
+        ///
+        /// * If the message is an [ACK] or [NACK], ignore since that is weird and nonesensical.
+        ///     Remember, [AsyncMLLP::wait_for_send_ack] loop inside [AsyncMLLP::send_message]
+        ///     already polls the transmission queue for the presence of acks.
+        /// * If the message is not empty, return it out.
+        /// * If we go through the whole timeout, then we failed to find any messages so error out
+        ///     with a timeout error message.
+        ///
+        pub async fn wait_on_message(
+            &mut self,
+            endpoint: &RUMString,
+            timeout: u8,
+        ) -> RUMResult<RUMString> {
+            for i in 0..timeout {
+                let message = self.receive(&endpoint).await?;
+                if !(is_ack(&message) || is_nack(&message)) && !message.is_empty() {
+                    return Ok(message);
                 }
                 rumtk_async_sleep!(TIMEOUT_STEP_DESTINATION).await
             }
