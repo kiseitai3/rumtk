@@ -58,7 +58,7 @@ mod tests {
     use rumtk_core::strings::{
         format_compact, AsStr, RUMArrayConversions, RUMString, RUMStringConversions, StringUtils,
     };
-    use rumtk_core::{rumtk_exec_task, rumtk_sleep};
+    use rumtk_core::{rumtk_create_task, rumtk_exec_task, rumtk_init_threads, rumtk_sleep};
     use std::thread::spawn;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
@@ -999,6 +999,35 @@ mod tests {
     #[test]
     fn test_mllp_channel() {
         let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
+        let safe_listener = match rumtk_v2_mllp_listen!(0, MLLP_FILTER_POLICY::NONE, true) {
+            Ok(mllp_layer) => mllp_layer,
+            Err(e) => panic!("{}", e),
+        };
+        let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+        let safe_client = match rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE) {
+            Ok(client) => client,
+            Err(e) => panic!("{}", e),
+        };
+        rumtk_sleep!(1);
+        let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_listener);
+        let client_id = client_ids.get(0).unwrap();
+        let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
+        let mut server_channel = server_channels.get_mut(0).unwrap().clone();
+        let channel_address = server_channel.lock().unwrap().get_address_info().unwrap();
+        assert_eq!(
+            &client_id,
+            &channel_address,
+            "{}",
+            format_compact!(
+                "Issue stablishing MLLP communication channel! Expected: {} Received: {}",
+                &client_id,
+                &channel_address
+            )
+        )
+    }
+
+    #[test]
+    fn test_mllp_channel_async_communication() {
         let mut safe_listener = match rumtk_v2_mllp_listen!(0, MLLP_FILTER_POLICY::NONE, true) {
             Ok(mllp_layer) => mllp_layer,
             Err(e) => panic!("{}", e),
@@ -1009,7 +1038,7 @@ mod tests {
             Err(e) => panic!("{}", e),
         };
         rumtk_sleep!(1);
-        let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_client);
+        let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_listener);
         let client_id = client_ids.get(0).unwrap();
         let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
         let mut server_channel = server_channels.get_mut(0).unwrap().clone();
@@ -1047,65 +1076,6 @@ mod tests {
         )
     }
 
-    /*
-    #[test]
-    fn test_mllp_channel_async_communication() {
-        let empty_string = |s: RUMString| Ok::<RUMString, RUMString>(RUMString::from(""));
-        let mut safe_listener = match rumtk_v2_mllp_listen!(0, MLLP_FILTER_POLICY::NONE, true) {
-            Ok(mllp_layer) => mllp_layer,
-            Err(e) => panic!("{}", e),
-        };
-        let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
-        let safe_client = match rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE) {
-            Ok(client) => client,
-            Err(e) => panic!("{}", e),
-        };
-        rumtk_sleep!(1);
-        let client_id = safe_client.lock().unwrap().get_address_info().unwrap();
-        let mut server_channels = rumtk_v2_mllp_iter_channels!(&safe_client);
-        let mut server_channel = server_channels.get_mut(0).unwrap();
-        let expected_message = RUMString::from("I ❤ my wife!");
-        let threads = rumtk_init_threads!();
-        let send_message = expected_message.clone();
-        let send_args = rumtk_create_task_args!(send_message);
-        let send_task = rumtk_create_task!(
-            async move |args: &SafeTaskArgs<RUMString>| -> RUMResult<()> {
-                let mut locked_channel = server_channel.lock().unwrap();
-                for msg in args.read().await.iter() {
-                    locked_channel
-                        .send_message(&msg)
-                        .expect("TODO: panic message");
-                }
-                Ok(())
-            },
-            send_args
-        );
-        let send_handle = rumtk_spawn_task!(&threads, send_task);
-        rumtk_sleep!(1);
-        let mut received_message = safe_listener
-            .lock()
-            .unwrap()
-            .receive_message(&client_id)
-            .unwrap();
-        while received_message.len() == 0 {
-            received_message = safe_listener
-                .lock()
-                .unwrap()
-                .receive_message(&client_id)
-                .unwrap();
-        }
-        assert_eq!(
-            &expected_message,
-            &received_message,
-            "{}",
-            format_compact!(
-                "Issue sending message through channel! Expected: {} Received: {}",
-                &expected_message,
-                &received_message
-            )
-        )
-    }
-    */
     /*
         #[test]
         fn test_mllp_hl7_echo() {

@@ -711,6 +711,10 @@ pub mod mllp_v2 {
         pub async fn receive_message(&mut self) -> RUMResult<RUMString> {
             self.next_layer().await.receive_message(&self.peer).await
         }
+
+        pub async fn get_address_info(&mut self) -> Option<RUMString> {
+            self.next_layer().await.get_address_info().await
+        }
     }
 
     pub type SafeAsyncMLLPChannel = Arc<AsyncMutex<AsyncMLLPChannel>>;
@@ -766,6 +770,23 @@ pub mod mllp_v2 {
                     result
                 },
                 vec![(self.channel.clone(), self.peer.clone())]
+            )
+        }
+
+        pub fn get_address_info(&mut self) -> RUMResult<RUMString> {
+            rumtk_exec_task!(
+                async |args: &SafeTaskArgs<SafeAsyncMLLP>| -> RUMResult<RUMString> {
+                    let owned_args = args.write().await;
+                    let mllp = owned_args.get(0).unwrap().clone();
+                    let owned_mllp = mllp.lock().await;
+                    match owned_mllp.get_address_info().await {
+                        Some(val) => Ok(val),
+                        None => Err(format_compact!(
+                            "Expected IP:Port address string but found nothing!"
+                        )),
+                    }
+                },
+                vec![self.channel.clone()]
             )
         }
     }
