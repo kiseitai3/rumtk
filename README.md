@@ -33,28 +33,28 @@ communication and automation in medicine.
     - [ ] PyO3 for extending message processing
     - [ ] SIMD support?? [Maybe]
 - [ ] HL7 v2 Library
-  - [ ] Parser
-      - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
-      - [x] HL7 v2 Escape Sequences Support
-      - [x] HL7 v2 Repeating Field Support
-      - [x] HL7 v2 UTF-8/Unicode Support
-      - [x] HL7 v2 Encodings to UTF-8 Conversion
-      - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
-      - [x] HL7 v2 Primitive Types
-      - [ ] HL7 v2 Component Optionality
-      - [ ] HL7 v2 Complex Types (aka structs)
-      - [ ] HL7 v2 Tables + Validation
-      - [ ] HL7 v2 Complex traits
-      - [ ] HL7 v2 Base Message to HL7 Type casting
-      - [ ] HL7 v2 Custom Message Overrides
-      - [ ] HL7 v2 Message Validator
-      - [ ] HL7 v2 Message to ASCII Message Generation
-  - [ ] MLLP
-    - [ ] Protocol
-    - [ ] Client
-    - [ ] Server
-    - [ ] Tests
-  - [ ] Fuzz Targets
+    - [ ] Parser
+        - [x] HL7 v2 Sanitize Segment Separator (\n\r, \n) => \r
+        - [x] HL7 v2 Escape Sequences Support
+        - [x] HL7 v2 Repeating Field Support
+        - [x] HL7 v2 UTF-8/Unicode Support
+        - [x] HL7 v2 Encodings to UTF-8 Conversion
+        - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
+        - [x] HL7 v2 Primitive Types
+        - [ ] HL7 v2 Component Optionality
+        - [ ] HL7 v2 Complex Types (aka structs)
+        - [ ] HL7 v2 Tables + Validation
+        - [ ] HL7 v2 Complex traits
+        - [ ] HL7 v2 Base Message to HL7 Type casting
+        - [ ] HL7 v2 Custom Message Overrides
+        - [ ] HL7 v2 Message Validator
+        - [ ] HL7 v2 Message to ASCII Message Generation
+    - [x] MLLP
+        - [x] Protocol
+        - [x] Client
+        - [x] Server
+        - [x] Tests
+    - [ ] Fuzz Targets
 - [ ] MLLP Interfaces
     - [ ] HL7 v2 Endpoint Interface utility
     - [ ] HL7 v2 Client Interface utility
