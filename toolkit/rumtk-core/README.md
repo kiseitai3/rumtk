@@ -1,5 +1,7 @@
 # rumtk
 
+[![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/rust.yaml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/rust.yaml) [![Crates.io](https://img.shields.io/crates/l/rumtk-core)](LICENSE-LGPL) [![Crates.io](https://img.shields.io/crates/v/rumtk-core)](https://crates.io/crates/rumtk-core) [![Released API docs](https://docs.rs/rumtk-core/badge.svg)](https://docs.rs/rumtk-core) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
+
 Rust's Universal Medical Toolkit is a toolkit being developed to put together a set of tools and libraries to facilitate
 communication and automation in medicine.
 
