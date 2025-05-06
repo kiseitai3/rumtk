@@ -2,7 +2,7 @@
 name = "rumtk-hl7-v2"
 description = "HL7 V2 Parser and MLLP Implementation to support building interface utilities."
 version = "0.4.1"
-license-file = "LICENSE"
+license-file = "LICENSE-LGPL"
 readme = "README.md"
 license = "LGPL-2.1"
 homepage = "https://github.com/kiseitai3/rumtk/tree/main/toolkit/rumtk-hl7-v2"
