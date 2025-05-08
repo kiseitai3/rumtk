@@ -41,44 +41,54 @@ pub mod v2_field_descriptor {
         /// by the XAD data type as of v2.3.
         ///
         /// ## Example:
+        /// ```text
         ///     |10 ASH LN^#3^LIMA^OH^48132|
-        ///
+        /// ```
         /// ## 2A.3.1.1 Street Address (ST)
+        /// ```text
         ///     Definition: This component specifies the street or mailing address of a person or institution. When
         ///     referencing an institution, this first component is used to specify the institution name. When used
         ///     in connection with a person, this component specifies the first line of the address.
-        ///
+        /// ```
         /// ## 2A.3.1.2 Other Designation (ST)
+        /// ```text
         ///     Definition: This component specifies the second line of address. In general, it qualifies address.
         ///     Examples: Suite 555 or Fourth Floor. When referencing an institution, this component specifies
         ///     the street address.
-        ///
+        /// ```
         /// ## 2A.3.1.3 City (ST)
+        /// ```text
         ///     Definition: This component specifies the city, district or place where the addressee is located
         ///     depending upon the national convention for formatting addresses for postal usage.
-        ///
+        /// ```
         /// ## 2A.3.1.4 State or Province (ST)
+        /// ```text
         ///     Definition: This component specifies the state or province where the addressee is located. State or
         ///     province should be represented by the official postal service codes for that country.
-        ///
+        /// ```
         /// ## 2A.3.1.5 Zip or Postal Code (ST)
+        /// ```text
         ///     Definition: This component specifies the zip or postal code where the addressee is located. Zip or
         ///     postal codes should be represented by the official codes for that country. In the US, the zip code
         ///     takes the form 99999[-9999], while the Canadian postal code takes the form A9A9A9 and the
         ///     Australian Postcode takes the form 9999.
-        ///
+        /// ```
         /// ## 2A.3.1.6 Country (ID)
+        /// ```text
         ///     Definition: This component specifies the country where the addressee is located. HL7 specifies
         ///     that the 3-character (alphabetic) form of ISO 3166 be used for the country code. Refer to HL7
         ///     Table 0399 - Country Code in Chapter 2C, Code Tables, for valid values.
-        ///
+        /// ```
         /// ## 2A.3.1.7 Address Type (ID)
+        /// ```text
         ///     Definition: This component specifies the kind or type of address. Refer to HL7 Table 0190 -
         ///     Address Type in Chapter 2C, Code Tables, for valid values.
-        ///
+        /// ```
         /// ## 2A.3.1.8 Other Geographic Designation (ST)
+        /// ```text
         ///     Definition: This component specifies any other geographic designation that may be necessary. It
         ///     includes county, bioregion, SMSA, etc.
+        /// ```
         AD,
         ///
         /// # 2A.3.2 AUI - authorization information
