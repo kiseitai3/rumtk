@@ -99,14 +99,17 @@ pub mod v2_field_descriptor {
         /// **Note:** Replaces the CM data type used in sections 6.5.6.14 IN1-14, as of v2.5.
         ///
         /// ## 2A.3.2.1 Authorization Number (ST)
+        /// ```text
         ///     Definition: Identifier assigned to the authorization.
-        ///
+        /// ```
         /// ## 2A.3.2.2 Date (DT)
+        /// ```text
         ///     Definition: Date of authorization.
-        ///
+        /// ```
         /// ## 2A.3.2.3 Source (ST)
+        /// ```text
         ///     Definition: Source of authorization.
-        ///
+        /// ```
         AUI,
         ///
         /// Definition: Specifies whether a charge action is based on an invocation event or is time-based.
@@ -114,13 +117,15 @@ pub mod v2_field_descriptor {
         /// Note: Replaces the CM data type used in section 4.5.2.1 BLG-1, as of v2.5.
         ///
         /// ## 2A.3.3.1 Invocation Event (ID)
+        /// ```text
         ///     Definition: Specifies the code for the event precipitating/triggering the charge activity. Refer to
         ///     HL7 Table 0100 - Invocation event for valid values.
-        ///
+        /// ```
         /// ## 2A.3.3.2 Date/time (DTM)
+        /// ```text
         ///     Definition: The second component is used to express the exact time to charge for the ordered
         ///     service; it is used only when the CCD.1 value is T. When used, it is expressed as a DTM data type.
-        ///
+        /// ```
         CCD,
         ///
         /// # 2A.3.4 CCP - channel calibration parameters
@@ -136,19 +141,22 @@ pub mod v2_field_descriptor {
         /// type CD as of v 2.5.
         ///
         /// ## 2A.3.4.1 Channel Calibration Sensitivity Correction Factor (NM)
+        /// ```text
         ///     Definition: This component defines a correction factor for channel sensitivity, which may be
         ///     derived from the last calibration procedure performed. The actual channel sensitivity is the
         ///     nominal channel sensitivity given in the previous component multiplied by the unitless correction
         ///     factor.
-        ///
+        /// ```
         /// ## 2A.3.4.2 Channel Calibration Baseline (NM)
+        /// ```text
         ///     Definition: This component defines the actual channel baseline (the data value which corresponds
         ///     to a nominal input signal of zero). The actual baseline may differ from the ideal because of a dc
         ///     offset in the amplifier connected to the ADC. The actual baseline values for all channels (which
         ///     need not be integers) may be determined at the time of calibration as the average digitized values
         ///     obtained when a zero input signal is connected to each channel.
-        ///
+        /// ```
         /// ## 2A.3.4.3 Channel Calibration Time Skew (NM)
+        /// ```text
         ///     Definition: This component defines the time difference between the nominal sampling
         ///     (digitization) time (which would be the same for all channels) and the actual sampling time of the
         ///     channel, in seconds (or fractions thereof). This value will differ from zero when all channels in the
@@ -161,7 +169,7 @@ pub mod v2_field_descriptor {
         ///     (digitization) of sample number m of channel number n in such a system would be R + (m-1)/f +
         ///     (n-1)t, where R is the reference time at the start of the epoch and f is the channel sampling
         ///     frequency (t < 1/f).
-        ///
+        /// ```
         CCP,
         ///
         /// # 2A.3.5 CD - channel definition
@@ -179,33 +187,38 @@ pub mod v2_field_descriptor {
         /// defined as follows:
         ///
         /// ## 2A.3.5.1 Channel Identifier (WVI)
+        /// ```text
         ///     Definition: This component specifies the number and name of the recording channel where
         ///     waveform data is transmitted.
-        ///
+        /// ```
         /// ## 2A.3.5.2 Waveform Source (WVS)
+        /// ```text
         ///     Definition: This component identifies the source of the waveform connected to the channel. Two
         ///     names may be specified if it is necessary to individually identify the two inputs for a waveform.
         ///     Only one name need be specified if the channel is connected to a single input. For example, in
         ///     EKG recordings typically only one name is used (such as I or II); in electroencephalography, two
         ///     names are typically used, one for each input of the differential amplifier (such as F3 and C3).
-        ///
+        /// ```
         /// ## 2A.3.5.3 Channel Sensitivity and Units (CSU)
+        /// ```text
         ///     Definition: This component defines the channel sensitivity (gain) and the units in which it is
         ///     measured.
-        ///
+        /// ```
         /// ## 2A.3.5.4 Channel Calibration Parameters (CCP)
+        /// ```text
         ///     Definition: This component identifies the corrections to channel sensitivity, the baseline, and the
         ///     channel time skew.
-        ///
+        /// ```
         /// ## 2A.3.5.5 Channel Sampling Frequency (NM)
+        /// ```text
         ///     Definition: This component defines the sampling frequency in hertz of the channel, that is, the
         ///     reciprocal of the time in seconds between successive samples
-        ///
+        /// ```
         /// ## 2A.3.5.6 Minimum and Maximum Data Values (NR)
         /// **Note:** this is the frequency of transmitted data, which may or may not be the actual frequency at which the
         /// data was acquired by an analog-to-digital converter or other digital data source (i.e. the data transmitted
         /// may be subsampled, or interpolated, from the originally acquired data.)
-        ///
+        /// ```text
         ///     Definition: This component defines the minimum and maximum data values which can occur in
         ///     this channel in the digital waveform data, that is, the range of the ADC. , and also specifies
         ///     whether or not non-integral data values may occur in this channel in the waveform data. If the
@@ -228,7 +241,7 @@ pub mod v2_field_descriptor {
         ///     S and actual sensitivity correction factor C by the formula,
         ///
         ///         A = SC(D-B)
-        ///
+        /// ```
         CD,
         ///
         /// # 2A.3.6 WITHDRAWN (CE – coded entry)
@@ -245,7 +258,7 @@ pub mod v2_field_descriptor {
         /// components. The Original Text component applies to the CF as a whole.
         ///
         /// **Note:** The Vocabulary TC is the steward of the CF data type.
-        ///
+        /// ```text
         ///     Definition: This data type transmits codes and the formatted text associated with the code. This
         ///     data type can be used to transmit for the first time the formatted text for the canned text portion of
         ///     a report, for example, a standard radiological description for a normal chest X-ray. The receiving
@@ -259,16 +272,19 @@ pub mod v2_field_descriptor {
         ///         OBX||CF|71020^CXR^99CPMC||79989^\H\Description:\N\\.sp\\ti+4\Heart is not
         ///             enlarged. There is no evidence of pneumonia, effusion, pneumothorax or
         ///             any masses. \.sp+3\\H\Impression:\N\\.sp\\.ti+4\Negative chest.^99CPMC
-        ///
+        /// ```
         /// ## 2A.3.7.1 Identifier (ST)
+        /// ```text
         ///     Definition: Sequence of characters (the code) that uniquely identifies the item being referenced by
         ///     the <text>. Different coding schemes will have different elements here.
-        ///
+        /// ```
         /// ## 2A.3.7.2 Formatted Text (FT)
+        /// ```text
         ///     Definition: Name or description of the item in question with the addition of embedded formatting
         ///     instructions.
-        ///
+        /// ```
         /// ## 2A.3.7.3 Name of Coding System (ID)
+        /// ```text
         ///     Definition: Contains the name of the coding system employed.
         ///
         ///     Refer to HL7 Table 0396 - Coding System in Chapter 2C, Code Tables, for valid values.
@@ -278,21 +294,24 @@ pub mod v2_field_descriptor {
         ///     within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
         ///     a repeating field. Instead, the receiver should always examine the coding system as specified in
         ///     CF.3 and/or CF.14, the Coding System component or the Coding System OID, for the tuple.
-        ///
+        /// ```
         /// ## 2A.3.7.4 Alternate Identifier (ST)
+        /// ```text
         ///     Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF-1
         ///     Identifier.
-        ///
+        /// ```
         /// **Usage Notes:** The Alternate Identifier is used to represent the local or user seen code as described.
         /// If present, it obeys the same rules of use and interpretation as described for component 1. If both
         /// are present, the identifiers in component 4 and component 1 should have exactly the same
         /// meaning, i.e., they should be exact synonyms.
         ///
         /// ## 2A.3.7.5 Alternate Formatted Text (FT)
+        /// ```text
         ///     Definition: Name or description of the alternate identifier in question with the addition of
         ///     embedded formatting instructions. Analogous to CF.2 Formatted Text.
-        ///
+        /// ```
         /// ## 2A.3.7.6 Name of Alternate Coding System (ID)
+        /// ```text
         ///     Definition: Contains the name of the coding system employed for the alternate identifier.
         ///     Analogous to CF.3 Name of Coding System.
         ///
@@ -303,35 +322,41 @@ pub mod v2_field_descriptor {
         ///     within the tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within
         ///     a repeating field. Instead, the receiver should always examine the coding ystem as specified in
         ///     CF.6 and/or CF.17, the Coding System component or the Coding System OID, for the tuple.
-        ///
+        /// ```
         /// ## 2A.3.7.7 Coding System Version ID (ST)
+        /// ```text
         ///     Definition: This component carries the version for the coding system identified by components 1-
         ///     3. If CF.3 is populated with a value other than HL7nnnn or is of table type user-defined, version
         ///     ID must be valued with an actual version ID. If CF.3 is populated with a value of HL7nnnn and
         ///     nnnn is of table type HL7, version ID may have an actual value or it may be absent. If version ID
         ///     is absent, it will be interpreted to have the same value as the HL7 version number in the message
         ///     header.
-        ///
+        /// ```
         /// ## 2A.3.7.8 Alternate Coding System Version ID (ST)
+        /// ```text
         ///     Definition: This component carries the version for the coding system identified by components 4-
         ///     6. Analogous To CF.7 Coding System Version ID.
-        ///
+        /// ```
         /// ## 2A.3.7.9 Original Text (ST)
+        /// ```text
         ///     Definition: The text as seen and/or selected by the user who entered the data. Original text can be
         ///     used in a structured user interface to capture what the user saw as a representation of the code on
         ///     the data input screen, or in a situation where the user dictates or directly enters text, it is the text
         ///     entered or uttered by the user. In a situation where the code is assigned sometime after the text was
         ///     entered, original text is the text or phrase used as the basis for assigning the code.
-        ///
+        /// ```
         /// ## 2A.3.7.10 Second Alternate Identifier (ST)
+        /// ```text
         ///     Definition: A sequence of characters that uniquely identifies an alternate code. Analogous to CF.1
         ///     Identifier.
-        ///
+        /// ```
         /// ## 2A.3.7.11 Second Alternate FormattedText (FT)
+        /// ```text
         ///     Definition: The descriptive or textual name of the Second Alternate Identifier. Analogous to CF.2
         ///     Formatted Text.
-        ///
+        /// ```
         /// ## 2A.3.7.12 Name of Second Alternate Coding System (ID)
+        /// ```text
         ///     Definition: Identifies the coding scheme being used in the Second Alternate Identifier component.
         ///     Analogous to CF. Name of Coding System.
         ///
@@ -340,12 +365,14 @@ pub mod v2_field_descriptor {
         ///     tuples (Identifier, Alternate Identifier, or Second Alternate Identifier) or position within a repeating
         ///     field. Instead, the receiver should always examine the coding ystem as specified in CF.12 and/or
         ///     CF.20 the Coding System component or the Coding System OID for the tuple.
-        ///
+        /// ```
         /// ## 2A.3.7.13 Second Alternate Coding System Version ID (ST)
+        /// ```text
         ///     Definition: This component carries the version for the coding system identified by components 10-
         ///     12. Analogous To CF.7 Coding System Version ID.
-        ///
+        /// ```
         /// ## 2A.3.7.14 Coding System OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) for the coding system or
         ///     value set named in CNE.3. The value for this component is 2.16.840.1.113883.12.#### where
         ///     "####" is to be replaced by the HL7 table number in the case of an HL7 defined or user defined
@@ -354,26 +381,29 @@ pub mod v2_field_descriptor {
         ///
         ///     This component is required when CF.1 is populated and CF.3 is not populated. Both CF.3 and
         ///     CF.14 may be populated.
-        ///
+        /// ```
         /// ## 2A.3.7.15 Value Set OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
         ///     value set from which the value in CWE.1 is obtained. The value for this component is
         ///     2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
         ///     an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
         ///     HL7 OID registry SHALL be used. A value set may or need not be present irrespective of other
         ///     fields.
-        ///
+        /// ```
         /// ## 2A.3.7.16 Value Set Version ID (DTM)
+        /// ```text
         ///     Definition: This component carries the version for the value set identified by CF.15. The version is
         ///     a date. The date is the date/time that the value set being used was published.
         ///     Value set version ID is required if CF.15 is populated.
-        ///
+        /// ```
         /// **Note:** If a code is provided, the meaning of the code must come from the definition of the code in the code
         /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
         /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
         /// the presence or absence of any or a particular value set/ value set version ID.
         ///
         /// ## 2A.3.7.17 Alternate Coding System OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) for the coding system or
         ///     value set named in CF.6. Analogous To CF.14 Coding System OID.
         ///
@@ -383,14 +413,15 @@ pub mod v2_field_descriptor {
         ///
         ///     This component is required when CF.4 is populated and CF.6 is not populated. Both CF.6 and
         ///     CF.17 may be populated.
-        ///
+        /// ```
         /// ## 2A.3.7.18 Alternate Value Set OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
         ///     value set from which the value in CF.4 is obtained. The value for this component is
         ///     2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
         ///     an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
         ///     HL7 OID registry SHALL be used.
-        ///
+        /// ```
         /// **Note:** If a code is provided, the meaning of the code must come from the definition of the code in the code
         /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
         /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
@@ -398,11 +429,13 @@ pub mod v2_field_descriptor {
         /// A value set may or need not be present irrespective of other fields.
         ///
         /// ## 2A.3.7.19 Alternate Value Set Version ID (DTM)
+        /// ```text
         ///     Definition: This component carries the version for the value set identified by CF.18. The version is
         ///     a date. The date is the date/time that the value set being used was published.
         ///     Value set version ID is required if CF.18 is populated.
-        ///
+        /// ```
         /// ## 2A.3.7.20 Second Alternate Coding System OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) for the coding system or
         ///     value set named in CF.12. Analogous To CF.14 Coding System OID.
         ///
@@ -412,25 +445,28 @@ pub mod v2_field_descriptor {
         ///
         ///     This component is required when CF.10 is populated and CF.12 is not populated. Both CF.12 and
         ///     CF.20 may be populated.
-        ///
+        /// ```
         /// ## 2A.3.7.21 Second Alternate Value Set OID (ST)
+        /// ```text
         ///     Definition: This component contains the ISO Object Identifier (OID) to allow identification of the
         ///     value set from which the value in CF.10 is obtained. The value for this component is
         ///     2.16.840.1.113883.12.#### where "####" is to be replaced by the HL7 table number in the case of
         ///     an HL7 defined or user defined table. For externally defined value sets, the OID registered in the
         ///     HL7 OID registry SHALL be used.
-        ///
+        /// ```
         /// **Note:** If a code is provided, the meaning of the code must come from the definition of the code in the code
         /// system. The meaning of the code SHALL NOT depend on the value set. Applications SHALL NOT be
         /// required to interpret the code in light of the valueSet, and they SHALL NOT reject an instance because of
         /// the presence or absence of any or a particular value set/ value set version ID.
-        ///
+        /// ```text
         ///     A value set may or need not be present irrespective of other fields.
-        ///
+        /// ```
         /// ## 2A.3.7.22 Second Alternate Value Set Version ID (DTM)
+        /// ```text
         ///     Definition: This component carries the version for the value set identified by CF.21. The version is
         ///     a date. The date is the date/time that the value set being used was published.
         ///     Value set version ID is required if CF.21 is populated.
+        /// ```
         CF,
         ///
         /// # 2A.3.8 CNE – coded with no exceptions
