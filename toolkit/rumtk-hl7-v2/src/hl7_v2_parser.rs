@@ -150,6 +150,7 @@ pub mod v2_parser {
         /// the resulting string.
         ///
         /// ## Single-byte character sets:
+        /// ```text
         ///-      \C2842\ISO-IR6 G0 (ISO 646 : ASCII)
         ///-      \C2D41\ISO-IR100 (ISO 8859 : Latin Alphabet 1)
         ///-      \C2D42\ISO-IR101 (ISO 8859 : Latin Alphabet 2)
@@ -162,11 +163,12 @@ pub mod v2_parser {
         ///-      \C2D4D\ISO-IR148 (ISO 8859 : Latin Alphabet 5)
         ///-      \C284A\ISO-IR14 (JIS X 0201 -1976: Romaji)
         ///-      \C2949\ISO-IR13 (JIS X 0201 : Katakana)
-        ///
+        /// ```
         /// ## Multi-byte codes:
+        /// ```text
         ///-      \M2442\ISO-IR87 (JIS X 0208 : Kanji, hiragana and katakana)
         ///-      \M242844\ISO-IR159 (JIS X 0212 : Supplementary Kanji)
-        ///
+        /// ```
         /// We grab the ASCII string.
         /// Cast it to bytes while unescaping any escape sequences.
         /// Guess the encoding of the bytes.
