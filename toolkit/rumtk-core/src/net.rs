@@ -1000,7 +1000,7 @@ pub mod tcp_macros {
     #[macro_export]
     macro_rules! rumtk_get_ip_port {
         ( $address_str:expr ) => {{
-            use $crate::strings::{RUMString, RUMStringConversions};
+            use $crate::strings::RUMStringConversions;
             let mut components = $address_str.split(':');
             (
                 components.next().unwrap().to_rumstring(),
