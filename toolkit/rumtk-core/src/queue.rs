@@ -86,11 +86,11 @@ pub mod queue {
         /// 3. Return the list of results ([`TaskResults<R>`]).
         ///
         /// ### Note:
-        ///
+        /// ```text
         ///     Results returned here are not guaranteed to be in the same order as the order in which
         ///     the tasks were queued for work. You will need to pass a type as T that automatically
         ///     tracks its own id or has a way for you to resort results.
-        ///
+        /// ```
         pub fn wait(&mut self) -> TaskResults<R> {
             while !self.is_completed() {
                 sleep(DEFAULT_SLEEP_DURATION);

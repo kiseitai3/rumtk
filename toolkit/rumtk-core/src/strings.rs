@@ -52,9 +52,9 @@ pub trait UTFStringExtensions {
     /// Return a grapheme unit which could span multiple Unicode codepoints or "characters".
     ///
     /// # Note
-    ///
+    /// ```text
     ///     If the grapheme requested does not exists, this method will return a blank string.
-    ///
+    /// ```
     ///
     /// Instead of just retrieving a codepoint as character, I decided to take it a step further and
     /// have support for grapheme selection such that characters in written language like sanskrit

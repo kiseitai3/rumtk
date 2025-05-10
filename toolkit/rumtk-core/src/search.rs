@@ -18,12 +18,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-
 pub mod rumtk_search {
-    use regex::{Regex};
-    use crate::cache::{LazyRUMCache, AHashMap, new_cache, get_or_set_from_cache};
+    use crate::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
     use crate::rumtk_cache_fetch;
-    use crate::strings::{RUMString, CompactStringExt};
+    use crate::strings::{CompactStringExt, RUMString};
+    use regex::Regex;
     /**************************** Globals **************************************/
     static mut re_cache: RegexCache = new_cache();
     /**************************** Constants**************************************/
@@ -49,7 +48,11 @@ pub mod rumtk_search {
     ///
     pub fn string_search_named_captures(input: &str, expr: &str, default: &str) -> SearchGroups {
         let re = rumtk_cache_fetch!(&mut re_cache, &RUMString::from(expr), compile_regex);
-        let names: Vec<&str> = re.capture_names().skip(1).map(|x| x.unwrap_or_else(|| "")).collect();
+        let names: Vec<&str> = re
+            .capture_names()
+            .skip(1)
+            .map(|x| x.unwrap_or_else(|| ""))
+            .collect();
         let mut clean_names: Vec<&str> = Vec::with_capacity(names.len());
         let mut groups = SearchGroups::with_capacity(DEFAULT_REGEX_CACHE_PAGE_SIZE);
 
@@ -112,14 +115,13 @@ pub mod rumtk_search {
         list
     }
 
-
     ///
     /// Given a string input and a RegEx string,
-    ///
+    /// ```text
     ///     - Compile the regex if not done so already.
     ///     - Do a string search for all regex matches.
     ///     - Collapse/join the matches into a single output string using join_pattern as the join fragment.
-    ///
+    /// ```
     /// Use \" \" in join_pattern if you wish to have spaces in between matches.
     ///
     pub fn string_search(input: &str, expr: &str, join_pattern: &str) -> RUMString {
