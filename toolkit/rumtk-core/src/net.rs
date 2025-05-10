@@ -982,4 +982,30 @@ pub mod tcp_macros {
             RUMClientHandle::connect($ip, $port)
         }};
     }
+
+    ///
+    /// Convenience macro for obtaining the ip and port off a string with format `ip:port`.
+    ///
+    /// # Example Usage
+    ///
+    /// ```
+    /// use rumtk_core::{rumtk_create_server, rumtk_get_ip_port};
+    ///
+    /// let server = rumtk_create_server!(0).unwrap();
+    /// let ip_addr_info = server.get_address_info().unwrap();
+    /// let (ip, port) = rumtk_get_ip_port!(&ip_addr_info);
+    /// assert!(port > 0, "Expected non-zero port!");
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_get_ip_port {
+        ( $address_str:expr ) => {{
+            use $crate::strings::{RUMString, RUMStringConversions};
+            let mut components = $address_str.split(':');
+            (
+                components.next().unwrap().to_rumstring(),
+                components.next().unwrap().parse::<u16>().unwrap(),
+            )
+        }};
+    }
 }

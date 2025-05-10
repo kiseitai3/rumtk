@@ -1079,8 +1079,8 @@ pub mod mllp_v2_api {
     macro_rules! rumtk_v2_mllp_get_ip_port {
         ( $safe_mllp:expr ) => {{
             use rumtk_core::core::RUMResult;
-            use rumtk_core::rumtk_exec_task;
             use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
+            use rumtk_core::{rumtk_exec_task, rumtk_get_ip_port};
             let mllp_ref = $safe_mllp.clone();
             let address_str = rumtk_exec_task!(async || -> RUMResult<RUMString> {
                 match mllp_ref.lock().await.get_address_info().await {
@@ -1094,11 +1094,7 @@ pub mod mllp_v2_api {
                 Ok(ip) => ip,
                 Err(e) => "".to_rumstring(),
             };
-            let mut components = ip.split(':');
-            (
-                components.next().unwrap().to_rumstring(),
-                components.next().unwrap().parse::<u16>().unwrap(),
-            )
+            rumtk_get_ip_port!(ip)
         }};
     }
 
