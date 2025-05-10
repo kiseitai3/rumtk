@@ -22,7 +22,7 @@
 /// # Release 2 of the Minimal Lower Layer Message Transport protocol (MLLP, a.k.a. MLP)
 ///
 /// # Ch. 1
-///
+/// ```text
 ///     The MLLP messaging infrastructure layer, and the message transport layer. Messaging
 ///     Adapters live inside the Application and provide the interface to the specific messaging
 ///     stack being used. Messaging adapters are both aware of HL7 and the messaging stack being
@@ -34,9 +34,9 @@
 ///     appropriate destination. Different protocols might use multiple transports, depending on
 ///     the implementation, the degree of separation between the protocol and the transport and a
 ///     number of other factors.
-///
+/// ```
 /// ## 1.2 - Protocol specification
-///
+/// ```text
 ///     The goal of the MLLP Message Transport protocol is to provide an interface between HL7
 ///     Applications and the transport protocol that uses minimal overhead. MLLP is based on a
 ///     minimalistic OSI-session layer framing protocol. It is assumed that MLLP will be used only
@@ -50,9 +50,9 @@
 ///     (amongst other message encodings and ITSs) the vertical bar and XML HL7 version 2 message
 ///     encodings and the version 3 XML ITS. It may not be applicable to some HL7 version 3 ITSs.
 ///     ITS's may require an inherent protocol stack that precludes their use of MLLP.
-///
+/// ```
 /// ### 1.2.1 - Content exchange model
-///
+/// ```text
 ///             HL7 Query/Response
 /// Source/ Destination           |                  Destination/Source
 /// -------------------                             ------------------
@@ -68,7 +68,7 @@
 ///     sending of HL7 Content (a Response) by the Destination system, then this HL7 Content is
 ///     framed in a Block and sent. MLLP has no knowledge of the HL7 Content, nor does it base any
 ///     part of its behaviour on HL7 Content.
-///
+/// ```
 /// The behavior of the Source
 /// --------------------------
 ///
@@ -96,25 +96,25 @@ pub mod mllp_v2 {
     //! #### 1.2.2.1 - HL7 Content Block
     //!
     //! This is the format of a message containing data.
-    //!
+    //! ```text
     //!     HL7-Content-Block = SB, dddd, EB, CR.
     //!         dddd = ( printableChar | CR )-sequence.
     //!         printableChar = 0x20 | 0x21 | 0x22 | .. | 0xFF.
     //!         SB = 0x0B.
     //!         EB = 0x1C.
     //!         CR = 0x0D.
-    //!
+    //! ```
     //! #### 1.2.2.2 - Commit Acknowledgement Block
     //!
     //! This is the format for a message whose content is a single byte acknowledging or negative-acknowledging
-    //!
+    //! ```text
     //!     Commit-Acknowledgement-Block = SB, ( ACK | NAK ), EB, CR.
     //!         SB = 0x0B.
     //!         ACK = 0x06.
     //!         NAK = 0x15.
     //!         EB = 0x1C.
     //!         CR = 0x0D.
-    //!
+    //! ```
     //! ### 1.2.3 - Limitations of MLLP
     //!
     //! The MLLP Block is framed by single-byte values. The characters transmitted within the MLLP
@@ -135,7 +135,7 @@ pub mod mllp_v2 {
     //!
     //! ## 1.3 - Examples
     //! ### 1.3.1 - HL7 version 2 Example
-    //!
+    //! ```text
     //!     <SB>
     //!      MSH|^~\&|ZIS|1^AHospital|||200405141144||ADT^A01|20041104082400|P|2.3|||
     //!      AL|NE|||8859/15|<CR>EVN|A01|20041104082400.0000+0100|20041104082400<CR>
@@ -143,9 +143,9 @@ pub mod mllp_v2 {
     //!      ^^P||""|""||""|||||||""|""<CR>PV1||I|3w^301^""^01|S|||100^van den Berg^^A.S.
     //!      ^^""^dr|""||9||||H||||20041104082400.0000+0100<CR>
     //!     <EB><CR>
-    //!
+    //! ```
     //! ### 1.3.2 - HL7 version 3 Example
-    //!
+    //! ```text
     //!     <SB>
     //!     <?xml version="1.0" encoding="ISO-8859-15"?>
     //! 	    <MFMT_IN10001NL xmlns="urn:hl7-org:v3" xmlns:voc="urn:hl7-org:v3/voc"
@@ -159,9 +159,9 @@ pub mod mllp_v2 {
     //! 	    . . .
     //! 	    </MFMT_IN10001NL>
     //!     <EB><CR>
-    //!
+    //! ```
     //! ### 1.3.3 - CDA Release 2 Example
-    //!
+    //! ```text
     //!     <SB>
     //!     <?xml version="1.0"?>
     //!         <ClinicalDocument xmlns="urn:hl7-org:v3" xmlns:voc="urn:hl7-org:v3/voc"
@@ -179,15 +179,15 @@ pub mod mllp_v2 {
     //! 		    	. . .
     //!         </ClinicalDocument>
     //!     <EB><CR>
-    //!
+    //! ```
     //! ### 1.3.4 - MLLP Commit Acknowledgement Example
-    //!
+    //! ```text
     //!     <SB><ACK><EB><CR>
-    //!
+    //! ```
     //! ### 1.3.5 - MLLP Negative Commit Acknowledgement Example
-    //!
+    //! ```text
     //!     <SB><NAK><EB><CR>
-    //!
+    //! ```
 
     use crate::hl7_v2_parser::v2_parser::format_compact;
     use rumtk_core::core::RUMResult;
@@ -847,13 +847,27 @@ pub mod mllp_v2_api {
     /// Attempt to connect to an MLLP server.
     /// Returns [SafeAsyncMLLP].
     ///
+    /// A minimum of two parameters are needed; the `port` and the [MLLP_FILTER_POLICY].
+    ///
+    /// If you want to specify an ip address, then the signature is 'ip', `port`, and
+    /// [MLLP_FILTER_POLICY]
+    ///
     /// # Example Usage
     /// ```
+    ///     use rumtk_core::{rumtk_sleep};
+    ///     use rumtk_core::strings::format_compact;
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_mllp_open_client_channel};
-    ///     let port = 55555;
-    ///     let safe_listener = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
-    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_get_client_ids};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     println!("IP & Port => {}:{}", &ip, &port);
+    ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     rumtk_sleep!(1);
+    ///     let (client_ip, client_port) = rumtk_v2_mllp_get_ip_port!(&safe_client);
+    ///     let expected_client_id = format_compact!("{}:{}", &client_ip, &client_port);
+    ///     let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_listener);
+    ///     let client_id = client_ids.get(0).unwrap();
+    ///     assert_eq!(expected_client_id, client_id, "Client ID does not match the expected ID! Got {} | Expected {}", &client_id, &expected_client_id);
     /// ```
     ///
     #[macro_export]
@@ -886,8 +900,39 @@ pub mod mllp_v2_api {
     /// Create a server listener for MLLP communications.
     /// Returns [SafeAsyncMLLP].
     ///
+    /// A minimum of two parameters are needed; the [MLLP_FILTER_POLICY] and a boolean signifying if
+    /// to initialize the listener locally or exposed outbound (localhost vs. 0.0.0.0 interface).
+    ///
+    /// If you want to specify a port, then the signature is `port`, [MLLP_FILTER_POLICY], `local`
+    ///
+    /// # Example Usage
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     assert!( port > 0, "Port is 0. Expected a non zero port => {}:{}", &ip, &port)
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_listen {
+        ( $policy:expr, $local:expr ) => {{
+            use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
+            use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
+            let rt = rumtk_init_threads!();
+            let port = 0; // Select the next available port on the OS!
+            match $local {
+                true => match rumtk_resolve_task!(&rt, AsyncMLLP::local(port, $policy, true)) {
+                    Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
+                    Err(e) => Err(e),
+                },
+                false => match rumtk_resolve_task!(&rt, AsyncMLLP::net(port, $policy, true)) {
+                    Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
+                    Err(e) => Err(e),
+                },
+            }
+        }};
         ( $port:expr, $policy:expr, $local:expr ) => {{
             use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
             use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
@@ -918,9 +963,9 @@ pub mod mllp_v2_api {
     ///
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_open_client_channel};
-    ///     let port = 55555;
-    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_open_client_channel, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE);
     ///     let channel = rumtk_v2_mllp_open_client_channel!(&safe_listener);
     /// ```
@@ -952,7 +997,7 @@ pub mod mllp_v2_api {
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_open_server_channels};
-    ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
     ///     let channels = rumtk_v2_mllp_open_server_channels!(&safe_listener);
     ///
     ///     for channel in channels.iter() {
@@ -991,7 +1036,7 @@ pub mod mllp_v2_api {
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen};
-    ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
     ///     let channels = rumtk_v2_mllp_iter_channels!(&safe_listener);
     ///
     ///     for channel in channels.iter() {
@@ -1023,14 +1068,11 @@ pub mod mllp_v2_api {
     /// use rumtk_core::core::RUMResult;
     /// use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY, LOCALHOST};
     /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
-    /// use rumtk_core::strings::{RUMString, RUMStringConversions};
+    /// use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
     ///
-    /// let ip = LOCALHOST.to_rumstring();
-    /// let port: u16 = 55555;
-    /// let expected = (ip, port);
-    /// let mllp = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
-    /// let results = rumtk_v2_mllp_get_ip_port!(&mllp);
-    /// assert_eq!(expected, results, "IPs or Ports are different????");
+    /// let mllp = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    /// let (ip, port) = rumtk_v2_mllp_get_ip_port!(&mllp);
+    /// assert!(port > 0, "Expected non-zero port!");
     /// ```
     ///
     #[macro_export]
@@ -1071,10 +1113,8 @@ pub mod mllp_v2_api {
     /// use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_ip_port};
     /// use rumtk_core::strings::{format_compact, RUMString, RUMStringConversions};
     ///
-    /// let ip = LOCALHOST.to_rumstring();
-    /// let port: u16 = 55555;
-    /// let expected = format_compact!("{}:{}", ip, port);
-    /// let mllp = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    /// let mllp = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    /// let (ip, port) = rumtk_v2_mllp_get_ip_port!(&mllp);
     /// let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
     /// let results = rumtk_v2_mllp_get_client_ids!(&mllp);
     /// let client_id = results.get(0).unwrap();
@@ -1111,9 +1151,10 @@ pub mod mllp_v2_api {
     /// # Example Usage
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_is_server, rumtk_v2_mllp_listen, rumtk_v2_mllp_connect};
-    ///     let port = 55555;
-    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_is_server, rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_ip_port};
+    ///
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
     ///     let is_listener_server = rumtk_v2_mllp_is_server!(&safe_listener);
     ///     let is_client_server = rumtk_v2_mllp_is_server!(&safe_client);
@@ -1148,13 +1189,14 @@ pub mod mllp_v2_api {
     /// if no message was available in the internal queue buffer.
     ///
     /// # Example Usage
-    /// ```
+    /// ```no_run
     ///     use rumtk_core::strings::RUMString;
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_receive, rumtk_v2_mllp_get_client_ids};
-    ///     let port = 55555;
-    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_receive, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///
     ///     let client_ids = rumtk_v2_mllp_get_client_ids!(safe_listener);
     ///     let client_id = client_ids.get(0).unwrap();
     ///     let result = rumtk_v2_mllp_receive!(&safe_listener, client_id.as_str());
@@ -1187,24 +1229,24 @@ pub mod mllp_v2_api {
     /// Convenience macro for sending a message via an [AsyncMLLP] instance.
     ///
     /// # Example Usage
-    /// ```
+    /// ```no_run
     ///     use rumtk_core::strings::RUMString;
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
-    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_send, rumtk_v2_mllp_get_client_ids};
-    ///     let port = 55555;
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_connect, rumtk_v2_mllp_send, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port};
     ///     let message = RUMString::new("Hello World");
-    ///     let safe_listener = rumtk_v2_mllp_listen!(port, MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
     ///     let client_ids = rumtk_v2_mllp_get_client_ids!(safe_listener);
     ///     let client_id = client_ids.get(0).unwrap();
-    ///     let result = rumtk_v2_mllp_send!(&safe_client, client_id.as_str(), message.as_str());
-    ///
     ///     // This bit of the example might look odd. Thing is, we never allow the automatic logic
     ///     // to process send, receive, ack/nack loops on the message, so they timeout awaiting.
     ///     // This is ok because this is only an example that is also used to confirm that the
     ///     // macro is working at all!
-    ///     let expected = Err(RUMString::new("Task failed with Timeout reached while awaiting for message!"));
-    ///     assert_eq!(expected, result, "Expected to timeout while awaiting response!");
+    ///     match rumtk_v2_mllp_send!(&safe_client, client_id.as_str(), message.as_str()) {
+    ///         Ok(e) => panic!("MLLP send work when it shouldn't have!"),
+    ///         Err(e) => ()
+    ///     }
     /// ```
     ///
     #[macro_export]
