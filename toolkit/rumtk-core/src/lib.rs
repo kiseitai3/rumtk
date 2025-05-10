@@ -354,7 +354,7 @@ mod tests {
     ///////////////////////////////////Net Tests/////////////////////////////////////////////////
     #[test]
     fn test_server_start() {
-        let mut server = match rumtk_create_server!("localhost", 55555) {
+        let mut server = match rumtk_create_server!("localhost", 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_server_send() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!(LOCALHOST, 55555, 1) {
+        let mut server = match rumtk_create_server!(LOCALHOST, 0, 1) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -375,9 +375,11 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         };
+        let address_info = server.get_address_info().unwrap();
+        let (ip, port) = rumtk_get_ip_port!(address_info);
         println!("Sleeping");
         rumtk_sleep!(1);
-        let mut client = match rumtk_connect!(55555) {
+        let mut client = match rumtk_connect!(port) {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -403,7 +405,7 @@ mod tests {
     #[test]
     fn test_server_receive() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+        let mut server = match rumtk_create_server!(LOCALHOST, 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -411,9 +413,11 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         };
+        let address_info = server.get_address_info().unwrap();
+        let (ip, port) = rumtk_get_ip_port!(address_info);
         println!("Sleeping");
         rumtk_sleep!(1);
-        let mut client = match rumtk_connect!(55555) {
+        let mut client = match rumtk_connect!(port) {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -430,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_server_get_clients() {
-        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+        let mut server = match rumtk_create_server!(LOCALHOST, 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -438,9 +442,11 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         };
+        let address_info = server.get_address_info().unwrap();
+        let (ip, port) = rumtk_get_ip_port!(address_info);
         println!("Sleeping");
         rumtk_sleep!(1);
-        let mut client = match rumtk_connect!(55555) {
+        let mut client = match rumtk_connect!(port) {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -459,7 +465,7 @@ mod tests {
     #[test]
     fn test_server_stop() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!("localhost", 55555) {
+        let mut server = match rumtk_create_server!("localhost", 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -478,7 +484,7 @@ mod tests {
     #[test]
     fn test_server_get_address_info() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!("localhost", 55555) {
+        let mut server = match rumtk_create_server!("localhost", 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -497,7 +503,7 @@ mod tests {
     #[test]
     fn test_client_send() {
         let msg = RUMString::from("Hello World!");
-        let mut server = match rumtk_create_server!(LOCALHOST, 55555) {
+        let mut server = match rumtk_create_server!(LOCALHOST, 0) {
             Ok(server) => server,
             Err(e) => panic!("Failed to create server because {}", e),
         };
@@ -505,13 +511,15 @@ mod tests {
             Ok(_) => (),
             Err(e) => panic!("Failed to start server because {}", e),
         };
+        let address_info = server.get_address_info().unwrap();
+        let (ip, port) = rumtk_get_ip_port!(address_info);
         println!("Sleeping");
         rumtk_sleep!(1);
-        let mut client = match rumtk_connect!(55555) {
+        let mut client = match rumtk_connect!(port) {
             Ok(client) => client,
             Err(e) => panic!("Failed to create server because {}", e),
         };
-        rumtk_sleep!(1);
+        rumtk_sleep!(2);
         match client.send(&msg.to_raw()) {
             Ok(_) => (),
             Err(e) => panic!("Failed to send message because {}", e),
