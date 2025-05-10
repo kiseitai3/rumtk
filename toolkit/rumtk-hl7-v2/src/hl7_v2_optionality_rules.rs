@@ -68,7 +68,7 @@ impl Optionality {
 
 /******************************* Conditions ********************************/
 
-const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| { false };
+const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| false;
 
 /***************CF Conditions**************/
 ///
@@ -79,7 +79,7 @@ const CONDITION_NOOP: V2ComponentConditionFn = |c: &V2ComponentList| { false };
 /// CF.3 and/or CF.14, the Coding System component or the Coding System OID, for the tuple.
 ///
 pub const CONDITION_CF1: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[0].len() > 0 && !c[13].len() > 0 };
+    |c: &V2ComponentList| c[0].len() > 0 && !c[13].len() > 0;
 ///
 /// As of v2.7 this component is required when CF.4 is populated and CF.17 is not populated. Both
 /// CF.6 and CF.17 may be populated. Receivers should not identify a code based on its position
@@ -88,7 +88,7 @@ pub const CONDITION_CF1: V2ComponentConditionFn =
 /// CF.6 and/or CF.17, the Coding System component or the Coding System OID, for the tuple.
 ///
 pub const CONDITION_CF2: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[3].len() > 0 && !c[16].len() > 0 };
+    |c: &V2ComponentList| c[3].len() > 0 && !c[16].len() > 0;
 ///
 /// Definition: This component carries the version for the coding system identified by components 1-
 /// 3. If CF.3 is populated with a value other than HL7nnnn or is of table type user-defined, version
@@ -98,9 +98,10 @@ pub const CONDITION_CF2: V2ComponentConditionFn =
 /// header.
 ///
 /// ## Note
+/// ```text
 ///     ??? What. Not quiet implementable or worth the hassle of aborting validation.
 ///     Leaving this for a more global rule.
-///
+/// ```
 pub const CONDITION_CF3: V2ComponentConditionFn = CONDITION_NOOP;
 ///
 /// ??? No real condition? Why even mark field as conditionally required?
@@ -111,33 +112,31 @@ pub const CONDITION_CF4: V2ComponentConditionFn = CONDITION_NOOP;
 /// CF.14 may be populated.
 ///
 pub const CONDITION_CF5: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[0].len() > 0 && !c[2].len() > 0 };
+    |c: &V2ComponentList| c[0].len() > 0 && !c[2].len() > 0;
 ///
 /// Value set version ID is required if CF.15 is populated.
 ///
-pub const CONDITION_CF6: V2ComponentConditionFn = |c: &V2ComponentList| { c[14].len() > 0 };
+pub const CONDITION_CF6: V2ComponentConditionFn = |c: &V2ComponentList| c[14].len() > 0;
 ///
 /// This component is required when CF.4 is populated and CF.6 is not populated. Both CF.6 and
 /// CF.17 may be populated.
 ///
 pub const CONDITION_CF7: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[3].len() > 0 && !c[5].len() > 0 };
+    |c: &V2ComponentList| c[3].len() > 0 && !c[5].len() > 0;
 ///
 /// Value set version ID is required if CF.18 is populated.
 ///
-pub const CONDITION_CF8: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[17].len() > 0 };
+pub const CONDITION_CF8: V2ComponentConditionFn = |c: &V2ComponentList| c[17].len() > 0;
 ///
 /// This component is required when CF.10 is populated and CF.12 is not populated. Both CF.12 and
 /// CF.20 may be populated.
 ///
 pub const CONDITION_CF9: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[9].len() > 0 && !c[11].len() > 0 };
+    |c: &V2ComponentList| c[9].len() > 0 && !c[11].len() > 0;
 ///
 /// Value set version ID is required if CF.21 is populated.
 ///
-pub const CONDITION_CF10: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[20].len() > 0 };
+pub const CONDITION_CF10: V2ComponentConditionFn = |c: &V2ComponentList| c[20].len() > 0;
 
 /***************CNE Conditions*************/
 ///
@@ -149,9 +148,10 @@ pub const CONDITION_CF10: V2ComponentConditionFn =
 /// especially during interface testing and debugging.
 ///
 /// ## Note
+/// ```text
 ///     ???? Not sure how to implement this one without a lot of global state which I am trying to
 ///     avoid. For now, defaulting to a noop.
-///
+/// ```
 pub const CONDITION_CNE1: V2ComponentConditionFn = CONDITION_NOOP;
 ///
 /// See [CONDITION_CNE1]
@@ -162,17 +162,17 @@ pub const CONDITION_CNE2: V2ComponentConditionFn = CONDITION_NOOP;
 /// and CNE.14 may be populated.
 ///
 pub const CONDITION_CNE3: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[0].len() > 0 && !(c[2].len() > 0) };
+    |c: &V2ComponentList| c[0].len() > 0 && !(c[2].len() > 0);
 ///
 /// Value set version ID is required if CNE.15 is populated.
 ///
-pub const CONDITION_CNE4: V2ComponentConditionFn = |c: &V2ComponentList| { c[14].len() > 0 };
+pub const CONDITION_CNE4: V2ComponentConditionFn = |c: &V2ComponentList| c[14].len() > 0;
 ///
 /// This component is required when CNE.4 is populated and CNE.6 is not populated. Both CNE.6
 /// and CNE.17 may be populated.
 ///
 pub const CONDITION_CNE5: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[3].len() > 0 && !(c[5].len() > 0) };
+    |c: &V2ComponentList| c[3].len() > 0 && !(c[5].len() > 0);
 ///
 /// Value set version ID is required if CNE.18 is populated.
 ///
@@ -182,11 +182,11 @@ pub const CONDITION_CNE6: V2ComponentConditionFn = |c: &V2ComponentList| c[17].l
 /// In short either the CNE.6 or the CNE.14 or CNE.17 must be populated when CNE.4 is populated.
 ///
 pub const CONDITION_CNE7: V2ComponentConditionFn =
-    |c: &V2ComponentList| { c[3].len() > 0 && !(c[5].len() > 0 || c[17].len() > 0) };
+    |c: &V2ComponentList| c[3].len() > 0 && !(c[5].len() > 0 || c[17].len() > 0);
 ///
 /// Value set version ID is required if CNE.21 is populated.
 ///
-pub const CONDITION_CNE8: V2ComponentConditionFn = |c: &V2ComponentList| { c[20].len() > 0 };
+pub const CONDITION_CNE8: V2ComponentConditionFn = |c: &V2ComponentList| c[20].len() > 0;
 
 /***************CNN Conditions*************/
 
@@ -194,27 +194,26 @@ pub const CONDITION_CNE8: V2ComponentConditionFn = |c: &V2ComponentList| { c[20]
 /// If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
 ///
 pub const CONDITION_CNN1: V2ComponentConditionFn =
-    |c: &V2ComponentList| { (c[0].len() > 0 && c[8].len() > 0) || !CONDITION_CNN2(&c) };
+    |c: &V2ComponentList| (c[0].len() > 0 && c[8].len() > 0) || !CONDITION_CNN2(&c);
 
 ///
 /// If component 1 is valued, either CNN.8 or CNN.9, or both CNN.10 and CNN.11, must be valued.
 ///
 pub const CONDITION_CNN2: V2ComponentConditionFn =
-    |c: &V2ComponentList| { (c[0].len() > 0 && c[7].len() > 0) || !CONDITION_CNN1(&c) };
+    |c: &V2ComponentList| (c[0].len() > 0 && c[7].len() > 0) || !CONDITION_CNN1(&c);
 
 ///
 /// If CNN.11 is valued, this component must be valued
 ///
-pub const CONDITION_CNN3: V2ComponentConditionFn = |c: &V2ComponentList| { c[10].len() > 0 };
+pub const CONDITION_CNN3: V2ComponentConditionFn = |c: &V2ComponentList| c[10].len() > 0;
 
 ///
 /// If CNN.10 is valued, this component must be valued.
 ///
-pub const CONDITION_CNN4: V2ComponentConditionFn = |c: &V2ComponentList| { c[9].len() > 0 };
+pub const CONDITION_CNN4: V2ComponentConditionFn = |c: &V2ComponentList| c[9].len() > 0;
 
 /***************CP Conditions**************/
 ///
 /// This component is required if CP.3 From Value and/or CP.4 To Value are present.
 ///
-pub const CONDITION_CP: V2ComponentConditionFn = |c: &V2ComponentList| { c[2].len() > 0 };
-
+pub const CONDITION_CP: V2ComponentConditionFn = |c: &V2ComponentList| c[2].len() > 0;
