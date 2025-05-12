@@ -38,7 +38,7 @@ mod tests {
     use super::*;
     use crate::cache::RUMCache;
     use crate::search::rumtk_search::*;
-    use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions};
+    use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions, StringUtils};
     use compact_str::{format_compact, CompactString};
     use std::future::IntoFuture;
     use std::sync::Arc;
@@ -103,6 +103,18 @@ mod tests {
         );
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
         println!("Passed!")
+    }
+
+    #[test]
+    fn test_unique_string() {
+        let input = "I❤mywife!";
+        assert!(input.is_unique(), "String was not detected as unique.");
+    }
+
+    #[test]
+    fn test_non_unique_string() {
+        let input = "I❤❤mywife!";
+        assert!(!input.is_unique(), "String was detected as unique.");
     }
 
     #[test]

@@ -17,7 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-use crate::core::RUMResult;
+use crate::core::{is_unique, RUMResult};
 use chardetng::EncodingDetector;
 pub use compact_str::{format_compact, CompactString, CompactStringExt, ToCompactString};
 use encoding_rs::Encoding;
@@ -150,13 +150,7 @@ pub trait StringUtils: AsStr + UTFStringExtensions {
 
     fn is_unique(&self) -> bool {
         let graphemes = self.get_graphemes();
-        let mut keys = ahash::AHashSet::with_capacity(graphemes.len());
-        for g in graphemes {
-            if !keys.insert(g) {
-                return false;
-            }
-        }
-        true
+        is_unique(&graphemes)
     }
 }
 

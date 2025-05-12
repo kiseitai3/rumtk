@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 use crate::strings::RUMString;
-pub use smallvec::{SmallVec, smallvec};
+pub use smallvec::{smallvec, SmallVec};
 
 ///
 /// Type used for propagating error messages.
@@ -26,3 +26,13 @@ pub use smallvec::{SmallVec, smallvec};
 pub type RUMResult<T> = Result<T, RUMString>;
 
 pub type RUMVec<T> = Vec<T>;
+
+pub fn is_unique<T: std::cmp::Eq + std::hash::Hash>(data: &Vec<T>) -> bool {
+    let mut keys = ahash::AHashSet::with_capacity(data.len());
+    for itm in data {
+        if !keys.insert(itm) {
+            return false;
+        }
+    }
+    true
+}
