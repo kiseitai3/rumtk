@@ -515,6 +515,7 @@ pub mod v2_parser {
         pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
             let index = rumtk_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
             let segment = self.get(&index.segment, index.segment_group as usize)?;
+            println!("{:?}", &segment);
             let field = match segment.get(index.field as isize)?.get((index.field_group - 1) as usize) {
                 Some(field) => field,
                 None => return Err(format_compact!("Subfield provided is not 1 indexed or out of bounds. Did you give us a 0 when you meant 1? Got {}!", index.field_group))
@@ -568,6 +569,10 @@ pub mod v2_parser {
             let mut segments: SegmentMap = SegmentMap::new();
 
             for segment_str in raw_segments {
+                if segment_str.is_empty() {
+                    continue;
+                }
+
                 let segment: V2Segment = V2Segment::from_str(segment_str, parser_chars)?;
 
                 let key = match V2_SEGMENT_IDS.get(&segment.name) {
@@ -642,9 +647,10 @@ pub mod v2_parser_interface {
     /// ## Example
     ///
     /// ```
-    ///     use rumtk_hl7_v2::v2_parse_message;
-    ///     let hl7_v2_message = "My|HL7|V2|message";
-    ///     v2_parse_message!(&hl7_v2_message).unwrap();
+    ///     use rumtk_hl7_v2::{v2_parse_message};
+    ///     let pattern = "MSH1.1";
+    ///     let hl7_v2_message = "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
+    ///     let message = v2_parse_message!(&hl7_v2_message).unwrap();
     /// ```
     ///
     #[macro_export]
@@ -675,7 +681,8 @@ pub mod v2_parser_interface {
     ///
     /// ```
     ///     use rumtk_hl7_v2::{v2_parse_message, v2_find_component};
-    ///     let hl7_v2_message = "My|HL7|V2|message";
+    ///     let pattern = "MSH1.1";
+    ///     let hl7_v2_message = "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
     ///     let message = v2_parse_message!(&hl7_v2_message).unwrap();
     ///     let component = v2_find_component!(message, pattern).unwrap();
     /// ```
@@ -683,6 +690,7 @@ pub mod v2_parser_interface {
     #[macro_export]
     macro_rules! v2_find_component {
         ( $v2_msg:expr, $v2_search_pattern:expr ) => {{
+            use rumtk_core::strings::RUMString;
             use $crate::hl7_v2_parser::v2_parser::{V2Component, V2Result};
             $v2_msg.find_component(&RUMString::from($v2_search_pattern))
         }};

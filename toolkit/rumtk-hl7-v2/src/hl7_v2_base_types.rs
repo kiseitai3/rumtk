@@ -25,7 +25,7 @@ pub mod v2_base_types {
     };
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use chrono::prelude::*;
-    use rumtk_core::core::RUMResult;
+    use rumtk_core::core::{is_unique, RUMResult};
     use rumtk_core::maths::generate_tenth_factor;
     use rumtk_core::search::rumtk_search::{
         string_search, string_search_named_captures, SearchGroups,
@@ -71,29 +71,28 @@ pub mod v2_base_types {
                 truncation_character: RUMString::from("#"),
             }
         }
-        pub fn from_str(msg_key_chars: &str) -> V2Result<Self> {
-            let key_chars = Self::validate_msh_key_chars(msg_key_chars)?;
-            let field_separator: &str = key_chars.get_grapheme(0);
-            let encoding_field: Vec<&str> = key_chars.split(&field_separator).collect();
-            let parser_chars: &str = encoding_field[1];
+        pub fn from_str(msh_segment: &str) -> V2Result<Self> {
+            let msg_key_chars = Self::isolate_parse_chars(msh_segment);
+            let key_chars = Self::validate_msh_key_chars(&msg_key_chars)?;
+            let field_separator: &str = key_chars[0];
 
-            match parser_chars.count_graphemes() {
+            match key_chars.len() - 1 {
                 5 => Ok(V2ParserCharacters {
                     segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
                     field_separator: field_separator.to_rumstring(),
-                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
-                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
-                    truncation_character: parser_chars.get_grapheme(4).to_rumstring(),
+                    component_separator: key_chars.get(1).unwrap().to_rumstring(),
+                    repetition_separator: key_chars.get(2).unwrap().to_rumstring(),
+                    escape_character: key_chars.get(3).unwrap().to_rumstring(),
+                    subcomponent_separator: key_chars.get(4).unwrap().to_rumstring(),
+                    truncation_character: key_chars.get(5).unwrap().to_rumstring(),
                 }),
                 4 => Ok(V2ParserCharacters {
                     segment_terminator: V2_SEGMENT_TERMINATOR.to_rumstring(),
                     field_separator: field_separator.to_rumstring(),
-                    component_separator: parser_chars.get_grapheme(0).to_rumstring(),
-                    repetition_separator: parser_chars.get_grapheme(1).to_rumstring(),
-                    escape_character: parser_chars.get_grapheme(2).to_rumstring(),
-                    subcomponent_separator: parser_chars.get_grapheme(3).to_rumstring(),
+                    component_separator: key_chars.get(1).unwrap().to_rumstring(),
+                    repetition_separator: key_chars.get(2).unwrap().to_rumstring(),
+                    escape_character: key_chars.get(3).unwrap().to_rumstring(),
+                    subcomponent_separator: key_chars.get(4).unwrap().to_rumstring(),
                     truncation_character: V2_TRUNCATION_CHARACTER.to_rumstring(),
                 }),
                 _ => Err("Wrong count of parsing characters in message header!".to_rumstring()),
@@ -108,26 +107,42 @@ pub mod v2_base_types {
             }
         }
 
-        pub fn validate_msh_key_chars(msg_key_chars: &str) -> V2Result<&str> {
+        pub fn validate_msh_key_chars<'a, 'b>(
+            msg_key_chars: &'a Vec<&'b str>,
+        ) -> V2Result<&'a Vec<&'b str>> {
             if msg_key_chars.len() < 4 {
                 return Err(format_compact!(
-                    "Too few parser characters! Is MSH malformed? => {}",
+                    "Too few parser characters! Is MSH malformed? => {:?}",
                     &msg_key_chars
                 ));
             }
             if msg_key_chars.len() > 5 {
                 return Err(format_compact!(
-                    "Too many parser characters! Is MSH malformed? => {}",
+                    "Too many parser characters! Is MSH malformed? => {:?}",
                     &msg_key_chars
                 ));
             }
-            if msg_key_chars.is_unique() {
+            if is_unique(msg_key_chars) {
                 return Ok(msg_key_chars);
             }
             Err(format_compact!(
-                "Unknown malformed parser characters! Is MSH malformed? => {}",
+                "Unknown malformed parser characters! Is MSH malformed? => {:?}",
                 &msg_key_chars
             ))
+        }
+
+        pub fn isolate_parse_chars(key_fragment: &str) -> Vec<&str> {
+            let fragments = key_fragment.get_graphemes();
+            let field_separator = fragments[0];
+            let mut parse_chars = Vec::<&str>::with_capacity(fragments.len());
+            parse_chars.push(field_separator);
+            for fragment in fragments.iter().skip(1) {
+                if *fragment == field_separator {
+                    break;
+                }
+                parse_chars.push(fragment);
+            }
+            parse_chars
         }
 
         fn is_msh(msh_segment_token: &str) -> bool {

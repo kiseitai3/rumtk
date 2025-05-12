@@ -109,6 +109,8 @@ mod tests {
         SPM|2|S-2312987-2&NIST EHR&2.16.840.1.113883.3.72.5.24&ISO||119297000^Blood Specimen^SCT|||||||||||||201301160912-0800ORC|NW|ORD231-2^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO|||||||20130115102146-0800|||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
         OBR|2|ORD231-2^NIST EHR^2.16.840.1.113883.3.72.5.24^ISO||21482-5^Protein [Mass/volume] in 24 hour Urine^LN^^^^^^24 hour Urine Protein|||201301151130-0800|201301160912-0800||||||||134569827^Feller^Hans^^^^^^NPI&2.16.840.1.113883.4.6&ISO^L^^^NPI\n
         DG1|1||I10^Essential (primary) hypertension^I10C^^^^^^Hypertension, NOS|||F|||||||||2";
+    const HL7_V2_MSH_ONLY: &str =
+        "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
     const SPANISH_NAME: &str = "Andrés";
     const SANSKRIT_NAME: &str = "आरवा";
     const HIRAGANA_NAME: &str = "ひなた";
@@ -531,6 +533,22 @@ mod tests {
         let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         let component = v2_find_component!(message, pattern).unwrap();
         let expected = "III";
+        assert_eq!(
+            component.as_str(),
+            expected,
+            "Wrong component found! Looked for {} expecting {}, but got {}",
+            pattern,
+            expected,
+            component.as_str()
+        );
+    }
+
+    #[test]
+    fn test_find_hl7_v2_message_msh_field() {
+        let pattern = "MSH1.1";
+        let message = v2_parse_message!(tests::HL7_V2_MSH_ONLY).unwrap();
+        let component = v2_find_component!(message, pattern).unwrap();
+        let expected = "^";
         assert_eq!(
             component.as_str(),
             expected,
