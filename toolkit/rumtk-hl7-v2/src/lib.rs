@@ -548,7 +548,7 @@ mod tests {
         let pattern = "MSH1.1";
         let message = v2_parse_message!(tests::HL7_V2_MSH_ONLY).unwrap();
         let component = v2_find_component!(message, pattern).unwrap();
-        let expected = "^";
+        let expected = "^~\\&";
         assert_eq!(
             component.as_str(),
             expected,

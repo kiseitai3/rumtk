@@ -45,7 +45,6 @@ pub mod v2_parser {
     pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
     };
-    use std::collections::VecDeque;
     use std::ops::{Index, IndexMut};
     /**************************** Globals ***************************************/
 
@@ -260,6 +259,13 @@ pub mod v2_parser {
             }
         }
 
+        pub fn with_raw_str(val: &str) -> V2Field {
+            let mut component_list: ComponentList = vec![V2Component::from_str(val)];
+            V2Field {
+                components: component_list,
+            }
+        }
+
         pub fn len(&self) -> usize {
             self.components.len()
         }
@@ -335,46 +341,24 @@ pub mod v2_parser {
                 ));
             }
 
-            let mut fields: VecDeque<V2FieldGroup> = VecDeque::with_capacity(raw_fields.len());
             let mut field_list = V2FieldList::with_capacity(raw_fields.len() - 1);
+            let field_name = raw_fields[0].to_rumstring().to_uppercase();
 
-            for raw_field in raw_fields {
-                let subfields: Vec<&str> = raw_field
-                    .split(&parser_chars.repetition_separator.as_str())
-                    .collect();
-                let mut field_group = V2FieldGroup::with_capacity(subfields.len());
-                for subfield in raw_field.split(&parser_chars.repetition_separator.as_str()) {
-                    field_group.push(V2Field::from_str(&subfield, &parser_chars))
+            if raw_field_count > 1 {
+                if field_name == "MSH" {
+                    field_list.push(vec![V2Field::with_raw_str(raw_fields[1])])
+                } else {
+                    for i in 2..raw_field_count {
+                        let raw_field = raw_fields[i];
+                        field_list.push(Self::generate_subfields(&raw_field, &parser_chars));
+                    }
                 }
-                fields.push_back(field_group);
             }
 
-            let field_group = match fields.pop_front() {
-                Some(group) => group,
-                None => {
-                    return Err(format_compact!(
-                        "Expected field but got None!\nRaw segment: {}",
-                        &raw_segment
-                    ))
-                }
-            };
-            let field_name = match field_group.get(0) {
-                Some(field) => field.get(1)?.component.to_uppercase(),
-                None => {
-                    return Err(format_compact!(
-                        "Expected at least one field in the group but got None!\nRaw group: {}",
-                        &raw_segment
-                    ))
-                }
-            };
             let field_description = RUMString::from(match V2_SEGMENT_DESC.get(&field_name) {
                 Some(description) => &description,
                 None => V2_EMPTY_STRING,
             });
-
-            for field in fields {
-                field_list.push(field);
-            }
 
             Ok(V2Segment {
                 name: field_name,
@@ -400,7 +384,17 @@ pub mod v2_parser {
         }
 
         pub fn len(&self) -> usize {
-            return self.fields.len();
+            self.fields.len()
+        }
+
+        fn generate_subfields(field: &str, parser_chars: &V2ParserCharacters) -> Vec<V2Field> {
+            let repetition_char = parser_chars.repetition_separator.as_str();
+            let subfields: Vec<&str> = field.split(&repetition_char).collect();
+            let mut field_group = V2FieldGroup::with_capacity(subfields.len());
+            for subfield in subfields {
+                field_group.push(V2Field::from_str(&subfield, &parser_chars))
+            }
+            field_group
         }
     }
 
