@@ -346,7 +346,7 @@ pub mod v2_parser {
 
             if raw_field_count > 1 {
                 if field_name == "MSH" {
-                    field_list.push(vec![V2Field::with_raw_str(raw_fields[1])])
+                    field_list.push(vec![V2Field::with_raw_str(raw_fields[1])]);
                 } else {
                     for i in 2..raw_field_count {
                         let raw_field = raw_fields[i];
@@ -509,8 +509,7 @@ pub mod v2_parser {
         pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
             let index = rumtk_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
             let segment = self.get(&index.segment, index.segment_group as usize)?;
-            println!("{:?}", &segment);
-            let field = match segment.get(index.field as isize)?.get((index.field_group - 1) as usize) {
+            let field = match segment.get((index.field - 1) as isize)?.get((index.field_group - 1) as usize) {
                 Some(field) => field,
                 None => return Err(format_compact!("Subfield provided is not 1 indexed or out of bounds. Did you give us a 0 when you meant 1? Got {}!", index.field_group))
             };
