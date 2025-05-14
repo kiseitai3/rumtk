@@ -96,7 +96,16 @@ communication and automation in medicine.
 
 # Contributing
 
+- [ ] Create an issue ticket if it has not been done.
+- [ ] Fork this repository.
+- [ ] Create your own feature.
+- [ ] Include the ticket number in feature branch name.
+- [ ] Open PR when ready to submit code for review.
+
+If coming from SIIM, welcome!
+Follow the steps above to start contributing.
+
 In its initial stages, I will be pushing code directly to the main branch. Once basic functionality has been stablished,
 everyone including myself is required to open an issue for discussions, fork the project, and open a PR under your own
 feature or main branch. I kindly ask you include a battery of unit tests with your PR to help protect the project
-against regressions. Any contributions are very appreciated.
+against regressions. Any contributions are very appreciated. 
