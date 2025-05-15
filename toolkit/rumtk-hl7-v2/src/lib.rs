@@ -970,12 +970,13 @@ mod tests {
             Ok(mllp_layer) => mllp_layer,
             Err(e) => panic!("{}", e),
         };
+        let (ip, port) = rumtk_v2_mllp_get_ip_port!(&mllp_layer);
         let client_id = rumtk_exec_task!(async || -> RUMResult<RUMString> {
             Ok(mllp_layer.lock().await.get_address_info().await.unwrap())
         });
         assert_eq!(
             client_id,
-            Ok("127.0.0.1:55555".to_rumstring()),
+            Ok(format_compact!("127.0.0.1:{}", &port)),
             "Failed to bind local port!"
         )
     }
