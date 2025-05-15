@@ -41,6 +41,7 @@ pub mod v2_parser {
         V2_SEGMENT_TERMINATOR,
     };
     pub use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
+    use rumtk_core::core::clamp_index;
     use rumtk_core::rumtk_cache_fetch;
     pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
@@ -51,42 +52,6 @@ pub mod v2_parser {
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
 
     /**************************** Helpers ***************************************/
-    ///
-    /// Take a requested index and the maximum size of the item container.
-    /// Return the correct positive index (assumes a 1-indexed value) or the correct index
-    /// equivalent to a negative index.
-    /// Think of this function like the indexing done in Python, which I very much enjoy.
-    ///
-    /// ## For example:
-    /// -   container\[indx\], where indx = 1 => container\[0\]
-    /// -   container\[indx\], where indx = -1 => container\[container.len() - 1\]
-    #[inline(always)]
-    fn clamp_index(given_indx: isize, max_size: usize) -> V2Result<usize> {
-        let max_indx = max_size as isize;
-        let neg_max_indx = max_indx * -1;
-        if given_indx == 0 {
-            return Err(format_compact!(
-                "Index {} is invalid! Use 1-indexed values if using positive indices.",
-                given_indx
-            ));
-        }
-
-        if given_indx >= neg_max_indx && given_indx < 0 {
-            return Ok((max_indx + given_indx) as usize);
-        }
-
-        if given_indx > 0 && given_indx <= max_indx {
-            return Ok((given_indx - 1) as usize);
-        }
-
-        Err(format_compact!(
-            "Index {} is outside {} < x < {} boundary!",
-            given_indx,
-            neg_max_indx,
-            max_indx
-        ))
-    }
-
     fn compile_search_index(search_pattern: &RUMString) -> V2SearchIndex {
         V2SearchIndex::from(search_pattern)
     }
@@ -271,7 +236,7 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, indx: isize) -> V2Result<&V2Component> {
-            let component_indx = clamp_index(indx, self.components.len())?;
+            let component_indx = clamp_index(&indx, &(self.components.len() as isize))? - 1;
             match self.components.get(component_indx) {
                 Some(component) => Ok(component),
                 None => Err(format_compact!("Component at index {} not found!", indx)),
@@ -279,7 +244,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2Component> {
-            let component_indx = clamp_index(indx, self.components.len())?;
+            let component_indx = clamp_index(&indx, &(self.components.len() as isize))?;
             match self.components.get_mut(component_indx) {
                 Some(component) => Ok(component),
                 None => Err(format_compact!("Component at index {} not found!", indx)),
@@ -347,8 +312,12 @@ pub mod v2_parser {
             if raw_field_count > 1 {
                 if field_name == "MSH" {
                     field_list.push(vec![V2Field::with_raw_str(raw_fields[1])]);
-                } else {
                     for i in 2..raw_field_count {
+                        let raw_field = raw_fields[i];
+                        field_list.push(Self::generate_subfields(&raw_field, &parser_chars));
+                    }
+                } else {
+                    for i in 1..raw_field_count {
                         let raw_field = raw_fields[i];
                         field_list.push(Self::generate_subfields(&raw_field, &parser_chars));
                     }
@@ -368,7 +337,7 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, indx: isize) -> V2Result<&V2FieldGroup> {
-            let field_indx = clamp_index(indx, self.fields.len())?;
+            let field_indx = clamp_index(&indx, &(self.fields.len() as isize))? - 1;
             match self.fields.get(field_indx) {
                 Some(field) => Ok(field),
                 None => Err(format_compact!("Field number {} not found!", indx)),
@@ -376,7 +345,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2FieldGroup> {
-            let field_indx = clamp_index(indx, self.fields.len())?;
+            let field_indx = clamp_index(&indx, &(self.fields.len() as isize))?;
             match self.fields.get_mut(field_indx) {
                 Some(field) => Ok(field),
                 None => Err(format_compact!("Field number {} not found!", indx)),
@@ -509,7 +478,7 @@ pub mod v2_parser {
         pub fn find_component(&self, search_pattern: &RUMString) -> V2Result<&V2Component> {
             let index = rumtk_cache_fetch!(&mut search_cache, search_pattern, compile_search_index);
             let segment = self.get(&index.segment, index.segment_group as usize)?;
-            let field = match segment.get((index.field - 1) as isize)?.get((index.field_group - 1) as usize) {
+            let field = match segment.get((index.field) as isize)?.get((index.field_group - 1) as usize) {
                 Some(field) => field,
                 None => return Err(format_compact!("Subfield provided is not 1 indexed or out of bounds. Did you give us a 0 when you meant 1? Got {}!", index.field_group))
             };
