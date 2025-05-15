@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 use crate::strings::RUMString;
+use compact_str::format_compact;
 pub use smallvec::{smallvec, SmallVec};
 
 ///
@@ -35,4 +36,82 @@ pub fn is_unique<T: std::cmp::Eq + std::hash::Hash>(data: &Vec<T>) -> bool {
         }
     }
     true
+}
+
+///
+/// Take a requested index and the maximum size of the item container.
+/// Check if the index is valid and return an error if it is.
+/// The purpose of this function is to enable handling of out of bounds without triggering a panic.
+/// Also, add negative indices like Python does when doing a reverse search!
+///
+/// * If the index is 0, return Error
+/// * If the index is below 0, return the max - index iff max - index > 0
+/// * If the index is bigger than the defined max, return Error.
+/// * Otherwise, return the given index.
+///
+/// # Examples
+///
+/// ## Min
+/// ```
+/// use ::rumtk_core::core::clamp_index;
+/// use ::rumtk_core::strings::format_compact;
+/// let max: isize = 5;
+/// let i: isize = 1;
+/// let result = clamp_index(&i, &max).unwrap();
+/// assert_eq!(&1, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
+/// ```
+///
+/// ## Max
+/// ```
+/// use ::rumtk_core::core::clamp_index;
+/// use ::rumtk_core::strings::format_compact;
+/// let max: isize = 5;
+/// let i: isize = 5;
+/// let result = clamp_index(&i, &max).unwrap();
+/// assert_eq!(&5, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
+/// ```
+///
+/// ## Valid
+/// ```
+/// use ::rumtk_core::core::clamp_index;
+/// use ::rumtk_core::strings::format_compact;
+/// let max: isize = 5;
+/// let i: isize = 5;
+/// let result = clamp_index(&i, &max).unwrap();
+/// assert_eq!(&5, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
+/// ```
+///
+/// ## Valid Negative Index (reverse lookup)
+/// ```
+/// use ::rumtk_core::core::clamp_index;
+/// use ::rumtk_core::strings::format_compact;
+/// let max: isize = 5;
+/// let i: isize = -1;
+/// let result = clamp_index(&i, &max).unwrap();
+/// assert_eq!(&4, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
+/// ```
+#[inline(always)]
+pub fn clamp_index(given_indx: &isize, max_size: &isize) -> RUMResult<usize> {
+    let neg_max_indx = *max_size * -1;
+    if *given_indx == 0 {
+        return Err(format_compact!(
+            "Index {} is invalid! Use 1-indexed values if using positive indices.",
+            given_indx
+        ));
+    }
+
+    if *given_indx >= neg_max_indx && *given_indx < 0 {
+        return Ok((max_size + given_indx) as usize);
+    }
+
+    if *given_indx > 0 && given_indx <= max_size {
+        return Ok(*given_indx as usize);
+    }
+
+    Err(format_compact!(
+        "Index {} is outside {} < x < {} boundary!",
+        given_indx,
+        neg_max_indx,
+        max_size
+    ))
 }
