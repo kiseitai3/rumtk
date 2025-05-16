@@ -116,7 +116,7 @@ pub mod v2_base_types {
                     &msg_key_chars
                 ));
             }
-            if msg_key_chars.len() > 5 {
+            if msg_key_chars.len() > 6 {
                 return Err(format_compact!(
                     "Too many parser characters! Is MSH malformed? => {:?}",
                     &msg_key_chars

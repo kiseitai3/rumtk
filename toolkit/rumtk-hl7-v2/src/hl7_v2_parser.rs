@@ -244,7 +244,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2Component> {
-            let component_indx = clamp_index(&indx, &(self.components.len() as isize))?;
+            let component_indx = clamp_index(&indx, &(self.components.len() as isize))? - 1;
             match self.components.get_mut(component_indx) {
                 Some(component) => Ok(component),
                 None => Err(format_compact!("Component at index {} not found!", indx)),
@@ -345,7 +345,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2FieldGroup> {
-            let field_indx = clamp_index(&indx, &(self.fields.len() as isize))?;
+            let field_indx = clamp_index(&indx, &(self.fields.len() as isize))? - 1;
             match self.fields.get_mut(field_indx) {
                 Some(field) => Ok(field),
                 None => Err(format_compact!("Field number {} not found!", indx)),
