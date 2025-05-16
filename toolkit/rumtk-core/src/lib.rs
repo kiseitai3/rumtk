@@ -319,7 +319,46 @@ mod tests {
         assert_eq!(&result, &expected, "{}", format_compact!("Task processing returned a different result than expected! Expected {:?} \nResults {:?}", &expected, &result));
     }
 
+    #[test]
+    fn test_clamp_index_positive_index() {
+        let values = vec![1, 2, 3, 4];
+        let given_index = 3isize;
+        let max_size = values.len() as isize;
+        let index = clamp_index(&given_index, &max_size).unwrap();
+        assert_eq!(
+            index, 3,
+            "Index mismatch! Requested index {} but got {}",
+            &given_index, &index
+        );
+        assert_eq!(
+            values[index], 4,
+            "Value mismatch! Expected {} but got {}",
+            &values[3], &values[index]
+        );
+    }
+
+    #[test]
+    fn test_clamp_index_reverse_index() {
+        let values = vec![1, 2, 3, 4];
+        let given_index = -1isize;
+        let max_size = values.len() as isize;
+        let index = clamp_index(&given_index, &max_size).unwrap();
+        assert_eq!(
+            index, 4,
+            "Index mismatch! Requested index {} but got {}",
+            &given_index, &index
+        );
+        assert_eq!(
+            values[index - 1],
+            4,
+            "Value mismatch! Expected {} but got {}",
+            &values[3],
+            &values[index]
+        );
+    }
+
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
+    use crate::core::clamp_index;
     use crate::net::tcp::LOCALHOST;
     use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
     use crate::threading::threading_functions::sleep;

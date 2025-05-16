@@ -88,7 +88,7 @@ pub fn is_unique<T: std::cmp::Eq + std::hash::Hash>(data: &Vec<T>) -> bool {
 /// let max: isize = 5;
 /// let i: isize = -1;
 /// let result = clamp_index(&i, &max).unwrap();
-/// assert_eq!(&4, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
+/// assert_eq!(&5, &result, "{}", format_compact!("Expected to receive 0 but got {}", &result))
 /// ```
 #[inline(always)]
 pub fn clamp_index(given_indx: &isize, max_size: &isize) -> RUMResult<usize> {
@@ -101,7 +101,7 @@ pub fn clamp_index(given_indx: &isize, max_size: &isize) -> RUMResult<usize> {
     }
 
     if *given_indx >= neg_max_indx && *given_indx < 0 {
-        return Ok((max_size + given_indx) as usize);
+        return Ok((max_size + given_indx + 1) as usize);
     }
 
     if *given_indx > 0 && given_indx <= max_size {
