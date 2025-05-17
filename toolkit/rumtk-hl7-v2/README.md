@@ -25,6 +25,7 @@ communication and automation in medicine.
         - [x] HL7 v2 Repeating Field Support
         - [x] HL7 v2 UTF-8/Unicode Support
         - [x] HL7 v2 Encodings to UTF-8 Conversion
+        - [x] Hl7 v2 Message to JSON Serialization Support
         - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
         - [x] HL7 v2 Primitive Types
         - [ ] HL7 v2 Component Optionality

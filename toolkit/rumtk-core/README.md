@@ -25,6 +25,7 @@ communication and automation in medicine.
     - [x] RegEx Support
     - [x] Memory Cache Support
     - [x] Network Core library
+    - [x] JSON Serialization Support
     - [ ] Cryptologic Adapters
     - [ ] Commandline Standard Argument Interface
     - [ ] Enable STDIN|Pipe Functionality

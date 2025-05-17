@@ -33,6 +33,7 @@ communication and automation in medicine.
     - [x] RegEx Support
     - [x] Memory Cache Support
     - [x] Network Core library
+    - [x] JSON Serialization Support
     - [ ] Cryptologic Adapters
     - [ ] Commandline Standard Argument Interface
     - [ ] Enable STDIN|Pipe Functionality
@@ -49,6 +50,7 @@ communication and automation in medicine.
         - [x] HL7 v2 Repeating Field Support
         - [x] HL7 v2 UTF-8/Unicode Support
         - [x] HL7 v2 Encodings to UTF-8 Conversion
+        - [x] Hl7 v2 Message to JSON Serialization Support
         - [x] HL7 v2 Component Searching (\<segment\>(\<subgroup\>)\<field\>\[sub_field\].\<component\>)
         - [x] HL7 v2 Primitive Types
         - [ ] HL7 v2 Component Optionality
@@ -101,7 +103,8 @@ communication and automation in medicine.
 - [ ] Create your own feature.
 - [ ] Include the ticket number in feature branch name.
 - [ ] Open PR when ready to submit code for review.
-- [ ] Include an appropriate set of tests to help protect against regressions. I don't require full TDD, but some basic testing is useful. Some of those tests should be doctests if applicable (introducing new APIs).
+- [ ] Include an appropriate set of tests to help protect against regressions. I don't require full TDD, but some basic
+  testing is useful. Some of those tests should be doctests if applicable (introducing new APIs).
 
 If coming from SIIM, welcome!
 Follow the steps above to start contributing.
