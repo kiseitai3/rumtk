@@ -25,6 +25,7 @@
 
 pub mod cache;
 pub mod core;
+pub mod json;
 pub mod log;
 pub mod maths;
 pub mod net;
@@ -40,6 +41,7 @@ mod tests {
     use crate::search::rumtk_search::*;
     use crate::strings::{RUMArrayConversions, RUMString, RUMStringConversions, StringUtils};
     use compact_str::{format_compact, CompactString};
+    use serde::Deserialize;
     use std::future::IntoFuture;
     use std::sync::Arc;
     use tokio::sync::RwLock;
@@ -359,6 +361,7 @@ mod tests {
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
     use crate::core::clamp_index;
+    use crate::json::serialization::Serialize;
     use crate::net::tcp::LOCALHOST;
     use crate::threading::thread_primitives::{SafeTaskArgs, TaskItems, TaskResult};
     use crate::threading::threading_functions::sleep;
@@ -577,11 +580,11 @@ mod tests {
         };
         rumtk_sleep!(1);
         let clients = server.get_client_ids();
-        let incoming_client_id = clients.get(0).expect("Expected client to have connected!");
-        let mut received_message = server.receive(&incoming_client_id).unwrap();
+        let incoming_client_id = clients.first().expect("Expected client to have connected!");
+        let mut received_message = server.receive(incoming_client_id).unwrap();
         if received_message.is_empty() {
             rumtk_sleep!(1);
-            received_message = server.receive(&incoming_client_id).unwrap();
+            received_message = server.receive(incoming_client_id).unwrap();
         }
         assert_eq!(
             &msg.to_raw(),
@@ -591,6 +594,45 @@ mod tests {
                 "Received message does not match sent message by client {:?}",
                 &received_message
             )
+        );
+    }
+
+    ////////////////////////////JSON Tests/////////////////////////////////
+
+    #[test]
+    fn test_serialize_json() {
+        #[derive(Serialize)]
+        struct MyStruct {
+            hello: RUMString,
+        }
+
+        let hw = MyStruct {
+            hello: RUMString::from("World"),
+        };
+        let hw_str = rumtk_serialize!(&hw, true).unwrap();
+
+        assert!(
+            !hw_str.is_empty(),
+            "Empty JSON string generated from the test struct!"
+        );
+    }
+
+    #[test]
+    fn test_deserialize_json() {
+        #[derive(Serialize, Deserialize, PartialEq)]
+        struct MyStruct {
+            hello: RUMString,
+        }
+
+        let hw = MyStruct {
+            hello: RUMString::from("World"),
+        };
+        let hw_str = rumtk_serialize!(&hw, true).unwrap();
+        let new_hw: MyStruct = rumtk_deserialize!(&hw_str).unwrap();
+
+        assert!(
+            new_hw == hw,
+            "Deserialized JSON does not match the expected value!"
         );
     }
 
