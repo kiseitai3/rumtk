@@ -42,6 +42,7 @@ pub mod v2_parser {
     };
     pub use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
     use rumtk_core::core::clamp_index;
+    use rumtk_core::json::serialization::{Deserialize, Serialize};
     use rumtk_core::rumtk_cache_fetch;
     pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
@@ -398,7 +399,7 @@ pub mod v2_parser {
     ///
     pub type SegmentMap = AHashMap<u8, V2SegmentGroup>;
 
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct V2Message {
         separators: V2ParserCharacters,
         segment_groups: SegmentMap,
@@ -609,14 +610,14 @@ pub mod v2_parser_interface {
     /// ## Example
     ///
     /// ```
-    ///     use rumtk_hl7_v2::{v2_parse_message};
+    ///     use rumtk_hl7_v2::{rumtk_v2_parse_message};
     ///     let pattern = "MSH1.1";
     ///     let hl7_v2_message = "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
-    ///     let message = v2_parse_message!(&hl7_v2_message).unwrap();
+    ///     let message = rumtk_v2_parse_message!(&hl7_v2_message).unwrap();
     /// ```
     ///
     #[macro_export]
-    macro_rules! v2_parse_message {
+    macro_rules! rumtk_v2_parse_message {
         ( $msg:expr ) => {{
             use $crate::hl7_v2_parser::v2_parser::{
                 RUMString, RUMStringConversions, V2Message, V2Result,
@@ -642,15 +643,15 @@ pub mod v2_parser_interface {
     /// ## Example
     ///
     /// ```
-    ///     use rumtk_hl7_v2::{v2_parse_message, v2_find_component};
+    ///     use rumtk_hl7_v2::{rumtk_v2_parse_message, rumtk_v2_find_component};
     ///     let pattern = "MSH1.1";
     ///     let hl7_v2_message = "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
-    ///     let message = v2_parse_message!(&hl7_v2_message).unwrap();
-    ///     let component = v2_find_component!(message, pattern).unwrap();
+    ///     let message = rumtk_v2_parse_message!(&hl7_v2_message).unwrap();
+    ///     let component = rumtk_v2_find_component!(message, pattern).unwrap();
     /// ```
     ///
     #[macro_export]
-    macro_rules! v2_find_component {
+    macro_rules! rumtk_v2_find_component {
         ( $v2_msg:expr, $v2_search_pattern:expr ) => {{
             use rumtk_core::strings::RUMString;
             use $crate::hl7_v2_parser::v2_parser::{V2Component, V2Result};
@@ -659,7 +660,7 @@ pub mod v2_parser_interface {
     }
 
     #[macro_export]
-    macro_rules! v2_generate_message {
+    macro_rules! rumtk_v2_generate_message {
         ( $v2_msg:expr ) => {{}};
     }
 }

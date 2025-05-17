@@ -466,7 +466,7 @@ pub mod mllp_v2 {
     /// This is the struct that defines the MLLP.
     /// It handles proper sanitization and encoding/decoding of HL7 flat messages.
     /// It does not handle parsing of messages.
-    /// Parsing is left to [v2_parser_interface::v2_parse_message]. This struct only deals with
+    /// Parsing is left to [v2_parser_interface::rumtk_v2_parse_message]. This struct only deals with
     /// the low level encoding.
     ///
     pub struct AsyncMLLP {

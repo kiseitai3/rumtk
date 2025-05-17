@@ -51,14 +51,16 @@ mod tests {
     use crate::{
         rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port,
         rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen, rumtk_v2_mllp_send, tests,
-        v2_find_component, v2_parse_message,
+        rumtk_v2_find_component, rumtk_v2_parse_message,
     };
     use rumtk_core::core::RUMResult;
     use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
     use rumtk_core::strings::{
         format_compact, AsStr, RUMArrayConversions, RUMString, RUMStringConversions, StringUtils,
     };
-    use rumtk_core::{rumtk_create_task, rumtk_exec_task, rumtk_init_threads, rumtk_sleep};
+    use rumtk_core::{
+        rumtk_create_task, rumtk_exec_task, rumtk_init_threads, rumtk_sleep,
+    };
     use std::thread::spawn;
     /**********************************Constants**************************************/
     const DEFAULT_HL7_V2_MESSAGE: &str =
@@ -472,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_load_hl7_v2_message_macro() {
-        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
         assert!(
             message.segment_exists(&V2_SEGMENT_IDS["MSH"]),
             "Missing MSH segment!"
@@ -502,7 +504,7 @@ mod tests {
             "Parsing did not fail as expected. Input {} => parsed?",
             input
         );
-        match v2_parse_message!(input) {
+        match rumtk_v2_parse_message!(input) {
             Ok(v) => panic!("{}", err_msg.as_str()),
             Err(e) => {
                 println!("{}", format_compact!("Got error => {}", e).as_str());
@@ -514,8 +516,8 @@ mod tests {
     #[test]
     fn test_find_hl7_v2_message_component_macro() {
         let pattern = "PID(1)5.4";
-        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        let component = v2_find_component!(message, pattern).unwrap();
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let component = rumtk_v2_find_component!(message, pattern).unwrap();
         let expected = "III";
         assert_eq!(
             component.as_str(),
@@ -530,8 +532,8 @@ mod tests {
     #[test]
     fn test_find_hl7_v2_message_component_simple_macro() {
         let pattern = "PID5.4";
-        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        let component = v2_find_component!(message, pattern).unwrap();
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let component = rumtk_v2_find_component!(message, pattern).unwrap();
         let expected = "III";
         assert_eq!(
             component.as_str(),
@@ -546,8 +548,8 @@ mod tests {
     #[test]
     fn test_find_hl7_v2_message_msh_field() {
         let pattern = "MSH1.1";
-        let message = v2_parse_message!(tests::HL7_V2_MSH_ONLY).unwrap();
-        let component = v2_find_component!(message, pattern).unwrap();
+        let message = rumtk_v2_parse_message!(tests::HL7_V2_MSH_ONLY).unwrap();
+        let component = rumtk_v2_find_component!(message, pattern).unwrap();
         let expected = "^~\\&";
         assert_eq!(
             component.as_str(),
@@ -566,8 +568,8 @@ mod tests {
             "Search did not fail as expected. Input {} => found component?",
             pattern
         );
-        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        match v2_find_component!(message, pattern) {
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        match rumtk_v2_find_component!(message, pattern) {
             Ok(v) => panic!("{}", err_msg.as_str()),
             Err(e) => {
                 println!("{}", format_compact!("Got error => {}", e).as_str());
@@ -636,8 +638,8 @@ mod tests {
     fn test_cast_component_to_datetime_base_example() {
         let location = "EVN2"; //EVN|A01|200708181123||\n\r; EVN2 => segment = EVN, field = 2
         let expected_component = "200708181123";
-        let message = v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
-        let component = v2_find_component!(message, location).unwrap();
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let component = rumtk_v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
         let date = component.to_v2datetime().unwrap();
         let expected_utc = "2007-08-18T11:23:00.0000";
@@ -699,8 +701,8 @@ mod tests {
     fn test_cast_component_to_date_base_example() {
         let location = "PD113"; //EVN|A01|200708181123||\n\r; PD113 => segment = PD1, field = 13
         let expected_component = "20150625";
-        let message = v2_parse_message!(tests::VXU_HL7_V2_MESSAGE).unwrap();
-        let component = v2_find_component!(message, location).unwrap();
+        let message = rumtk_v2_parse_message!(tests::VXU_HL7_V2_MESSAGE).unwrap();
+        let component = rumtk_v2_find_component!(message, location).unwrap();
         assert_eq!(expected_component, component.as_str(), "We are not using the correct component for this test. Check that the original test message has not changed and update the location string appropriately!");
         let date = component.to_v2date().unwrap();
         let expected_utc = "2015-06-25T00:00:00.0000";
@@ -1182,12 +1184,19 @@ mod tests {
         )
     }
 
+    ////////////////////////////JSON Tests/////////////////////////////////
+
+    #[test]
+    fn test_deserialize_v2_message() {
+        let message =
+    }
+
     ////////////////////////////Fuzzed Tests/////////////////////////////////
 
     #[test]
     fn test_fuzzed_garbage_parsing() {
         let input = "MSH@~��MS";
-        match v2_parse_message!(&input) {
+        match rumtk_v2_parse_message!(&input) {
             Err(e) => println!("Correctly identified input as garbage! => {}", &e),
             Ok(message) => {
                 println!("Test input [{}] Result => {:?}", &input, message);
