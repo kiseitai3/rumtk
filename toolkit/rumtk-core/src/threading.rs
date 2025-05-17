@@ -392,7 +392,8 @@ pub mod threading_macros {
     ///         let mut result = Vec::<i32>::new();
     ///         Ok(result)
     ///     });
-    ///     assert_eq!(&result.clone().unwrap(), &vec![], "Results mismatch");
+    ///     let empty = Vec::<i32>::new();
+    ///     assert_eq!(&result.clone().unwrap(), &empty, "Results mismatch");
     ///     assert_ne!(&result.clone().unwrap(), &vec![5, 10], "Results do not mismatch as expected!");
     /// ```
     ///
