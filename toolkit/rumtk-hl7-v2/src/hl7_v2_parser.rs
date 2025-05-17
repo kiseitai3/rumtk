@@ -87,7 +87,7 @@ pub mod v2_parser {
     /// a field for other purposes is prohibited.
     /// ```
     ///
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
     pub struct V2Component {
         component: V2String,
     }
@@ -201,7 +201,7 @@ pub mod v2_parser {
     /// comprehensive data dictionary of all HL7 fields is provided in Appendix A.
     ///```
     ///
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
     pub struct V2Field {
         components: ComponentList,
     }
@@ -285,7 +285,7 @@ pub mod v2_parser {
     /// Event Type (EVN), Patient ID (PID), and Patient Visit (PV1).
     /// ```
     ///
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
     pub struct V2Segment {
         name: RUMString,
         description: RUMString,
@@ -399,7 +399,7 @@ pub mod v2_parser {
     ///
     pub type SegmentMap = AHashMap<u8, V2SegmentGroup>;
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
     pub struct V2Message {
         separators: V2ParserCharacters,
         segment_groups: SegmentMap,

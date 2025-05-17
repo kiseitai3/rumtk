@@ -26,6 +26,12 @@ pub mod serialization {
     /// Serialization macro which will take an object instance decorated with [Serialize] trait
     /// from serde and return the JSON string representation.
     ///
+    /// You can pass up to two parameters. The first parameter is the serializable object instance.
+    /// The second parameter is a boolean indicating whether to pretty print. Omit the second
+    /// parameter if not debugging to save on bytes transferred around.
+    ///
+    /// # Examples
+    /// ## Pretty Print
     /// ```
     /// pub use crate::rumtk_core::json::serialization::{Serialize};
     /// use crate::rumtk_core::strings::RUMString;
@@ -42,6 +48,25 @@ pub mod serialization {
     /// assert!(hw_str.len() > 0, "Empty JSON string generated from the test struct!");
     ///
     /// ```
+    ///
+    /// ## Default
+    /// ```
+    /// pub use crate::rumtk_core::json::serialization::{Serialize};
+    /// use crate::rumtk_core::strings::RUMString;
+    /// use crate::rumtk_core::rumtk_serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct MyStruct {
+    ///     hello: RUMString
+    /// }
+    ///
+    /// let hw = MyStruct{hello: RUMString::from("World")};
+    /// let hw_str = rumtk_serialize!(&hw).unwrap();
+    ///
+    /// assert!(hw_str.len() > 0, "Empty JSON string generated from the test struct!");
+    ///
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_serialize {
         ( $object:expr ) => {{
@@ -57,6 +82,36 @@ pub mod serialization {
         }};
     }
 
+    ///
+    /// Deserialization macro which will take a JSON string representation and return an instance
+    /// of the specified type.
+    ///
+    /// Pass the json string to deserialize. You will need to specify the expected type that will
+    /// be generated.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// pub use crate::rumtk_core::json::serialization::{Serialize, Deserialize};
+    /// use crate::rumtk_core::strings::RUMString;
+    /// use crate::rumtk_core::{rumtk_serialize, rumtk_deserialize};
+    ///
+    /// #[derive(Serialize, Deserialize, PartialEq)]
+    /// struct MyStruct {
+    ///     hello: RUMString
+    /// }
+    ///
+    /// let hw = MyStruct{hello: RUMString::from("World")};
+    /// let hw_str = rumtk_serialize!(&hw, true).unwrap();
+    /// let new_hw: MyStruct = rumtk_deserialize!(&hw_str).unwrap();
+    ///
+    /// assert!(
+    ///    new_hw == hw,
+    ///    "Deserialized JSON does not match the expected value!"
+    /// );
+    ///
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_deserialize {
         ( $string:expr ) => {{

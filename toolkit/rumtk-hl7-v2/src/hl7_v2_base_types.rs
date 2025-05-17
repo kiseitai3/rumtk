@@ -26,6 +26,7 @@ pub mod v2_base_types {
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use chrono::prelude::*;
     use rumtk_core::core::{is_unique, RUMResult};
+    use rumtk_core::json::serialization::{Deserialize, Serialize};
     use rumtk_core::maths::generate_tenth_factor;
     use rumtk_core::search::rumtk_search::{
         string_search, string_search_named_captures, SearchGroups,
@@ -33,7 +34,6 @@ pub mod v2_base_types {
     use rumtk_core::strings::{format_compact, StringUtils, ToCompactString};
     use rumtk_core::strings::{RUMString, RUMStringConversions, UTFStringExtensions};
     use std::fmt::Debug;
-
     /**************************** Constants**************************************/
     // Regex
     const REGEX_DT_TIMEZONE: &str = r"(\-|\+)\d{4}";
@@ -48,7 +48,7 @@ pub mod v2_base_types {
     /// Basic type used to derive other types for the standard implementation.
     ///
     pub type V2String = RUMString;
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
     pub struct V2ParserCharacters {
         pub segment_terminator: RUMString,
         pub field_separator: RUMString,

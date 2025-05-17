@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #![feature(inherent_associated_types)]
+#![feature(rustc_private)]
 
 extern crate rumtk_core;
 pub mod hl7_v2_base_types;
@@ -49,9 +50,9 @@ mod tests {
     use crate::hl7_v2_parser::v2_parser::{V2Field, V2Message};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use crate::{
-        rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port,
-        rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen, rumtk_v2_mllp_send, tests,
-        rumtk_v2_find_component, rumtk_v2_parse_message,
+        rumtk_v2_find_component, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids,
+        rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen,
+        rumtk_v2_mllp_send, rumtk_v2_parse_message, tests,
     };
     use rumtk_core::core::RUMResult;
     use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
@@ -59,7 +60,8 @@ mod tests {
         format_compact, AsStr, RUMArrayConversions, RUMString, RUMStringConversions, StringUtils,
     };
     use rumtk_core::{
-        rumtk_create_task, rumtk_exec_task, rumtk_init_threads, rumtk_sleep,
+        rumtk_create_task, rumtk_deserialize, rumtk_exec_task, rumtk_init_threads, rumtk_serialize,
+        rumtk_sleep,
     };
     use std::thread::spawn;
     /**********************************Constants**************************************/
@@ -1188,7 +1190,14 @@ mod tests {
 
     #[test]
     fn test_deserialize_v2_message() {
-        let message =
+        let message = rumtk_v2_parse_message!(tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let message_str = rumtk_serialize!(&message, true).unwrap();
+        let deserialized: V2Message = rumtk_deserialize!(&message_str).unwrap();
+
+        assert_eq!(
+            message, deserialized,
+            "Deserialized JSON does not match the expected value!"
+        );
     }
 
     ////////////////////////////Fuzzed Tests/////////////////////////////////
