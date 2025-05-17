@@ -21,4 +21,4 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 #rumtk-core = { path = "../rumtk-core" }
 tokio = { version = "1.45.0", features = ["full"] }
-rumtk-core = "0.4.3"
+rumtk-core = "0.5.0"
