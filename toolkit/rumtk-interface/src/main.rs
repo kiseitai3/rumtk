@@ -18,8 +18,9 @@
  */
 
 use clap::Parser;
-use rumtk_core::rumtk_serialize;
+use rumtk_core::core::RUMResult;
 use rumtk_core::strings::RUMString;
+use rumtk_core::{rumtk_deserialize, rumtk_read_stdin, rumtk_serialize, rumtk_write_stdout};
 use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{
     AsyncMLLPChannel, SafeAsyncMLLP, SafeMLLPChannel, MLLP_FILTER_POLICY,
 };
@@ -53,7 +54,7 @@ pub struct RUMTKInterfaceArgs {
     /// In inbound mode, you can omit either or both parameters.
     ///
     #[arg(short, long)]
-    port: Option<NonZeroU16>,
+    port: Option<u16>,
     ///
     /// Filter mode under which the interface will operate. Meaning, if an input has unescaped
     /// characters that should have been escaped per the standard, what should the interface do
@@ -67,7 +68,7 @@ pub struct RUMTKInterfaceArgs {
     #[arg(short, long, default_value_t = "escape", options = )]
     filter_policy: RUMString,
     ///
-    /// For process crate only. Specifies command line script to execute on message.
+    /// Specifies command line script to execute on message.
     ///
     #[arg(short, long, default_value_t = 1)]
     threads: usize,
@@ -80,14 +81,28 @@ pub struct RUMTKInterfaceArgs {
     ///
     #[arg(short, long)]
     outbound: bool,
+    ///
+    /// Is the interface meant to be bound to the loopback address and remain hidden from the
+    /// outside world.
+    ///
+    /// If a NIC IP is defined via `--ip`, that value will override this flag.
+    ///
+    #[arg(short, long, default_value_t = 1)]
+    local: bool,
 }
 
 fn outbound_loop(channel: &SafeMLLPChannel) {
     loop {
-        let msg = V2Message::from_str("");
-        let raw_message = rumtk_v2_generate_message!(&msg);
-        let mut owned_channel = channel.lock().expect("Failed to lock channel");
-        owned_channel.send_message(&raw_message).unwrap();
+        let stdin_msg = match rumtk_read_stdin!() {
+            Ok(msg) => msg,
+            Err(e) => continue, // TODO: missing log call
+        };
+        if !stdin_msg.is_empty() {
+            let msg: V2Message = rumtk_deserialize!(&stdin_msg);
+            let raw_message = rumtk_v2_generate_message!(&msg);
+            let mut owned_channel = channel.lock().expect("Failed to lock channel");
+            owned_channel.send_message(&raw_message).unwrap();
+        }
     }
 }
 
@@ -100,7 +115,11 @@ fn inbound_loop(listener: &SafeAsyncMLLP) {
                 Err(e) => continue, // TODO: missing log call.
             };
             let msg = V2Message::from_str(&raw_msg);
-            println!("{}", rumtk_serialize!(&msg)); // TODO: use rumtk_write_stdout instead to ensure the output is properly escaped.
+            let serialized_message = match rumtk_serialize!(&msg) {
+                Ok(msg) => msg,
+                Err(e) => continue, // TODO: missing log call
+            };
+            rumtk_write_stdout!(&serialized_message);
         }
     }
 }
@@ -118,16 +137,32 @@ fn main() {
     if args.outbound {
         let ip = args.ip.expect("Must provide an IP address");
         let port = args.port.expect("Must provide a port number");
-        let client = rumtk_v2_mllp_connect!(&ip, port.get(), mllp_filter_policy)
-            .expect("MLLP connection failed");
+        let client =
+            rumtk_v2_mllp_connect!(&ip, port, mllp_filter_policy).expect("MLLP connection failed");
         let channel = rumtk_v2_mllp_iter_channels!(&client)
             .get(0)
             .expect("MLLP connection failed");
         outbound_loop(&channel);
     } else {
+        // Build listener
+        let mut listener: RUMResult<SafeAsyncMLLP> = Err(RUMString::new(""));
         if args.ip.is_none() && args.port.is_none() {
-            let listener = rumtk_v2_mllp_listen!(mllp_filter_policy, false);
+            listener = rumtk_v2_mllp_listen!(mllp_filter_policy, args.local);
         } else if args.ip.is_none() && !args.port.is_none() {
+            listener = rumtk_v2_mllp_listen!(args.port.unwrap(), mllp_filter_policy, args.local);
+        } else if !args.ip.is_none() && !args.port.is_none() {
+            listener = rumtk_v2_mllp_listen!(
+                &args.ip.unwrap(),
+                args.port.unwrap(),
+                mllp_filter_policy,
+                args.local
+            );
+        } else {
+            listener = rumtk_v2_mllp_listen!(mllp_filter_policy, args.local);
         }
+        // Run inbound logic
+        inbound_loop(
+            &listener.expect("MLLP listening connection failed to bind a network interface!"),
+        );
     }
 }
