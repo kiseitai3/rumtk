@@ -1,6 +1,6 @@
-# rumtk-interface
+# rumtk-v2-interface
 
-[![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-interface)](LICENSE-GPL3) [![Crates.io](https://img.shields.io/crates/v/rumtk-interface)](https://crates.io/crates/rumtk-interface) [![Released API docs](https://docs.rs/rumtk-interface/badge.svg)](https://docs.rs/rumtk-interface) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
+[![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-v2-interface)](LICENSE-GPL3) [![Crates.io](https://img.shields.io/crates/v/rumtk-v2-interface)](https://crates.io/crates/rumtk-v2-interface) [![Released API docs](https://docs.rs/rumtk-v2-interface/badge.svg)](https://docs.rs/rumtk-v2-interface) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
 
 Using RUMTK, this is a utility that implements the steps for receiving and sending HL7 v2 messages. This utility does
 not cast the incoming message to the data types defined by the HL7 specification nor does it apply the validation rules

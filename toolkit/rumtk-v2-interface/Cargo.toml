@@ -1,11 +1,11 @@
 [package]
-name = "rumtk-interface"
+name = "rumtk-v2-interface"
 description = "HL7 V2 Interface utility based on the RUMTK framework."
 version = "0.1.0"
 readme = "README.md"
 license = "GPL-3"
-homepage = "https://github.com/kiseitai3/rumtk/tree/main/toolkit/rumtk-interface"
-documentation = "https://docs.rs/rumtk-interface"
+homepage = "https://github.com/kiseitai3/rumtk/tree/main/toolkit/rumtk-v2-interface"
+documentation = "https://docs.rs/rumtk-v2-interface"
 repository = "https://github.com/kiseitai3/rumtk"
 keywords = ["rumtk", "healthcare", "hl7", "v2", "interface"]
 categories = ["parsing", "science", "parser-implementations"]
