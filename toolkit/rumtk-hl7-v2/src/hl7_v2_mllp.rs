@@ -853,6 +853,8 @@ pub mod mllp_v2_api {
     /// [MLLP_FILTER_POLICY]
     ///
     /// # Example Usage
+    ///
+    /// ## With Port only
     /// ```
     ///     use rumtk_core::{rumtk_sleep};
     ///     use rumtk_core::strings::format_compact;
@@ -862,6 +864,24 @@ pub mod mllp_v2_api {
     ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     println!("IP & Port => {}:{}", &ip, &port);
     ///     let safe_client = rumtk_v2_mllp_connect!(port, MLLP_FILTER_POLICY::NONE).unwrap();
+    ///     rumtk_sleep!(1);
+    ///     let (client_ip, client_port) = rumtk_v2_mllp_get_ip_port!(&safe_client);
+    ///     let expected_client_id = format_compact!("{}:{}", &client_ip, &client_port);
+    ///     let client_ids = rumtk_v2_mllp_get_client_ids!(&safe_listener);
+    ///     let client_id = client_ids.get(0).unwrap();
+    ///     assert_eq!(expected_client_id, client_id, "Client ID does not match the expected ID! Got {} | Expected {}", &client_id, &expected_client_id);
+    /// ```
+    ///
+    /// ## With IP + Port
+    /// ```
+    ///     use rumtk_core::{rumtk_sleep};
+    ///     use rumtk_core::strings::format_compact;
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_connect, rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_get_client_ids};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     println!("IP & Port => {}:{}", &ip, &port);
+    ///     let safe_client = rumtk_v2_mllp_connect!("127.0.0.1", port, MLLP_FILTER_POLICY::NONE).unwrap();
     ///     rumtk_sleep!(1);
     ///     let (client_ip, client_port) = rumtk_v2_mllp_get_ip_port!(&safe_client);
     ///     let expected_client_id = format_compact!("{}:{}", &client_ip, &client_port);
@@ -887,7 +907,7 @@ pub mod mllp_v2_api {
             use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
             use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
             let rt = rumtk_init_threads!();
-            match rumtk_resolve_task!(&rt, AsyncMLLP::new($port, $policy, false)) {
+            match rumtk_resolve_task!(&rt, AsyncMLLP::new($ip, $port, $policy, false)) {
                 Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                 Err(e) => Err(e),
             }
@@ -906,12 +926,31 @@ pub mod mllp_v2_api {
     /// If you want to specify a port, then the signature is `port`, [MLLP_FILTER_POLICY], `local`
     ///
     /// # Example Usage
+    /// ## Local Instance
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
     ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, true).unwrap();
     ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
     ///     assert!( port > 0, "Port is 0. Expected a non zero port => {}:{}", &ip, &port)
+    /// ```
+    ///
+    /// ## Open to Network
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(MLLP_FILTER_POLICY::NONE, false).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     assert!( port > 0, "Port is 0. Expected a non zero port => {}:{}", &ip, &port)
+    /// ```
+    ///
+    /// ## Open to Network + Port Specified
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!(55555, MLLP_FILTER_POLICY::NONE, false).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     assert_eq!(port, 55555,"Port requested is 55555. Got => {}:{}", &ip, &port)
     /// ```
     ///
     #[macro_export]
