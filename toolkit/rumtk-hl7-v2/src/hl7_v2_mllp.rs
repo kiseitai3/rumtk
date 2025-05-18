@@ -524,8 +524,6 @@ pub mod mllp_v2 {
         }
 
         ///
-        /// # Intro
-        ///
         /// Attempts to send a message and then waits for a response.
         /// This method returns successfully if neither the response is a [NACK] nor the timeout
         /// [TIMEOUT_SOURCE] is reached.
@@ -598,8 +596,6 @@ pub mod mllp_v2 {
                 .await?)
         }
 
-        ///
-        /// # Intro
         ///
         /// Attempts to receive a message.
         /// If we receive nothing within [TIMEOUT_DESTINATION] duration, we exit with a timeout error.
@@ -707,10 +703,6 @@ pub mod mllp_v2 {
     pub type GuardedMLLPLayer<'a> = AsyncMutexGuard<'a, AsyncMLLP>;
 
     ///
-    /// # Minimal Lower Layer Protocol
-    ///
-    /// ## Intro
-    ///
     /// Using the [AsyncMLLP] layer and the [LowerLayer] as the lowest layer, create the concept of a
     /// bidirectional channel such that an application can talk to another.
     ///
@@ -750,10 +742,6 @@ pub mod mllp_v2 {
     pub type SafeAsyncMLLPChannel = Arc<AsyncMutex<AsyncMLLPChannel>>;
     pub type AsyncMLLPChannels = Vec<SafeAsyncMLLPChannel>;
 
-    ///
-    /// # Minimal Lower Layer Protocol
-    ///
-    /// ## Intro
     ///
     /// Using the [AsyncMLLP] layer and the [LowerLayer] as the lowest layer, create the concept of a
     /// bidirectional channel such that an application can talk to another.
@@ -842,8 +830,6 @@ pub mod mllp_v2 {
 ///
 pub mod mllp_v2_api {
     ///
-    /// # Intro
-    ///
     /// Attempt to connect to an MLLP server.
     /// Returns [SafeAsyncMLLP].
     ///
@@ -914,8 +900,6 @@ pub mod mllp_v2_api {
         }};
     }
 
-    ///
-    /// # Intro
     ///
     /// Create a server listener for MLLP communications.
     /// Returns [SafeAsyncMLLP].
@@ -1019,8 +1003,6 @@ pub mod mllp_v2_api {
     }
 
     ///
-    /// # Intro
-    ///
     /// Create vector iterable using the shared [MLLP] instance to obtain a single
     /// [SafeAsyncMLLPChannel] to the endpoint listening interface. In other words, this macro creates
     /// a thread safe instance of [SafeAsyncMLLPChannel] from the client to the server. The channel
@@ -1051,8 +1033,6 @@ pub mod mllp_v2_api {
         }};
     }
 
-    ///
-    /// # Intro
     ///
     /// Create vector iterable using the shared [SafeAsyncMLLP] instance to obtain channels to clients.
     /// This macro creates thread safe instances of [SafeAsyncMLLPChannels]. These are channels from
@@ -1093,8 +1073,6 @@ pub mod mllp_v2_api {
         }};
     }
 
-    ///
-    /// # Intro
     ///
     /// Convenience macro for generating [MLLPChannels] that you can use to communicate with the
     /// peer endpoint(s).
@@ -1206,8 +1184,6 @@ pub mod mllp_v2_api {
     }
 
     ///
-    /// # Intro
-    ///
     /// Convenience macro for querying if an [AsyncMLLP] instance is a server instance or a client
     /// instance.
     ///
@@ -1244,8 +1220,6 @@ pub mod mllp_v2_api {
         }};
     }
 
-    ///
-    /// # Intro
     ///
     /// Convenience macro for receiving a message via an [AsyncMLLP] instance.
     /// This macro, like the underlying function it calls, retrieves an optional which may be None
@@ -1286,8 +1260,6 @@ pub mod mllp_v2_api {
         }};
     }
 
-    ///
-    /// # Intro
     ///
     /// Convenience macro for sending a message via an [AsyncMLLP] instance.
     ///

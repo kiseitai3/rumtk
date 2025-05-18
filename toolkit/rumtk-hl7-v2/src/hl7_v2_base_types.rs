@@ -59,6 +59,12 @@ pub mod v2_base_types {
         pub truncation_character: RUMString,
     }
 
+    impl Default for V2ParserCharacters {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl V2ParserCharacters {
         pub fn new() -> V2ParserCharacters {
             V2ParserCharacters {

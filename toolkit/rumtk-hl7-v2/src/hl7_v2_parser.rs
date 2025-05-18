@@ -44,6 +44,7 @@ pub mod v2_parser {
     use rumtk_core::core::clamp_index;
     use rumtk_core::json::serialization::{Deserialize, Serialize};
     use rumtk_core::rumtk_cache_fetch;
+    use rumtk_core::strings::CompactStringExt;
     pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
     };
@@ -150,6 +151,10 @@ pub mod v2_parser {
             }
         }
 
+        pub fn to_string(&self) -> V2String {
+            self.component.clone()
+        }
+
         pub fn is_empty(&self) -> bool {
             self.component == ""
         }
@@ -223,6 +228,14 @@ pub mod v2_parser {
             V2Field {
                 components: component_list,
             }
+        }
+
+        pub fn to_string(&self, parser_chars: &V2ParserCharacters) -> V2String {
+            let mut components: Vec<&str> = Vec::with_capacity(self.components.len());
+            for component in self.components.iter() {
+                components.push(component.as_str())
+            }
+            components.join_compact(parser_chars.component_separator.as_str())
         }
 
         pub fn with_raw_str(val: &str) -> V2Field {
@@ -337,6 +350,23 @@ pub mod v2_parser {
             })
         }
 
+        pub fn to_string(&self, parser_chars: &V2ParserCharacters) -> V2String {
+            let mut segment: Vec<V2String> = Vec::with_capacity(self.fields.len());
+            for field_group in self.fields.iter() {
+                let mut fields: Vec<V2String> = Vec::with_capacity(field_group.len());
+                for field in field_group {
+                    fields.push(field.to_string(parser_chars));
+                }
+                segment.push(fields.join_compact(parser_chars.repetition_separator.as_str()));
+            }
+            format_compact!(
+                "{}{}{}",
+                self.name,
+                parser_chars.field_separator.as_str(),
+                segment.join_compact(parser_chars.field_separator.as_str())
+            )
+        }
+
         pub fn get(&self, indx: isize) -> V2Result<&V2FieldGroup> {
             let field_indx = clamp_index(&indx, &(self.fields.len() as isize))? - 1;
             match self.fields.get(field_indx) {
@@ -410,10 +440,10 @@ pub mod v2_parser {
             Self::try_from_str(raw_msg).expect("If calls to from_str are failing for V2Message, consider using try_from_str or the TryFrom trait! You should not see this message.")
         }
         pub fn try_from_str(raw_msg: &str) -> V2Result<Self> {
-            let clean_msg = V2Message::sanitize(&raw_msg);
-            let segment_tokens = V2Message::tokenize_segments(&clean_msg.as_str());
+            let clean_msg = V2Message::sanitize(raw_msg);
+            let segment_tokens = V2Message::tokenize_segments(clean_msg.as_str());
             let msh_segment = V2Message::find_msh(&segment_tokens)?;
-            let parse_characters = V2ParserCharacters::from_msh(&msh_segment)?;
+            let parse_characters = V2ParserCharacters::from_msh(msh_segment)?;
             let segments = V2Message::extract_segments(&segment_tokens, &parse_characters)?;
 
             Ok(V2Message {
@@ -422,8 +452,23 @@ pub mod v2_parser {
             })
         }
 
+        pub fn to_string(&self) -> V2String {
+            let mut msg: Vec<V2String> = Vec::with_capacity(self.segment_groups.len());
+            for segment_key in self.segment_groups.keys() {
+                let segment_group = &self.segment_groups[segment_key];
+                for segment in segment_group {
+                    msg.push(segment.to_string(&self.separators));
+                }
+            }
+            msg.join_compact(self.separators.segment_terminator.as_str())
+        }
+
         pub fn len(&self) -> usize {
             self.segment_groups.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.segment_groups.is_empty()
         }
 
         pub fn get(&self, segment_index: &u8, sub_segment: usize) -> V2Result<&V2Segment> {
@@ -542,7 +587,7 @@ pub mod v2_parser {
                     Some(k) => k,
                     None => return Err(format_compact!("Segment name is not a valid segment!")),
                 };
-                if segments.contains_key(key) == false {
+                if !segments.contains_key(key) {
                     segments.insert(*key, V2SegmentGroup::new());
                 }
                 segments.get_mut(key).unwrap().push(segment);
@@ -603,6 +648,8 @@ pub mod v2_parser {
 
 pub mod v2_parser_interface {
     /**************************** Macros ***************************************/
+    use crate::hl7_v2_parser;
+
     ///
     /// Simple interface for creating an instance of V2Message!
     /// You can pass a string view, a String, a RUMString, or a byte slice as input.
@@ -619,9 +666,7 @@ pub mod v2_parser_interface {
     #[macro_export]
     macro_rules! rumtk_v2_parse_message {
         ( $msg:expr ) => {{
-            use $crate::hl7_v2_parser::v2_parser::{
-                RUMString, RUMStringConversions, V2Message, V2Result,
-            };
+            use $crate::hl7_v2_parser::v2_parser::{V2Message, V2Result};
             V2Message::try_from($msg)
         }};
     }
@@ -659,8 +704,29 @@ pub mod v2_parser_interface {
         }};
     }
 
+    ///
+    /// Macro for generating V2 string message out of an instance of [hl7_v2_parser::v2_parser::V2Message].
+    /// Basically, this is the opposite operation to [crate::rumtk_v2_parse_message].
+    ///
+    /// # Example
+    /// ```
+    ///     use rumtk_hl7_v2::{rumtk_v2_generate_message, rumtk_v2_parse_message};
+    ///     let pattern = "MSH1.1";
+    ///     let hl7_v2_message = "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
+    ///     let message = rumtk_v2_parse_message!(&hl7_v2_message).unwrap();
+    ///     let generated_message_str = rumtk_v2_generate_message!(&message);
+    ///     let generated_message = rumtk_v2_parse_message!(&generated_message_str).unwrap();
+    ///     assert_eq!(
+    ///             &message, &generated_message,
+    ///             "Messages are not equal! Expected: {:?} Got: {:?}",
+    ///             &message, &generated_message
+    ///         );
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_generate_message {
-        ( $v2_msg:expr ) => {{}};
+        ( $v2_msg:expr ) => {{
+            $v2_msg.to_string()
+        }};
     }
 }

@@ -50,9 +50,9 @@ mod tests {
     use crate::hl7_v2_parser::v2_parser::{V2Field, V2Message};
     use crate::hl7_v2_search::REGEX_V2_SEARCH_DEFAULT;
     use crate::{
-        rumtk_v2_find_component, rumtk_v2_mllp_connect, rumtk_v2_mllp_get_client_ids,
-        rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen,
-        rumtk_v2_mllp_send, rumtk_v2_parse_message, tests,
+        rumtk_v2_find_component, rumtk_v2_generate_message, rumtk_v2_mllp_connect,
+        rumtk_v2_mllp_get_client_ids, rumtk_v2_mllp_get_ip_port, rumtk_v2_mllp_iter_channels,
+        rumtk_v2_mllp_listen, rumtk_v2_mllp_send, rumtk_v2_parse_message, tests,
     };
     use rumtk_core::core::RUMResult;
     use rumtk_core::search::rumtk_search::{string_search_named_captures, SearchGroups};
@@ -417,6 +417,54 @@ mod tests {
         assert_eq!(
             field3, repeate_field3,
             "Wrong field contents found in MSH(1)-1(2).1!"
+        );
+    }
+
+    #[test]
+    fn test_generating_v2_message() {
+        let message = rumtk_v2_parse_message!(&tests::DEFAULT_HL7_V2_MESSAGE).unwrap();
+        let generated_message_string = rumtk_v2_generate_message!(&message);
+        let generated_message = rumtk_v2_parse_message!(&generated_message_string).unwrap();
+        assert_eq!(
+            &message, &generated_message,
+            "Messages are not equal! Expected: {:?} Got: {:?}",
+            &message, &generated_message
+        );
+    }
+
+    #[test]
+    fn test_generating_v2_message_wir() {
+        let message = rumtk_v2_parse_message!(&tests::HL7_V2_MESSAGE).unwrap();
+        let generated_message_string = rumtk_v2_generate_message!(&message);
+        let generated_message = rumtk_v2_parse_message!(&generated_message_string).unwrap();
+        assert_eq!(
+            &message, &generated_message,
+            "Messages are not equal! Expected: {:?} Got: {:?}",
+            &message, &generated_message
+        );
+    }
+
+    #[test]
+    fn test_generating_v2_message_pdf() {
+        let message = rumtk_v2_parse_message!(&tests::HL7_V2_PDF_MESSAGE).unwrap();
+        let generated_message_string = rumtk_v2_generate_message!(&message);
+        let generated_message = rumtk_v2_parse_message!(&generated_message_string).unwrap();
+        assert_eq!(
+            &message, &generated_message,
+            "Messages are not equal! Expected: {:?} Got: {:?}",
+            &message, &generated_message
+        );
+    }
+
+    #[test]
+    fn test_generating_v2_message_repeated_fields() {
+        let message = rumtk_v2_parse_message!(&tests::HL7_V2_REPEATING_FIELD_MESSAGE).unwrap();
+        let generated_message_string = rumtk_v2_generate_message!(&message);
+        let generated_message = rumtk_v2_parse_message!(&generated_message_string).unwrap();
+        assert_eq!(
+            &message, &generated_message,
+            "Messages are not equal! Expected: {:?} Got: {:?}",
+            &message, &generated_message
         );
     }
 
