@@ -70,14 +70,34 @@ pub mod serialization {
     #[macro_export]
     macro_rules! rumtk_serialize {
         ( $object:expr ) => {{
-            use serde_json::to_string;
-            to_string(&$object)
+            use $crate::json::serialization::{to_string, to_string_pretty};
+            use $crate::strings::format_compact;
+            match to_string(&$object) {
+                Ok(s) => Ok(s),
+                Err(e) => Err(format_compact!(
+                    "Failed to serialize object because of {}",
+                    e
+                )),
+            }
         }};
         ( $object:expr, $pretty:expr ) => {{
-            use serde_json::{to_string, to_string_pretty};
+            use $crate::json::serialization::{to_string, to_string_pretty};
+            use $crate::strings::format_compact;
             match $pretty {
-                true => to_string_pretty(&$object),
-                false => to_string(&$object),
+                true => match to_string_pretty(&$object) {
+                    Ok(s) => Ok(s),
+                    Err(e) => Err(format_compact!(
+                        "Failed to serialize object because of {}",
+                        e
+                    )),
+                },
+                false => match to_string(&$object) {
+                    Ok(s) => Ok(s),
+                    Err(e) => Err(format_compact!(
+                        "Failed to serialize object because of {}",
+                        e
+                    )),
+                },
             }
         }};
     }
@@ -115,7 +135,7 @@ pub mod serialization {
     #[macro_export]
     macro_rules! rumtk_deserialize {
         ( $string:expr ) => {{
-            use serde_json::from_str;
+            use $crate::json::serialization::from_str;
             from_str(&$string)
         }};
     }

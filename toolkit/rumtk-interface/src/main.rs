@@ -21,15 +21,12 @@ use clap::Parser;
 use rumtk_core::core::RUMResult;
 use rumtk_core::strings::RUMString;
 use rumtk_core::{rumtk_deserialize, rumtk_read_stdin, rumtk_serialize, rumtk_write_stdout};
-use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{
-    AsyncMLLPChannel, SafeAsyncMLLP, SafeMLLPChannel, MLLP_FILTER_POLICY,
-};
+use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{SafeAsyncMLLP, SafeMLLPChannel, MLLP_FILTER_POLICY};
 use rumtk_hl7_v2::hl7_v2_parser::v2_parser::V2Message;
 use rumtk_hl7_v2::{
     rumtk_v2_generate_message, rumtk_v2_mllp_connect, rumtk_v2_mllp_iter_channels,
     rumtk_v2_mllp_listen,
 };
-use std::num::NonZeroU16;
 
 ///
 /// HL7 V2 Interface CLI
@@ -65,7 +62,7 @@ pub struct RUMTKInterfaceArgs {
     /// The program defaults to enforcing escaping the message before going outbound as specified
     /// in the standard.
     ///
-    #[arg(short, long, default_value_t = "escape", options = )]
+    #[arg(short, long, default_value_t = RUMString::from("escape"))]
     filter_policy: RUMString,
     ///
     /// Specifies command line script to execute on message.
@@ -87,7 +84,7 @@ pub struct RUMTKInterfaceArgs {
     ///
     /// If a NIC IP is defined via `--ip`, that value will override this flag.
     ///
-    #[arg(short, long, default_value_t = 1)]
+    #[arg(short, long)]
     local: bool,
 }
 
@@ -98,7 +95,8 @@ fn outbound_loop(channel: &SafeMLLPChannel) {
             Err(e) => continue, // TODO: missing log call
         };
         if !stdin_msg.is_empty() {
-            let msg: V2Message = rumtk_deserialize!(&stdin_msg);
+            let msg: V2Message =
+                rumtk_deserialize!(&stdin_msg).expect("Failed to deserialize stdin input!");
             let raw_message = rumtk_v2_generate_message!(&msg);
             let mut owned_channel = channel.lock().expect("Failed to lock channel");
             owned_channel.send_message(&raw_message).unwrap();
@@ -139,9 +137,8 @@ fn main() {
         let port = args.port.expect("Must provide a port number");
         let client =
             rumtk_v2_mllp_connect!(&ip, port, mllp_filter_policy).expect("MLLP connection failed");
-        let channel = rumtk_v2_mllp_iter_channels!(&client)
-            .get(0)
-            .expect("MLLP connection failed");
+        let channel_option = rumtk_v2_mllp_iter_channels!(&client);
+        let channel = channel_option.get(0).expect("MLLP connection failed");
         outbound_loop(&channel);
     } else {
         // Build listener
