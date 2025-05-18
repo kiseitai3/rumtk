@@ -10,7 +10,7 @@ repository = "https://github.com/kiseitai3/rumtk"
 keywords = ["rumtk", "healthcare", "hl7", "v2", "core"]
 categories = ["parsing", "science", "parser-implementations"]
 edition = "2021"
-rust-version = "1.69.0"
+rust-version = "1.79.0"
 
 [dependencies]
 unicode-segmentation = "1.12.0"
@@ -25,6 +25,7 @@ smallvec = "1.13.2"
 num_cpus = "1.16.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
+clap = { version = "4.5.38", features = ["derive"] }
 uuid = { version = "1.12.0", features = [
     "v4",
     "fast-rng",
