@@ -1,4 +1,4 @@
-# rumtk
+# Rumtk-core
 
 [![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-core)](LICENSE-LGPL) [![Crates.io](https://img.shields.io/crates/v/rumtk-core)](https://crates.io/crates/rumtk-core) [![Released API docs](https://docs.rs/rumtk-core/badge.svg)](https://docs.rs/rumtk-core) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
 

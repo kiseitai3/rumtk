@@ -1,4 +1,4 @@
-# rumtk
+# Rumtk-HL7-V2
 
 [![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-hl7-v2)](LICENSE-LGPL) [![Crates.io](https://img.shields.io/crates/v/rumtk-hl7-v2)](https://crates.io/crates/rumtk-hl7-v2) [![Released API docs](https://docs.rs/rumtk-hl7-v2/badge.svg)](https://docs.rs/rumtk-hl7-v2) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
 
