@@ -126,7 +126,7 @@ pub mod macros {
         (  ) => {{
             use $crate::cli::cli_utils::read_stdin;
             use $crate::strings::unescape_string;
-            let raw_message = read_stdin()?;
+            let raw_message = read_stdin().expect("Failed to read stdin");
             unescape_string(&raw_message)
         }};
     }
