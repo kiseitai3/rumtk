@@ -953,6 +953,16 @@ pub mod mllp_v2_api {
     ///     assert_eq!(port, 55555,"Port requested is 55555. Got => {}:{}", &ip, &port)
     /// ```
     ///
+    /// ## Listening on Specific NIC + Port
+    /// ```
+    ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
+    ///     use rumtk_hl7_v2::{rumtk_v2_mllp_listen, rumtk_v2_mllp_get_ip_port};
+    ///     let safe_listener = rumtk_v2_mllp_listen!("0.0.0.0", 55555, MLLP_FILTER_POLICY::NONE, false).unwrap();
+    ///     let (ip, port) = rumtk_v2_mllp_get_ip_port!(&safe_listener);
+    ///     assert_eq!(ip, "0.0.0.0", "IP requested is 0.0.0.0. Got => {}:{}", &ip, &port);
+    ///     assert_eq!(port, 55555,"Port requested is 55555. Got => {}:{}", &ip, &port);
+    /// ```
+    ///
     #[macro_export]
     macro_rules! rumtk_v2_mllp_listen {
         ( $policy:expr, $local:expr ) => {{
@@ -986,6 +996,24 @@ pub mod mllp_v2_api {
                     Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
                     Err(e) => Err(e),
                 },
+            }
+        }};
+        ( $ip:expr, $port:expr, $policy:expr, $local:expr ) => {{
+            use rumtk_core::{rumtk_init_threads, rumtk_resolve_task};
+            use $crate::hl7_v2_mllp::mllp_v2::AsyncMutex;
+            use $crate::hl7_v2_mllp::mllp_v2::{AsyncMLLP, SafeAsyncMLLP};
+            let rt = rumtk_init_threads!();
+            match $local {
+                true => match rumtk_resolve_task!(&rt, AsyncMLLP::new($ip, $port, $policy, true)) {
+                    Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
+                    Err(e) => Err(e),
+                },
+                false => {
+                    match rumtk_resolve_task!(&rt, AsyncMLLP::new($ip, $port, $policy, true)) {
+                        Ok(mllp) => Ok(SafeAsyncMLLP::new(AsyncMutex::new(mllp))),
+                        Err(e) => Err(e),
+                    }
+                }
             }
         }};
     }
