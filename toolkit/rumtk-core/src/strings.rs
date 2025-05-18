@@ -66,13 +66,10 @@ pub trait UTFStringExtensions {
     /// this is a side effect of convenience. To improve performance, call .get_graphemes() once and
     /// then call take_grapheme() over that iterator.
     ///
-    #[inline(always)]
     fn get_grapheme(&self, index: usize) -> &str;
 
-    #[inline(always)]
     fn get_graphemes(&self) -> Vec<&str>;
 
-    #[inline(always)]
     fn get_grapheme_chunk(&self, offset: usize) -> Vec<&str>;
 
     #[inline(always)]
@@ -296,6 +293,8 @@ fn decode(src: &[u8], encoding: &'static Encoding) -> RUMString {
 /// Finally, we do a decode pass on the vector to re-encode the bytes **hopefully right** into a
 /// valid UTF-8 string.
 ///
+/// This function focuses on reverting the result of [escape], whose output is meant for HL7.
+///
 pub fn unescape_string(escaped_str: &str) -> RUMResult<RUMString> {
     let str_size = escaped_str.count_graphemes();
     let mut result: Vec<u8> = Vec::with_capacity(escaped_str.len());
@@ -516,14 +515,35 @@ fn number_to_char_unchecked(num: &u32) -> RUMString {
 }
 
 ///
-/// Turn UTF-8 character into escaped character sequence
+/// Turn UTF-8 character into escaped character sequence as expected in HL7
+///
+/// # Example
+/// ```
+///  use rumtk_core::strings::{escape};
+///  let message = "I ❤ my wife!";
+///  let escaped_message = escape(&message);
+///  assert_eq!("I \\u2764 my wife!", &escaped_message, "Did not get expected escaped string! Got {}!", &escaped_message);
+///```
 ///
 pub fn escape(unescaped_str: &str) -> RUMString {
-    let escaped_value = unescaped_str.escape_default().to_compact_string();
-    escaped_value
+    basic_escape(unescaped_str)
         .replace("{", "")
         .replace("}", "")
         .to_rumstring()
+}
+
+///
+/// Escape UTF-8 characters in UTF-8 string that are beyond ascii range
+///
+/// # Example
+/// ```
+///  use rumtk_core::strings::basic_escape;
+///  let message = "I ❤ my wife!";
+///  let escaped_message = basic_escape(&message);
+///  assert_eq!("I \\u{2764} my wife!", &escaped_message, "Did not get expected escaped string! Got {}!", &escaped_message);
+///```
+pub fn basic_escape(unescaped_str: &str) -> RUMString {
+    unescaped_str.escape_default().to_compact_string()
 }
 
 ///

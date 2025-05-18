@@ -24,6 +24,7 @@
 #![feature(unboxed_closures)]
 
 pub mod cache;
+pub mod cli;
 pub mod core;
 pub mod json;
 pub mod log;

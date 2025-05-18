@@ -17,66 +17,136 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-use crate::strings::RUMString;
-use clap::Parser;
-use std::num::NonZeroU16;
 
-///
-/// Example CLI parser that can be used to paste in your binary and adjust as needed.
-///
-/// Note, this is only an example.
-///
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct RUMTKArgs {
+pub mod cli_utils {
+    use crate::core::RUMResult;
+    use crate::strings::{format_compact, RUMString, RUMStringConversions};
+    use clap::Parser;
+    use std::io::{stdin, Read};
+    use std::num::NonZeroU16;
+
     ///
-    /// For interface crate only. Specifies the ip address to connect to.
+    /// Example CLI parser that can be used to paste in your binary and adjust as needed.
     ///
-    /// In outbound mode, `--ip` and `--port` are required parameters.
+    /// Note, this is only an example.
     ///
-    /// In inbound mode, you can omit either or both parameters.
+    #[derive(Parser, Debug)]
+    #[command(author, version, about, long_about = None)]
+    pub struct RUMTKArgs {
+        ///
+        /// For interface crate only. Specifies the ip address to connect to.
+        ///
+        /// In outbound mode, `--ip` and `--port` are required parameters.
+        ///
+        /// In inbound mode, you can omit either or both parameters.
+        ///
+        #[arg(short, long)]
+        ip: Option<RUMString>,
+        ///
+        /// For interface crate only. Specifies the port to connect to.
+        ///
+        /// In outbound mode, `--ip` and `--port` are required parameters.
+        ///
+        /// In inbound mode, you can omit either or both parameters.
+        ///
+        #[arg(short, long)]
+        port: Option<NonZeroU16>,
+        ///
+        /// For process crate only. Specifies command line script to execute on message.
+        ///
+        #[arg(short, long)]
+        x: Option<RUMString>,
+        ///
+        /// Number of processing threads to allocate for this program.
+        ///
+        #[arg(short, long, default_value_t = 1)]
+        threads: usize,
+        ///
+        /// For interface crate only. Specifies if the interface is in outbound mode.
+        ///
+        /// In outbound mode, `--ip` and `--port` are required parameters.
+        ///
+        /// In inbound mode, you can omit either or both parameters.
+        ///
+        #[arg(short, long)]
+        outbound: bool,
+        ///
+        /// Request program runs in debug mode and log more information.
+        ///
+        #[arg(short, long, default_value_t = false)]
+        debug: bool,
+        ///
+        /// Request program runs in dry run mode and simulate as many steps as possible but not commit
+        /// to a critical non-reversible step.
+        ///
+        /// For example, if it was meant to write contents to a file, stop before doing so.
+        ///
+        #[arg(short, long, default_value_t = false)]
+        dry_run: bool,
+    }
+
+    pub fn read_stdin() -> RUMResult<RUMString> {
+        let stdin_handle = stdin();
+        let mut locked_stdin_handle = stdin_handle.lock();
+        let mut message = String::new();
+        match locked_stdin_handle.read_to_string(&mut message) {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(format_compact!("Error reading from STDIN: {}", e));
+            }
+        };
+        Ok(message.to_rumstring())
+    }
+}
+
+pub mod macros {
+
     ///
-    #[arg(short, long)]
-    ip: Option<RUMString>,
+    /// Reads STDIN and unescapes the incoming message.
+    /// Return this unescaped message.
     ///
-    /// For interface crate only. Specifies the port to connect to.
+    /// # Example
+    /// ```
+    /// use rumtk_core::core::RUMResult;
+    /// use rumtk_core::strings::RUMString;
+    /// use crate::rumtk_core::rumtk_read_stdin;
     ///
-    /// In outbound mode, `--ip` and `--port` are required parameters.
+    /// fn test_read_stdin() -> RUMResult<RUMString> {
+    ///     rumtk_read_stdin!()
+    /// }
     ///
-    /// In inbound mode, you can omit either or both parameters.
+    /// match test_read_stdin() {
+    ///     Ok(s) => (),
+    ///     Err(e) => panic!("Error reading stdin because => {}", e)
+    /// }
+    /// ```
     ///
-    #[arg(short, long)]
-    port: Option<NonZeroU16>,
+    #[macro_export]
+    macro_rules! rumtk_read_stdin {
+        (  ) => {{
+            use $crate::cli::cli_utils::read_stdin;
+            use $crate::strings::unescape_string;
+            let raw_message = read_stdin()?;
+            unescape_string(&raw_message)
+        }};
+    }
+
     ///
-    /// For process crate only. Specifies command line script to execute on message.
+    /// Escapes a message and writes it to stdout via the print! macro.
     ///
-    #[arg(short, long)]
-    x: Option<RUMString>,
+    /// # Example
+    /// ```
+    /// use rumtk_core::rumtk_write_stdout;
     ///
-    /// Number of processing threads to allocate for this program.
+    /// rumtk_write_stdout!("I ❤ my wife!");
+    /// ```
     ///
-    #[arg(short, long, default_value_t = 1)]
-    threads: usize,
-    ///
-    /// For interface crate only. Specifies if the interface is in outbound mode.
-    ///
-    /// In outbound mode, `--ip` and `--port` are required parameters.
-    ///
-    /// In inbound mode, you can omit either or both parameters.
-    ///
-    #[arg(short, long)]
-    outbound: bool,
-    ///
-    /// Request program runs in debug mode and log more information.
-    ///
-    #[arg(short, long, default_value_t = false)]
-    debug: bool,
-    ///
-    /// Request program runs in dry run mode and simulate as many steps as possible but not commit
-    /// to a critical non-reversible step.
-    ///
-    /// For example, if it was meant to write contents to a file, stop before doing so.
-    ///
-    #[arg(short, long, default_value_t = false)]
-    dry_run: bool,
+    #[macro_export]
+    macro_rules! rumtk_write_stdout {
+        ( $message:expr ) => {{
+            use $crate::strings::escape;
+            let escaped_message = escape($message);
+            print!("{}", &escaped_message);
+        }};
+    }
 }
