@@ -1,0 +1,18 @@
+[package]
+name = "rumtk-interface"
+description = "HL7 V2 Interface utility based on the RUMTK framework."
+version = "0.1.0"
+readme = "README.md"
+license = "GPL-3"
+homepage = "https://github.com/kiseitai3/rumtk/tree/main/toolkit/rumtk-interface"
+documentation = "https://docs.rs/rumtk-interface"
+repository = "https://github.com/kiseitai3/rumtk"
+keywords = ["rumtk", "healthcare", "hl7", "v2", "interface"]
+categories = ["parsing", "science", "parser-implementations"]
+edition = "2021"
+rust-version = "1.79.0"
+
+[dependencies]
+rumtk-core = { path = "../rumtk-core" }
+rumtk-hl7-v2 = { path = "../rumtk-hl7-v2" }
+clap = { version = "4.5.38", features = ["derive"] }

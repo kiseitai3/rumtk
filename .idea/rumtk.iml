@@ -7,6 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/toolkit/rumtk-fhir/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/toolkit/rumtk-hl7-fhir/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/toolkit/rumtk-hl7-v2/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/toolkit/rumtk-interface/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
