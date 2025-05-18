@@ -27,8 +27,8 @@ communication and automation in medicine.
     - [x] Network Core library
     - [x] JSON Serialization Support
     - [ ] Cryptologic Adapters
-    - [ ] Commandline Standard Argument Interface
-    - [ ] Enable STDIN|Pipe Functionality
+    - [x] Commandline Standard Argument Interface
+    - [x] Enable STDIN|Pipe Functionality
     - [ ] Toolkit Core Tests
     - [x] Async support
     - [x] Multithreaded support

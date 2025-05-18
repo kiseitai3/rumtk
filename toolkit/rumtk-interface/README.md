@@ -15,10 +15,11 @@ and tables. That will be handled by a different utility.
 # Features
 
 - [ ] HL7 v2 Interface
-    - [ ] Listener
-    - [ ] Client
-    - [ ] Basic parsing of v2 message from pipes to `V2Message` type.
-    - [ ] Basic generation of v2 message from `V2Message` to pipes format.
+    - [x] Listener
+    - [x] Client
+    - [x] Basic parsing of v2 message from pipes to `V2Message` type.
+    - [x] Basic generation of v2 message from `V2Message` to pipes format.
+    - [ ] Tests
     - [ ] Fuzz Targets
 
 # Contributing

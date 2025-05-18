@@ -35,7 +35,7 @@ communication and automation in medicine.
         - [ ] HL7 v2 Base Message to HL7 Type casting
         - [ ] HL7 v2 Custom Message Overrides
         - [ ] HL7 v2 Message Validator
-        - [ ] HL7 v2 Message to ASCII Message Generation
+        - [x] HL7 v2 Message to ASCII Message Generation
     - [x] MLLP
         - [x] Protocol
         - [x] Client

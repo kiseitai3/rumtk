@@ -13,6 +13,10 @@ communication and automation in medicine.
 
 [![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-hl7-v2)](LICENSE-LGPL) [![Crates.io](https://img.shields.io/crates/v/rumtk-hl7-v2)](https://crates.io/crates/rumtk-hl7-v2) [![Released API docs](https://docs.rs/rumtk-hl7-v2/badge.svg)](https://docs.rs/rumtk-hl7-v2) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
 
+# rumtk-interface
+
+[![Build Status](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml/badge.svg)](https://github.com/kiseitai3/rumtk/actions/workflows/check.yml) [![Crates.io](https://img.shields.io/crates/l/rumtk-interface)](LICENSE-GPL3) [![Crates.io](https://img.shields.io/crates/v/rumtk-interface)](https://crates.io/crates/rumtk-interface) [![Released API docs](https://docs.rs/rumtk-interface/badge.svg)](https://docs.rs/rumtk-interface) [![Maintenance](https://img.shields.io/maintenance/yes/2025)](https://github.com/kiseitai3/rumtk)
+
 # Goal
 
 + To create a simple toolkit with the necessary libraries, dependencies, and utilities for managing bridging HL7 V2
@@ -35,8 +39,8 @@ communication and automation in medicine.
     - [x] Network Core library
     - [x] JSON Serialization Support
     - [ ] Cryptologic Adapters
-    - [ ] Commandline Standard Argument Interface
-    - [ ] Enable STDIN|Pipe Functionality
+    - [x] Commandline Standard Argument Interface
+    - [x] Enable STDIN|Pipe Functionality
     - [ ] Toolkit Core Tests
     - [x] Async support
     - [x] Multithreaded support
@@ -60,7 +64,7 @@ communication and automation in medicine.
         - [ ] HL7 v2 Base Message to HL7 Type casting
         - [ ] HL7 v2 Custom Message Overrides
         - [ ] HL7 v2 Message Validator
-        - [ ] HL7 v2 Message to ASCII Message Generation
+        - [x] HL7 v2 Message to ASCII Message Generation
     - [x] MLLP
         - [x] Protocol
         - [x] Client
@@ -68,8 +72,8 @@ communication and automation in medicine.
         - [x] Tests
     - [ ] Fuzz Targets
 - [ ] MLLP Interfaces
-    - [ ] HL7 v2 Endpoint Interface utility
-    - [ ] HL7 v2 Client Interface utility
+    - [x] HL7 v2 Endpoint Interface utility
+    - [x] HL7 v2 Client Interface utility
     - [ ] HL7 v2 Tests
 - [ ] HL7 v2 to FHIR Conversion
     - [ ] HL7 v2 to FHIR Basic Mapping
