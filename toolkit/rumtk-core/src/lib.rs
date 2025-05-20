@@ -359,6 +359,7 @@ mod tests {
     }
 
     ///////////////////////////////////Queue Tests/////////////////////////////////////////////////
+    use crate::cli::cli_utils::print_license_notice;
     use crate::core::clamp_index;
     use crate::json::serialization::Serialize;
     use crate::net::tcp::LOCALHOST;
@@ -633,6 +634,13 @@ mod tests {
             new_hw == hw,
             "Deserialized JSON does not match the expected value!"
         );
+    }
+
+    ////////////////////////////CLI Tests/////////////////////////////////
+
+    #[test]
+    fn test_print_license_notice() {
+        print_license_notice("RUMTK", "2025", &vec!["Luis M. Santos, M.D."]);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

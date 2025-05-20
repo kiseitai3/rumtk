@@ -22,6 +22,7 @@ pub mod cli_utils {
     use crate::core::RUMResult;
     use crate::strings::{format_compact, RUMString, RUMStringConversions};
     use clap::Parser;
+    use compact_str::CompactStringExt;
     use std::io::{stdin, Read};
     use std::num::NonZeroU16;
 
@@ -97,10 +98,20 @@ pub mod cli_utils {
         };
         Ok(message.to_rumstring())
     }
+
+    pub fn print_license_notice(program: &str, year: &str, author_list: &Vec<&str>) {
+        let authors = author_list.join_compact(", ");
+        let notice = format_compact!(
+            "  {program}  Copyright (C) {year}  {authors}
+        This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+        This is free software, and you are welcome to redistribute it
+        under certain conditions; type `show c' for details."
+        );
+        println!("{}", notice);
+    }
 }
 
 pub mod macros {
-
     ///
     /// Reads STDIN and unescapes the incoming message.
     /// Return this unescaped message.
@@ -147,6 +158,56 @@ pub mod macros {
             use $crate::strings::escape;
             let escaped_message = escape($message);
             print!("{}", &escaped_message);
+        }};
+    }
+
+    ///
+    /// Prints the mandatory GPL License Notice to terminal!
+    ///
+    /// # Example
+    /// ## Default
+    /// ```
+    /// use rumtk_core::rumtk_print_license_notice;
+    ///
+    /// rumtk_print_license_notice!();
+    /// ```
+    /// ## Program Only
+    /// ```
+    /// use rumtk_core::rumtk_print_license_notice;
+    ///
+    /// rumtk_print_license_notice!("RUMTK");
+    /// ```
+    /// ## Program + Year
+    /// ```
+    /// use rumtk_core::rumtk_print_license_notice;
+    ///
+    /// rumtk_print_license_notice!("RUMTK", "2025");
+    /// ```
+    /// ## Program + Year + Authors
+    /// ```
+    /// use rumtk_core::rumtk_print_license_notice;
+    ///
+    /// rumtk_print_license_notice!("RUMTK", "2025", &vec!["Luis M. Santos, M.D."]);
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! rumtk_print_license_notice {
+        ( ) => {{
+            use $crate::cli::cli_utils::print_license_notice;
+
+            print_license_notice("RUMTK", "2025", &vec!["Luis M. Santos, M.D."]);
+        }};
+        ( $program:expr ) => {{
+            use $crate::cli::cli_utils::print_license_notice;
+            print_license_notice(&$program, "2025", &vec!["2025", "Luis M. Santos, M.D."]);
+        }};
+        ( $program:expr, $year:expr ) => {{
+            use $crate::cli::cli_utils::print_license_notice;
+            print_license_notice(&$program, &$year, &vec!["Luis M. Santos, M.D."]);
+        }};
+        ( $program:expr, $year:expr, $authors:expr ) => {{
+            use $crate::cli::cli_utils::print_license_notice;
+            print_license_notice(&$program, &$year, &$authors);
         }};
     }
 }
