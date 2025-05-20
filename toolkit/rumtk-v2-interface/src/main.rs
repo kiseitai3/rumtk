@@ -19,6 +19,7 @@
 
 use clap::Parser;
 use rumtk_core::core::RUMResult;
+use rumtk_core::net::tcp::LOCALHOST;
 use rumtk_core::strings::RUMString;
 use rumtk_core::{rumtk_deserialize, rumtk_read_stdin, rumtk_serialize, rumtk_write_stdout};
 use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{SafeAsyncMLLP, SafeMLLPChannel, MLLP_FILTER_POLICY};
@@ -141,7 +142,7 @@ fn main() {
 
     if args.outbound {
         let ip = match args.local {
-            true => args.ip.unwrap_or_else(|| "127.0.0.1".parse().unwrap()),
+            true => args.ip.unwrap_or_else(|| LOCALHOST.parse().unwrap()),
             false => args.ip.expect("Must provide an IP address"),
         };
         let port = args.port.expect("Must provide a port number");
