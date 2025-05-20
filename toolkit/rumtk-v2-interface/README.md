@@ -19,6 +19,7 @@ and tables. That will be handled by a different utility.
     - [x] Client
     - [x] Basic parsing of v2 message from pipes to `V2Message` type.
     - [x] Basic generation of v2 message from `V2Message` to pipes format.
+    - [ ] Allow reading of JSON or HL7 messages
     - [ ] Tests
     - [ ] Fuzz Targets
 

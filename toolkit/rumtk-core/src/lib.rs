@@ -66,7 +66,7 @@ mod tests {
     fn test_escaping_unicode() {
         let input = "❤";
         let expected = "\\u2764";
-        let result = strings::escape(&input);
+        let result = strings::escape(input);
         println!(
             "Input: {} Expected: {} Got: {}",
             input,
@@ -80,9 +80,9 @@ mod tests {
     #[test]
     fn test_unescaping_unicode() {
         let input = "❤";
-        let escaped = strings::escape(&input);
+        let escaped = strings::escape(input);
         let expected = "❤";
-        let result = RUMString::from_utf8(strings::unescape(&escaped.as_str()).unwrap()).unwrap();
+        let result = RUMString::from_utf8(strings::unescape(escaped.as_str()).unwrap()).unwrap();
         println!(
             "Input: {} Expected: {} Got: {}",
             input,
@@ -97,7 +97,7 @@ mod tests {
     fn test_unescaping_string() {
         let input = "I \\u2764 my wife!";
         let expected = "I ❤ my wife!";
-        let result = strings::unescape_string(&input).unwrap();
+        let result = strings::unescape_string(input).unwrap();
         println!(
             "Input: {} Expected: {} Got: {}",
             input,
@@ -124,7 +124,7 @@ mod tests {
     fn test_escaping_string() {
         let input = "I ❤ my wife!";
         let expected = "I \\u2764 my wife!";
-        let result = strings::escape(&input);
+        let result = strings::escape(input);
         println!(
             "Input: {} Expected: {} Got: {}",
             input,
@@ -153,7 +153,6 @@ mod tests {
     fn test_autodecode_other() {
         //TODO: Need an example of other encoding texts.
         let input = "I ❤ my wife!";
-        let expected = "I ❤ my wife!";
         let result = input;
         println!("Input: {} Expected: {} Got: {}", input, input, result);
         assert_eq!(input, result, "Incorrect string decoding!");
@@ -163,7 +162,6 @@ mod tests {
     #[test]
     fn test_decode() {
         let input = "I ❤ my wife!";
-        let expected = "I ❤ my wife!";
         let result = strings::try_decode_with(input.as_bytes(), "utf-8");
         println!(
             "Input: {} Expected: {} Got: {}",
