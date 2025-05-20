@@ -95,8 +95,15 @@ fn outbound_loop(channel: &SafeMLLPChannel) {
             Err(e) => continue, // TODO: missing log call
         };
         if !stdin_msg.is_empty() {
-            let msg: V2Message =
-                rumtk_deserialize!(&stdin_msg).expect("Failed to deserialize stdin input!");
+            let msg: V2Message = match rumtk_deserialize!(&stdin_msg) {
+                Ok(msg) => msg,
+                Err(e) => {
+                    match V2Message::try_from_str(&stdin_msg) {
+                        Ok(msg) => msg,
+                        Err(e) => continue, // TODO: missing log call
+                    }
+                }
+            };
             let raw_message = rumtk_v2_generate_message!(&msg);
             let mut owned_channel = channel.lock().expect("Failed to lock channel");
             owned_channel.send_message(&raw_message).unwrap();
