@@ -140,7 +140,10 @@ fn main() {
     };
 
     if args.outbound {
-        let ip = args.ip.expect("Must provide an IP address");
+        let ip = match args.local {
+            true => args.ip.unwrap_or_else(|| "127.0.0.1".parse().unwrap()),
+            false => args.ip.expect("Must provide an IP address"),
+        };
         let port = args.port.expect("Must provide a port number");
         let client =
             rumtk_v2_mllp_connect!(&ip, port, mllp_filter_policy).expect("MLLP connection failed");
