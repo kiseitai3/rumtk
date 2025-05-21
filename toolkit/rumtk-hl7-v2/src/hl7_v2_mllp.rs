@@ -197,8 +197,8 @@ pub mod mllp_v2 {
     };
     use rumtk_core::net::tcp::{AsyncRwLock, RUMClient, RUMServer, SafeClient, SafeServer};
     use rumtk_core::strings::{
-        escape, filter_non_printable_ascii, try_decode, RUMArrayConversions, RUMString,
-        RUMStringConversions, ToCompactString,
+        filter_non_printable_ascii, try_decode, unescape_string, CompactStringExt,
+        RUMArrayConversions, RUMString, RUMStringConversions, ToCompactString,
     };
     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     use rumtk_core::{
@@ -214,6 +214,8 @@ pub mod mllp_v2 {
     /// Timeouts have to be agreed upon by the communicating parties. It is recommended that the
     /// Source use a timeout of between 5 and 30 seconds before giving up on listening for a Commit
     /// Acknowledgement.
+    ///
+    /// Defaults to 30
     pub const TIMEOUT_SOURCE: u8 = 30;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
@@ -221,6 +223,8 @@ pub mod mllp_v2 {
     /// It is recommended that the Destination use a timeout that is at least
     /// twice as high as the Source's timeout (e.g. 40 seconds or more) before flushing its inbound
     /// buffer.
+    ///
+    /// Defaults to 60
     pub const TIMEOUT_DESTINATION: u8 = 60;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
@@ -319,11 +323,22 @@ pub mod mllp_v2 {
     /// I made this function to allow utilities to better control what kind of outbound message
     /// sanitization to enforce in the production environment.
     ///
-    pub fn mllp_filter_message(msg: &str, mllp_filter_policy: &MLLP_FILTER_POLICY) -> RUMString {
+    pub fn mllp_filter_message(
+        msg: &str,
+        mllp_filter_policy: &MLLP_FILTER_POLICY,
+    ) -> RUMResult<RUMString> {
         match mllp_filter_policy {
-            MLLP_FILTER_POLICY::NONE => msg.to_rumstring(),
-            MLLP_FILTER_POLICY::ESCAPE_INPUT => escape(msg),
-            MLLP_FILTER_POLICY::FILTER_INPUT => filter_non_printable_ascii(msg),
+            MLLP_FILTER_POLICY::NONE => Ok(msg.to_rumstring()),
+            MLLP_FILTER_POLICY::ESCAPE_INPUT => {
+                let data = msg.replace("\n", "\r");
+                let tokens = data.split('\r').collect::<Vec<&str>>();
+                let mut sanitized = Vec::<RUMString>::with_capacity(tokens.len());
+                for token in tokens {
+                    sanitized.push(unescape_string(token)?);
+                }
+                Ok(sanitized.join_compact("\r"))
+            }
+            MLLP_FILTER_POLICY::FILTER_INPUT => Ok(filter_non_printable_ascii(msg)),
         }
     }
 
@@ -587,13 +602,12 @@ pub mod mllp_v2 {
         }
 
         pub async fn send(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
-            let filtered = mllp_filter_message(message, &self.filter_policy);
+            let filtered = mllp_filter_message(message, &self.filter_policy)?;
             let encoded = mllp_encode(&filtered);
-            Ok(self
-                .next_layer()
+            self.next_layer()
                 .await
                 .send_message(&encoded, endpoint)
-                .await?)
+                .await
         }
 
         ///
@@ -641,8 +655,8 @@ pub mod mllp_v2 {
             timeout: u8,
         ) -> RUMResult<RUMString> {
             for i in 0..timeout {
-                let message = self.receive(&endpoint).await?;
-                if !(is_ack(&message) || is_nack(&message)) && !message.is_empty() {
+                let message = self.receive(endpoint).await?;
+                if !(is_ack(&message) || is_nack(&message) || message.is_empty()) {
                     return Ok(message);
                 }
                 rumtk_async_sleep!(TIMEOUT_STEP_DESTINATION).await
@@ -656,7 +670,7 @@ pub mod mllp_v2 {
         /// Simply receives a message and decodes it.
         ///
         pub async fn receive(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            let message = self.next_layer().await.receive_message(&endpoint).await?;
+            let message = self.next_layer().await.receive_message(endpoint).await?;
             mllp_decode(&message)
         }
 
@@ -665,7 +679,7 @@ pub mod mllp_v2 {
         /// received the message they sent!
         ///
         pub async fn ack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
-            let encoded = mllp_encode_bytes(&vec![ACK]);
+            let encoded = mllp_encode_bytes(&[ACK]);
             self.next_layer()
                 .await
                 .send_message(&encoded, endpoint)
@@ -678,7 +692,7 @@ pub mod mllp_v2 {
         /// to reject it!
         ///
         pub async fn nack(&mut self, endpoint: &RUMString) -> RUMResult<()> {
-            let encoded = mllp_encode_bytes(&vec![NACK]);
+            let encoded = mllp_encode_bytes(&[NACK]);
             self.next_layer()
                 .await
                 .send_message(&encoded, endpoint)

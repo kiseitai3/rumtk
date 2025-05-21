@@ -78,7 +78,8 @@ pub mod v2_base_types {
             }
         }
         pub fn from_str(msh_segment: &str) -> V2Result<Self> {
-            let msg_key_chars = Self::isolate_parse_chars(msh_segment);
+            let sanitized_msh_segment = Self::sanitize_parse_chars(msh_segment);
+            let msg_key_chars = Self::isolate_parse_chars(&sanitized_msh_segment);
             let key_chars = Self::validate_msh_key_chars(&msg_key_chars)?;
             let field_separator: &str = key_chars[0];
 
@@ -149,6 +150,10 @@ pub mod v2_base_types {
                 parse_chars.push(fragment);
             }
             parse_chars
+        }
+
+        pub fn sanitize_parse_chars(fragment: &str) -> String {
+            fragment.replace("\\\\", "\\")
         }
 
         fn is_msh(msh_segment_token: &str) -> bool {

@@ -325,7 +325,7 @@ pub mod v2_parser {
 
             if raw_field_count > 1 {
                 if field_name == "MSH" {
-                    field_list.push(vec![V2Field::with_raw_str(raw_fields[1])]);
+                    field_list.push(vec![V2Field::with_raw_str(&raw_fields[1])]);
                     for i in 2..raw_field_count {
                         let raw_field = raw_fields[i];
                         field_list.push(Self::generate_subfields(&raw_field, &parser_chars));

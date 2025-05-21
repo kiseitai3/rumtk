@@ -115,6 +115,8 @@ mod tests {
         DG1|1||I10^Essential (primary) hypertension^I10C^^^^^^Hypertension, NOS|||F|||||||||2";
     const HL7_V2_MSH_ONLY: &str =
         "MSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC\n";
+    const HL7_V2_SCRAMBLED: &str = "
+                PD1|||||||||||01^No reminder/recall^HL70215|N|20150625|||A|20150625|20150625ORC|RE||31165^NIST-AA-IZ-2|||||||7824^Jackson^Lily^Suzanne^^^^^NIST-PI-1^L^^^PRN|||||||NISTEHRFAC^NISTEHRFacility^HL70362\rRXA|0|1|20141021||152^Pneumococcal Conjugate, unspecified formulation^CVX|999|||01^Historical Administration^NIP001|||||||||||CP|A\rPID|1||21142^^^NIST-MPI-1^MR||Vasquez^Manuel^Diego^^^^L||19470215|M||2106-3^White^CDCREC|227 Park Ave^^Bozeman^MT^59715^USA^P||^PRN^PH^^^406^5555815~^NET^^Manuel.Vasquez@isp.com|||||||||2135-2^Hispanic or Latino^CDCREC||N|1|||||N\rMSH|^~\\&|NISTEHRAPP|NISTEHRFAC|NISTIISAPP|NISTIISFAC|20150625072816.601-0500||VXU^V04^VXU_V04|NIST-IZ-AD-10.1_Send_V04_Z22|P|2.5.1|||ER|AL|||||Z22^CDCPHINVS|NISTEHRFAC|NISTIISFAC";
     const SPANISH_NAME: &str = "Andrés";
     const SANSKRIT_NAME: &str = "आरवा";
     const HIRAGANA_NAME: &str = "ひなた";
@@ -271,6 +273,42 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_hl7_v2_message_scrambled_segments() {
+        let message = tests::HL7_V2_SCRAMBLED;
+        let sanitized_message = V2Message::sanitize(message);
+        let tokens = V2Message::tokenize_segments(&sanitized_message.as_str());
+        let msh = V2Message::find_msh(&tokens).unwrap();
+        let encode_chars = V2ParserCharacters::from_msh(&msh.as_str()).unwrap();
+        let parsed_segments = V2Message::extract_segments(&tokens, &encode_chars).unwrap();
+        let keys = parsed_segments.keys();
+        print!("Keys: ");
+        for k in keys {
+            print!("{} ", V2_SEGMENT_NAMES[k]);
+        }
+        assert_eq!(
+            parsed_segments.len(),
+            4,
+            "Number of segments mismatching what was expected!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["PID"]),
+            "Missing PID segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["PD1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            parsed_segments.contains_key(&V2_SEGMENT_IDS["RXA"]),
+            "Missing EVN segment!"
+        );
+    }
+
+    #[test]
     fn test_load_hl7_v2_message() {
         let message = V2Message::from_str(tests::DEFAULT_HL7_V2_MESSAGE);
         assert!(
@@ -327,6 +365,26 @@ mod tests {
         assert!(
             message.segment_exists(&V2_SEGMENT_IDS["BHS"]),
             "Missing BHS segment!"
+        );
+    }
+    #[test]
+    fn test_load_hl7_v2_message_scrambled() {
+        let message = V2Message::from_str(tests::HL7_V2_SCRAMBLED);
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["MSH"]),
+            "Missing MSH segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PID"]),
+            "Missing PID segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["PD1"]),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            message.segment_exists(&V2_SEGMENT_IDS["RXA"]),
+            "Missing EVN segment!"
         );
     }
 
