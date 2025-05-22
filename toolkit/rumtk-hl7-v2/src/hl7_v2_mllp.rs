@@ -197,8 +197,8 @@ pub mod mllp_v2 {
     };
     use rumtk_core::net::tcp::{AsyncRwLock, RUMClient, RUMServer, SafeClient, SafeServer};
     use rumtk_core::strings::{
-        filter_non_printable_ascii, try_decode, unescape_string, CompactStringExt,
-        RUMArrayConversions, RUMString, RUMStringConversions, ToCompactString,
+        filter_non_printable_ascii, try_decode, CompactStringExt, RUMArrayConversions, RUMString,
+        RUMStringConversions, ToCompactString,
     };
     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     use rumtk_core::{
@@ -216,7 +216,7 @@ pub mod mllp_v2 {
     /// Acknowledgement.
     ///
     /// Defaults to 30
-    pub const TIMEOUT_SOURCE: u8 = 30;
+    pub const TIMEOUT_SOURCE: u8 = 1;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
     pub const TIMEOUT_STEP_SOURCE: u8 = 1;
@@ -225,7 +225,7 @@ pub mod mllp_v2 {
     /// buffer.
     ///
     /// Defaults to 60
-    pub const TIMEOUT_DESTINATION: u8 = 60;
+    pub const TIMEOUT_DESTINATION: u8 = 1;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
@@ -334,7 +334,8 @@ pub mod mllp_v2 {
                 let tokens = data.split('\r').collect::<Vec<&str>>();
                 let mut sanitized = Vec::<RUMString>::with_capacity(tokens.len());
                 for token in tokens {
-                    sanitized.push(unescape_string(token)?);
+                    //sanitized.push(unescape_string(token)?);
+                    sanitized.push(token.to_rumstring());
                 }
                 Ok(sanitized.join_compact("\r"))
             }
@@ -419,6 +420,15 @@ pub mod mllp_v2 {
                     }
                 }
                 LowerLayer::CLIENT(ref mut client) => Ok(client.write().await.recv().await?),
+            }
+        }
+
+        pub async fn wait_incoming(&mut self, client_id: &RUMString) -> RUMResult<bool> {
+            match *self {
+                LowerLayer::SERVER(ref mut server) => {
+                    server.write().await.wait_incoming(client_id).await
+                }
+                LowerLayer::CLIENT(ref mut client) => client.write().await.wait_incoming().await,
             }
         }
 

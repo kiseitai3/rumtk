@@ -122,12 +122,11 @@ pub mod tcp {
 
         async fn recv_some(&mut self) -> RUMResult<RUMNetPartialMessage> {
             let mut buf: [u8; MESSAGE_BUFFER_SIZE] = [0; MESSAGE_BUFFER_SIZE];
-            let client_id = &self.socket.peer_addr().unwrap().to_compact_string();
             match self.socket.try_read(&mut buf) {
                 Ok(n) => match n {
                     0 => Err(format_compact!(
                         "Received 0 bytes from {}! It might have disconnected!",
-                        &client_id
+                        &self.socket.peer_addr().unwrap().to_compact_string()
                     )),
                     MESSAGE_BUFFER_SIZE => Ok((RUMNetMessage::from(buf), true)),
                     _ => Ok((RUMNetMessage::from(buf[0..n].to_vec()), false)),
@@ -137,7 +136,25 @@ pub mod tcp {
                 }
                 Err(e) => Err(format_compact!(
                     "Error receiving message from {} because {}",
-                    &client_id,
+                    &self.socket.peer_addr().unwrap().to_compact_string(),
+                    &e
+                )),
+            }
+        }
+
+        pub async fn wait_incoming(&self) -> RUMResult<bool> {
+            let mut buf: [u8; 1] = [0; 1];
+            match self.socket.peek(&mut buf).await {
+                Ok(n) => match n {
+                    0 => Err(format_compact!(
+                        "Received 0 bytes from {}! It might have disconnected!",
+                        &self.socket.peer_addr().unwrap().to_compact_string()
+                    )),
+                    _ => Ok(true),
+                },
+                Err(e) => Err(format_compact!(
+                    "Error receiving message from {} because {}. It might have disconnected!",
+                    &self.socket.peer_addr().unwrap().to_compact_string(),
                     &e
                 )),
             }
@@ -496,7 +513,7 @@ pub mod tcp {
 
         pub async fn receive(client: &SafeClient) -> RUMResult<RUMNetMessage> {
             let mut owned_client = lock_client_ex(client).await;
-            Ok(owned_client.recv().await?)
+            owned_client.recv().await
         }
 
         pub async fn get_client(
@@ -579,6 +596,15 @@ pub mod tcp {
             };
             let mut locked_queue = queue.lock().await;
             locked_queue.pop_front()
+        }
+
+        ///
+        /// Obtain a message, if available, from the incoming queue.
+        ///
+        pub async fn wait_incoming(&mut self, client_id: &RUMString) -> RUMResult<bool> {
+            let client = RUMServer::get_client(&self.clients, client_id).await?;
+            let owned_client = client.write().await;
+            owned_client.wait_incoming().await
         }
 
         ///

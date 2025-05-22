@@ -145,7 +145,10 @@ fn inbound_loop(listener: &SafeAsyncMLLP) {
             let mut owned_channel = channel.lock().expect("Failed to lock channel");
             let raw_msg = match owned_channel.receive_message() {
                 Ok(msg) => msg,
-                Err(e) => continue, // TODO: missing log call.
+                Err(e) => {
+                    //println!("{}", e);
+                    continue;
+                } // TODO: missing log call.
             };
             let msg = match V2Message::try_from_str(&raw_msg) {
                 Ok(msg) => msg,
@@ -153,7 +156,10 @@ fn inbound_loop(listener: &SafeAsyncMLLP) {
             };
             let serialized_message = match rumtk_serialize!(&msg) {
                 Ok(msg) => msg,
-                Err(e) => continue, // TODO: missing log call
+                Err(e) => {
+                    //println!("{}", e);
+                    continue;
+                } // TODO: missing log call.
             };
             rumtk_write_stdout!(&serialized_message);
         }

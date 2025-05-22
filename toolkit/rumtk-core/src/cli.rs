@@ -89,7 +89,7 @@ pub mod cli_utils {
     pub fn read_stdin() -> RUMResult<RUMString> {
         let stdin_handle = stdin();
         let mut locked_stdin_handle = stdin_handle.lock();
-        let mut message = String::new();
+        let mut message = String::with_capacity(2048);
         match locked_stdin_handle.read_to_string(&mut message) {
             Ok(s) => s,
             Err(e) => {
