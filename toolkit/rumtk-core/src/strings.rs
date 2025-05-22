@@ -375,7 +375,7 @@ pub fn unescape(escaped_str: &str) -> Result<Vec<u8>, RUMString> {
         // Custom encoding
         "\\z" => bytes.append(&mut lower_case.as_bytes().to_vec()),
         // Single byte codes.
-        _ => bytes.push(unescape_control_byte(&lower_case)?),
+        _ => bytes.push(unescape_control_byte(&lower_case[0..2])?),
     }
     Ok(bytes)
 }
@@ -395,7 +395,7 @@ fn unescape_control(escaped_str: &str) -> Result<char, RUMString> {
         "\\s" => Ok('\x20'),
         "\\\\" => Ok(ASCII_ESCAPE_CHAR),
         "\\'" => Ok('\''),
-        "\\\"" => Ok('\"'),
+        "\\\"" => Ok('"'),
         "\\0" => Ok('\0'),
         "\\v" => Ok('\x0B'),
         "\\a" => Ok('\x07'),
@@ -428,7 +428,7 @@ fn unescape_control_byte(escaped_str: &str) -> Result<u8, RUMString> {
         "\\a" => Ok(7),   // Alert bell
         // Control sequences by hex
         //Err(format_compact!("Unknown escape sequence? Sequence: {}!", escaped_str))
-        _ => hex_to_byte(&escaped_str[2..]),
+        _ => hex_to_byte(escaped_str),
     }
 }
 

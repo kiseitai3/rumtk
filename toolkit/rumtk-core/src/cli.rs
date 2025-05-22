@@ -96,6 +96,8 @@ pub mod cli_utils {
                 return Err(format_compact!("Error reading from STDIN: {}", e));
             }
         };
+        //no need to unescape incoming string. Rust seems to be unescaping it automatically as long
+        //as it is valid utf-8
         Ok(message.to_rumstring())
     }
 
@@ -136,9 +138,7 @@ pub mod macros {
     macro_rules! rumtk_read_stdin {
         (  ) => {{
             use $crate::cli::cli_utils::read_stdin;
-            use $crate::strings::unescape_string;
-            let raw_message = read_stdin().expect("Failed to read stdin");
-            unescape_string(&raw_message)
+            read_stdin()
         }};
     }
 
@@ -155,8 +155,8 @@ pub mod macros {
     #[macro_export]
     macro_rules! rumtk_write_stdout {
         ( $message:expr ) => {{
-            use $crate::strings::escape;
-            let escaped_message = escape($message);
+            use $crate::strings::basic_escape;
+            let escaped_message = basic_escape($message);
             print!("{}", &escaped_message);
         }};
     }
