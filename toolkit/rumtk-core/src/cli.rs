@@ -23,7 +23,7 @@ pub mod cli_utils {
     use crate::strings::{format_compact, RUMString};
     use clap::Parser;
     use compact_str::CompactStringExt;
-    use std::io::{stdin, stdout, IsTerminal, Read, Write};
+    use std::io::{stdin, stdout, Read, Write};
     use std::num::NonZeroU16;
     use std::time::Duration;
     use tokio::io::AsyncReadExt;
@@ -91,9 +91,6 @@ pub mod cli_utils {
     }
 
     pub fn read_stdin() -> RUMResult<RUMString> {
-        if stdin().is_terminal() {
-            print!("> ");
-        }
         match std::io::read_to_string(stdin()) {
             Ok(s) => Ok(s.into()),
             Err(e) => Err(format_compact!("Error reading from STDIN: {}", e)),
