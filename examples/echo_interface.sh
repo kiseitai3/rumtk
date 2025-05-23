@@ -21,7 +21,7 @@
 mkdir demo
 
 echo "Setting up Interface Chain"
-#./target/debug/rumtk-v2-interface --port 55555 --local > demo/out.log &
+./target/debug/rumtk-v2-interface --port 55555 --local > demo/out.log &
 sleep 1
 ./target/debug/rumtk-v2-interface --port 55556 --local | ./target/debug/rumtk-v2-interface --outbound --port 55555 --local &
 sleep 1
