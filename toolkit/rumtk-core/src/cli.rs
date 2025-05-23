@@ -20,11 +20,15 @@
 
 pub mod cli_utils {
     use crate::core::RUMResult;
-    use crate::strings::{format_compact, RUMString, RUMStringConversions};
+    use crate::strings::{format_compact, RUMString};
     use clap::Parser;
     use compact_str::CompactStringExt;
-    use std::io::{stdin, Read};
+    use std::io::{stdin, stdout, IsTerminal, Read, Write};
     use std::num::NonZeroU16;
+    use std::time::Duration;
+    use tokio::io::AsyncReadExt;
+
+    const BUFFER_SIZE: usize = 1024;
 
     ///
     /// Example CLI parser that can be used to paste in your binary and adjust as needed.
@@ -87,18 +91,33 @@ pub mod cli_utils {
     }
 
     pub fn read_stdin() -> RUMResult<RUMString> {
-        let stdin_handle = stdin();
-        let mut locked_stdin_handle = stdin_handle.lock();
-        let mut message = String::with_capacity(2048);
-        match locked_stdin_handle.read_to_string(&mut message) {
-            Ok(s) => s,
-            Err(e) => {
-                return Err(format_compact!("Error reading from STDIN: {}", e));
-            }
-        };
-        //no need to unescape incoming string. Rust seems to be unescaping it automatically as long
-        //as it is valid utf-8
-        Ok(message.to_rumstring())
+        if stdin().is_terminal() {
+            print!("> ");
+        }
+        match std::io::read_to_string(stdin()) {
+            Ok(s) => Ok(s.into()),
+            Err(e) => Err(format_compact!("Error reading from STDIN: {}", e)),
+        }
+    }
+
+    ///
+    ///https://users.rust-lang.org/t/how-to-handle-stdin-hanging-when-there-is-no-input/93512
+    pub async fn read_stdin_(timeout: Duration) -> RUMResult<RUMString> {
+        let mut buf = String::new();
+        match tokio::time::timeout(timeout, tokio::io::stdin().read_to_string(&mut buf)).await {
+            Ok(s) => match s {
+                Ok(s) => Ok(buf.into()),
+                Err(e) => Err(format_compact!("{}", e)),
+            },
+            Err(e) => Err(format_compact!("Error reading from STDIN: {}", e)),
+        }
+    }
+
+    pub fn write_stdout(data: &RUMString) -> RUMResult<()> {
+        match stdout().write_all(data.as_bytes()) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format_compact!("Error writing to stdout!")),
+        }
     }
 
     pub fn print_license_notice(program: &str, year: &str, author_list: &Vec<&str>) {
@@ -155,9 +174,11 @@ pub mod macros {
     #[macro_export]
     macro_rules! rumtk_write_stdout {
         ( $message:expr ) => {{
+            use $crate::cli::cli_utils::write_stdout;
             use $crate::strings::basic_escape;
             let escaped_message = basic_escape($message);
-            print!("{}", &escaped_message);
+            //print!("{}", &escaped_message);
+            write_stdout(&escaped_message);
         }};
     }
 

@@ -20,15 +20,20 @@
 
 mkdir demo
 
-./target/debug/rumtk-v2-interface --port 55555 --local > demo/out.log &
-
+echo "Setting up Interface Chain"
+#./target/debug/rumtk-v2-interface --port 55555 --local > demo/out.log &
+sleep 1
 ./target/debug/rumtk-v2-interface --port 55556 --local | ./target/debug/rumtk-v2-interface --outbound --port 55555 --local &
+sleep 1
 
+echo "Pushing Message through PIPEs!"
 cat examples/sample_hl7.hl7 | ./target/debug/rumtk-v2-interface --outbound --local --port 55556
 
-sleep 5
+sleep 20
 
+echo "Output"
 cat demo/out.log
 
+echo "Clean up"
 pkill -i -e -f rumtk-v2-interface
-rm -r demo
+#rm -r demo
