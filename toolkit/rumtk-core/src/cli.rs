@@ -20,15 +20,16 @@
 
 pub mod cli_utils {
     use crate::core::RUMResult;
-    use crate::strings::{format_compact, RUMString};
+    use crate::strings::{format_compact, RUMArrayConversions, RUMString};
     use clap::Parser;
     use compact_str::CompactStringExt;
-    use std::io::{stdin, stdout, Read, Write};
+    use std::io::{stdin, stdout, Read, StdinLock, Write};
     use std::num::NonZeroU16;
-    use std::time::Duration;
-    use tokio::io::AsyncReadExt;
 
-    const BUFFER_SIZE: usize = 1024;
+    const BUFFER_SIZE: usize = 1024 * 4;
+    const BUFFER_CHUNK_SIZE: usize = 512;
+
+    pub type BufferChunk = [u8; BUFFER_CHUNK_SIZE];
 
     ///
     /// Example CLI parser that can be used to paste in your binary and adjust as needed.
@@ -91,28 +92,44 @@ pub mod cli_utils {
     }
 
     pub fn read_stdin() -> RUMResult<RUMString> {
-        match std::io::read_to_string(stdin()) {
-            Ok(s) => Ok(s.into()),
-            Err(e) => Err(format_compact!("Error reading from STDIN: {}", e)),
+        let mut stdin_lock = stdin().lock();
+        let mut stdin_buffer: Vec<u8> = Vec::with_capacity(BUFFER_SIZE);
+        let (mut size, mut buf) = read_some_stdin(&mut stdin_lock)?;
+        while size > 0 {
+            for itm in buf.iter() {
+                if *itm == 0 {
+                    stdin_buffer.push(0);
+                    return Ok(stdin_buffer.to_rumstring());
+                }
+                stdin_buffer.push(*itm);
+            }
+
+            let result = read_some_stdin(&mut stdin_lock)?;
+            size = result.0;
+            buf = result.1;
         }
+        Ok(stdin_buffer.to_rumstring())
     }
 
-    ///
-    ///https://users.rust-lang.org/t/how-to-handle-stdin-hanging-when-there-is-no-input/93512
-    pub async fn read_stdin_(timeout: Duration) -> RUMResult<RUMString> {
-        let mut buf = String::new();
-        match tokio::time::timeout(timeout, tokio::io::stdin().read_to_string(&mut buf)).await {
-            Ok(s) => match s {
-                Ok(s) => Ok(buf.into()),
-                Err(e) => Err(format_compact!("{}", e)),
-            },
-            Err(e) => Err(format_compact!("Error reading from STDIN: {}", e)),
+    pub fn read_some_stdin(input: &mut StdinLock) -> RUMResult<(usize, BufferChunk)> {
+        let mut buf: BufferChunk = [0; BUFFER_CHUNK_SIZE];
+        match input.read(&mut buf) {
+            Ok(s) => Ok((s, buf)),
+            Err(e) => Err(format_compact!(
+                "Error reading {} bytes from STDIN: {}",
+                BUFFER_CHUNK_SIZE,
+                e
+            )),
         }
     }
 
     pub fn write_stdout(data: &RUMString) -> RUMResult<()> {
-        match stdout().write_all(data.as_bytes()) {
-            Ok(_) => Ok(()),
+        let mut stdout_handle = stdout();
+        match stdout_handle.write_all(data.as_bytes()) {
+            Ok(_) => match stdout_handle.flush() {
+                Ok(_) => Ok(()),
+                Err(e) => Err(format_compact!("Error flushing stdout: {}", e)),
+            },
             Err(e) => Err(format_compact!("Error writing to stdout!")),
         }
     }
@@ -174,7 +191,6 @@ pub mod macros {
             use $crate::cli::cli_utils::write_stdout;
             use $crate::strings::basic_escape;
             let escaped_message = basic_escape($message);
-            //print!("{}", &escaped_message);
             write_stdout(&escaped_message);
         }};
     }

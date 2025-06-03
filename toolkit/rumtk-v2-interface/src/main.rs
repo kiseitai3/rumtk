@@ -134,34 +134,27 @@ fn outbound_loop(channel: &SafeMLLPChannel) {
     loop {
         match outbound_send(channel) {
             Ok(()) => continue,
-            Err(e) => panic!("{}", e), // TODO: missing log call
+            Err(e) => println!("{}", e), // TODO: missing log call
         };
     }
+}
+
+fn inbound_receive(channel: &SafeMLLPChannel) -> RUMResult<()> {
+    let mut owned_channel = channel.lock().expect("Failed to lock channel");
+    let raw_msg = owned_channel.receive_message()?;
+    let msg = V2Message::try_from_str(&raw_msg)?;
+    let serialized_message = rumtk_serialize!(&msg)?;
+    rumtk_write_stdout!(&serialized_message);
+    Ok(())
 }
 
 fn inbound_loop(listener: &SafeAsyncMLLP) {
     loop {
         for channel in rumtk_v2_mllp_iter_channels!(&listener) {
-            let mut owned_channel = channel.lock().expect("Failed to lock channel");
-            let raw_msg = match owned_channel.receive_message() {
-                Ok(msg) => msg,
-                Err(e) => {
-                    //println!("{}", e);
-                    continue;
-                } // TODO: missing log call.
-            };
-            let msg = match V2Message::try_from_str(&raw_msg) {
-                Ok(msg) => msg,
-                Err(e) => panic!("{}", e), // TODO: missing log call.
-            };
-            let serialized_message = match rumtk_serialize!(&msg) {
-                Ok(msg) => msg,
-                Err(e) => {
-                    //println!("{}", e);
-                    continue;
-                } // TODO: missing log call.
-            };
-            rumtk_write_stdout!(&serialized_message);
+            match inbound_receive(&channel) {
+                Ok(()) => continue,
+                Err(e) => println!("{}", e), // TODO: log call
+            }
         }
     }
 }
