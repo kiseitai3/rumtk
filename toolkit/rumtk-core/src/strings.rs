@@ -296,14 +296,15 @@ fn decode(src: &[u8], encoding: &'static Encoding) -> RUMString {
 /// This function focuses on reverting the result of [escape], whose output is meant for HL7.
 ///
 pub fn unescape_string(escaped_str: &str) -> RUMResult<RUMString> {
-    let str_size = escaped_str.count_graphemes();
+    let graphemes = escaped_str.graphemes(true).collect::<Vec<&str>>();
+    let str_size = graphemes.len();
     let mut result: Vec<u8> = Vec::with_capacity(escaped_str.len());
     let mut i = 0;
     while i < str_size {
-        let seq_start = escaped_str.get_grapheme(i);
+        let seq_start = graphemes[i];
         match seq_start {
             "\\" => {
-                let escape_seq = escaped_str.get_grapheme_string(" ", i);
+                let escape_seq = get_grapheme_string(&graphemes, " ", i);
                 let mut c = match unescape(&escape_seq) {
                     Ok(c) => c,
                     Err(_why) => Vec::from(escape_seq.as_bytes()),
@@ -318,6 +319,39 @@ pub fn unescape_string(escaped_str: &str) -> RUMResult<RUMString> {
         }
     }
     Ok(try_decode(result.as_slice()))
+}
+
+///
+/// Get the grapheme block and concatenate it into a newly allocated [`RUMString`].
+///
+pub fn get_grapheme_string<'a>(
+    graphemes: &Vec<&'a str>,
+    end_grapheme: &str,
+    start_index: usize,
+) -> RUMString {
+    get_grapheme_collection(graphemes, end_grapheme, start_index).join_compact("")
+}
+
+///
+/// Return vector of graphemes from starting spot up until we find the end grapheme.
+///
+/// Because a grapheme may take more than one codepoint characters, these have to be treated as
+/// references to strings.
+///
+pub fn get_grapheme_collection<'a>(
+    graphemes: &Vec<&'a str>,
+    end_grapheme: &str,
+    start_index: usize,
+) -> Vec<&'a str> {
+    let mut result: Vec<&'a str> = Vec::new();
+    for grapheme in graphemes.iter().skip(start_index) {
+        let item = *grapheme;
+        result.push(item);
+        if item == end_grapheme {
+            break;
+        }
+    }
+    result
 }
 
 ///
@@ -543,7 +577,49 @@ pub fn escape(unescaped_str: &str) -> RUMString {
 ///  assert_eq!("I \\u{2764} my wife!", &escaped_message, "Did not get expected escaped string! Got {}!", &escaped_message);
 ///```
 pub fn basic_escape(unescaped_str: &str) -> RUMString {
-    unescaped_str.escape_default().to_compact_string()
+    let escaped = is_escaped_str(unescaped_str);
+    if !escaped {
+        return unescaped_str.escape_default().to_compact_string();
+    }
+    unescaped_str.to_rumstring()
+}
+
+///
+/// Checks if a given string is fully ASCII or within the ASCII range.
+///
+/// Remember: all strings are UTF-8 encoded in Rust, but most ASCII strings fit within the UTF-8
+/// encoding scheme.
+///
+pub fn is_ascii_str(unescaped_str: &str) -> bool {
+    unescaped_str.is_ascii()
+}
+
+///
+/// Checks if an input string is already escaped.
+/// The idea is to avoid escaping the escaped string thus making it a nightmare to undo the
+/// escaping later on.
+///
+/// Basically, if you were to blindly escape the input string, back slashes keep getting escaped.
+/// For example `\r -> \\r -> \\\\r -> ...`.
+///
+pub fn is_escaped_str(unescaped_str: &str) -> bool {
+    if !is_ascii_str(unescaped_str) {
+        return false;
+    }
+
+    for c in unescaped_str.chars() {
+        if !is_printable_char(&c) {
+            return false;
+        }
+    }
+    true
+}
+
+///
+/// Returns whether a character is in the ASCII printable range.
+///
+pub fn is_printable_char(c: &char) -> bool {
+    &' ' <= c || c <= &'~'
 }
 
 ///
@@ -559,7 +635,5 @@ pub fn filter_ascii(unescaped_str: &str, closure: fn(char) -> bool) -> RUMString
 /// Removes all non ASCII and all non printable characters from string.
 ///
 pub fn filter_non_printable_ascii(unescaped_str: &str) -> RUMString {
-    filter_ascii(unescaped_str, |c: char| {
-        !c.is_ascii() && (' ' <= c || c <= '~')
-    })
+    filter_ascii(unescaped_str, |c: char| is_printable_char(&c))
 }

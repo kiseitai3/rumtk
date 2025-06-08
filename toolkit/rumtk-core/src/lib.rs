@@ -22,6 +22,7 @@
 #![feature(inherent_associated_types)]
 #![feature(type_alias_impl_trait)]
 #![feature(unboxed_closures)]
+#![feature(buf_read_has_data_left)]
 
 pub mod cache;
 pub mod cli;
@@ -105,6 +106,32 @@ mod tests {
             result.as_str()
         );
         assert_eq!(expected, result.as_str(), "Incorrect string unescaping!");
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_is_escaped_string() {
+        let input = "I \\u2764 my wife!";
+        let expected = true;
+        let result = strings::is_escaped_str(input);
+        println!("Input: {} Expected: {} Got: {}", input, expected, result);
+        assert_eq!(
+            expected, result,
+            "Escaped string detected as unescaped string!"
+        );
+        println!("Passed!")
+    }
+
+    #[test]
+    fn test_is_unescaped_string() {
+        let input = "I ❤ my wife!";
+        let expected = false;
+        let result = strings::is_escaped_str(input);
+        println!("Input: {} Expected: {} Got: {}", input, expected, result);
+        assert_eq!(
+            expected, result,
+            "Unescaped string detected as escaped string!"
+        );
         println!("Passed!")
     }
 
@@ -629,6 +656,37 @@ mod tests {
         };
         let hw_str = rumtk_serialize!(&hw, true).unwrap();
         let new_hw: MyStruct = rumtk_deserialize!(&hw_str).unwrap();
+
+        assert!(
+            new_hw == hw,
+            "Deserialized JSON does not match the expected value!"
+        );
+    }
+
+    #[test]
+    fn test_escape_unescape_json() {
+        #[derive(Serialize, Deserialize, PartialEq)]
+        struct MyStruct {
+            hello: RUMString,
+        }
+
+        let hw = MyStruct {
+            hello: RUMString::from("World"),
+        };
+
+        let hw_str = rumtk_serialize!(&hw, true).unwrap();
+        let hw_escaped_str = strings::basic_escape(&hw_str);
+        println!("Escaped => {}", hw_escaped_str);
+
+        let hw_unescaped_str = strings::unescape_string(&hw_escaped_str).unwrap();
+        println!("Unescaped => {}", hw_unescaped_str);
+        assert_eq!(
+            hw_str.to_rumstring(),
+            hw_unescaped_str.to_rumstring(),
+            "Unescaped serialized JSON mismatch!"
+        );
+
+        let new_hw: MyStruct = rumtk_deserialize!(&hw_unescaped_str).unwrap();
 
         assert!(
             new_hw == hw,
