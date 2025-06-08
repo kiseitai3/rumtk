@@ -29,6 +29,7 @@ pub mod cli_utils {
     const BUFFER_SIZE: usize = 1024 * 4;
     const BUFFER_CHUNK_SIZE: usize = 512;
 
+    pub type BufferSlice = Vec<u8>;
     pub type BufferChunk = [u8; BUFFER_CHUNK_SIZE];
 
     ///
@@ -94,32 +95,27 @@ pub mod cli_utils {
     pub fn read_stdin() -> RUMResult<RUMString> {
         let mut stdin_lock = stdin().lock();
         let mut stdin_buffer: Vec<u8> = Vec::with_capacity(BUFFER_SIZE);
-        let (mut size, mut buf) = read_some_stdin(&mut stdin_lock)?;
-        while size > 0 {
-            for itm in buf.iter() {
-                if *itm == 0 {
-                    stdin_buffer.push(0);
-                    return Ok(stdin_buffer.to_rumstring());
-                }
-                stdin_buffer.push(*itm);
-            }
-
-            let result = read_some_stdin(&mut stdin_lock)?;
-            size = result.0;
-            buf = result.1;
+        let mut s = read_some_stdin(&mut stdin_lock, &mut stdin_buffer)?;
+        while s == BUFFER_CHUNK_SIZE {
+            s = read_some_stdin(&mut stdin_lock, &mut stdin_buffer)?;
         }
-        Ok(stdin_buffer.to_rumstring())
+        let mut filtered = Vec::<u8>::with_capacity(stdin_buffer.len());
+        for c in stdin_buffer {
+            if c != 0 {
+                filtered.push(c);
+            }
+        }
+        Ok(filtered.to_rumstring())
     }
 
-    pub fn read_some_stdin(input: &mut StdinLock) -> RUMResult<(usize, BufferChunk)> {
-        let mut buf: BufferChunk = [0; BUFFER_CHUNK_SIZE];
-        match input.read(&mut buf) {
-            Ok(s) => Ok((s, buf)),
-            Err(e) => Err(format_compact!(
-                "Error reading {} bytes from STDIN: {}",
-                BUFFER_CHUNK_SIZE,
-                e
-            )),
+    pub fn read_some_stdin(input: &mut StdinLock, buf: &mut BufferSlice) -> RUMResult<usize> {
+        let mut chunk: BufferChunk = [0; BUFFER_CHUNK_SIZE];
+        match input.read(&mut chunk) {
+            Ok(s) => {
+                buf.extend_from_slice(&chunk);
+                Ok(s)
+            }
+            Err(e) => Err(format_compact!("Error reading stdin chunk because {}!", e)),
         }
     }
 
