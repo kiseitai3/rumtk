@@ -197,8 +197,8 @@ pub mod mllp_v2 {
     };
     use rumtk_core::net::tcp::{AsyncRwLock, RUMClient, RUMServer, SafeClient, SafeServer};
     use rumtk_core::strings::{
-        filter_non_printable_ascii, try_decode, CompactStringExt, RUMArrayConversions, RUMString,
-        RUMStringConversions, ToCompactString,
+        basic_escape, filter_non_printable_ascii, try_decode,
+        RUMArrayConversions, RUMString, RUMStringConversions, ToCompactString,
     };
     use rumtk_core::threading::thread_primitives::SafeTaskArgs;
     use rumtk_core::{
@@ -329,16 +329,7 @@ pub mod mllp_v2 {
     ) -> RUMResult<RUMString> {
         match mllp_filter_policy {
             MLLP_FILTER_POLICY::NONE => Ok(msg.to_rumstring()),
-            MLLP_FILTER_POLICY::ESCAPE_INPUT => {
-                let data = msg.replace("\n", "\r");
-                let tokens = data.split('\r').collect::<Vec<&str>>();
-                let mut sanitized = Vec::<RUMString>::with_capacity(tokens.len());
-                for token in tokens {
-                    //sanitized.push(unescape_string(token)?);
-                    sanitized.push(token.to_rumstring());
-                }
-                Ok(sanitized.join_compact("\r"))
-            }
+            MLLP_FILTER_POLICY::ESCAPE_INPUT => Ok(basic_escape(msg)),
             MLLP_FILTER_POLICY::FILTER_INPUT => Ok(filter_non_printable_ascii(msg)),
         }
     }
