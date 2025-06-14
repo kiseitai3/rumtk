@@ -145,10 +145,8 @@ pub mod v2_parser {
         /// Will not support 2.7.8 Local encodings (\Zxxyy) until needed in the wild.
         ///
         pub fn from_str(item: &str) -> V2Component {
-            //let original_string = unescape_string(item).unwrap();
-            let original_string = item;
             V2Component {
-                component: V2String::from(original_string),
+                component: V2String::from(item),
             }
         }
 
