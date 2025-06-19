@@ -64,6 +64,7 @@ pub mod tcp {
     #[derive(Debug)]
     pub struct RUMClient {
         socket: TcpStream,
+        disconnected: bool,
     }
 
     impl RUMClient {
@@ -73,7 +74,10 @@ pub mod tcp {
         pub async fn connect(ip: &str, port: u16) -> RUMResult<RUMClient> {
             let addr = format_compact!("{}:{}", ip, port);
             match TcpStream::connect(addr.as_str()).await {
-                Ok(socket) => Ok(RUMClient { socket }),
+                Ok(socket) => Ok(RUMClient {
+                    socket,
+                    disconnected: false,
+                }),
                 Err(e) => Err(format_compact!(
                     "Unable to connect to {} because {}",
                     &addr.as_str(),
@@ -87,7 +91,10 @@ pub mod tcp {
         /// connected socket.
         ///
         pub async fn accept(socket: TcpStream) -> RUMResult<RUMClient> {
-            Ok(RUMClient { socket })
+            Ok(RUMClient {
+                socket,
+                disconnected: false,
+            })
         }
 
         ///
@@ -96,11 +103,14 @@ pub mod tcp {
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
-                Err(e) => Err(format_compact!(
-                    "Unable to send message to {} because {}",
-                    &self.socket.local_addr().unwrap().to_compact_string(),
-                    &e
-                )),
+                Err(e) => {
+                    self.disconnect();
+                    Err(format_compact!(
+                        "Unable to send message to {} because {}",
+                        &self.socket.local_addr().unwrap().to_compact_string(),
+                        &e
+                    ))
+                }
             }
         }
 
@@ -124,21 +134,27 @@ pub mod tcp {
             let mut buf: [u8; MESSAGE_BUFFER_SIZE] = [0; MESSAGE_BUFFER_SIZE];
             match self.socket.try_read(&mut buf) {
                 Ok(n) => match n {
-                    0 => Err(format_compact!(
-                        "Received 0 bytes from {}! It might have disconnected!",
-                        &self.socket.peer_addr().unwrap().to_compact_string()
-                    )),
+                    0 => {
+                        self.disconnect();
+                        Err(format_compact!(
+                            "Received 0 bytes from {}! It might have disconnected!",
+                            &self.socket.peer_addr().unwrap().to_compact_string()
+                        ))
+                    }
                     MESSAGE_BUFFER_SIZE => Ok((RUMNetMessage::from(buf), true)),
                     _ => Ok((RUMNetMessage::from(buf[0..n].to_vec()), false)),
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     Ok((RUMNetMessage::new(), false))
                 }
-                Err(e) => Err(format_compact!(
-                    "Error receiving message from {} because {}",
-                    &self.socket.peer_addr().unwrap().to_compact_string(),
-                    &e
-                )),
+                Err(e) => {
+                    self.disconnect();
+                    Err(format_compact!(
+                        "Error receiving message from {} because {}",
+                        &self.socket.peer_addr().unwrap().to_compact_string(),
+                        &e
+                    ))
+                }
             }
         }
 
@@ -188,6 +204,14 @@ pub mod tcp {
                     Err(_) => None,
                 },
             }
+        }
+
+        pub fn is_disconnected(&self) -> bool {
+            self.disconnected
+        }
+
+        pub fn disconnect(&mut self) {
+            self.disconnected = true;
         }
     }
 
@@ -324,6 +348,11 @@ pub mod tcp {
                 Arc::clone(&reowned_self.clients),
                 Arc::clone(&reowned_self.tx_in),
             ));
+            let mut gc_handle = tokio::spawn(RUMServer::handle_client_gc(
+                Arc::clone(&reowned_self.clients),
+                Arc::clone(&reowned_self.tx_in),
+                Arc::clone(&reowned_self.tx_out),
+            ));
             let mut stop = reowned_self.stop;
             //Most drop here to allow the outside world to grab access to the server handle and interact with us.
             std::mem::drop(reowned_self); //Bootstrap magic that let's the outside able to interact with our server while it runs autonomously in the background.
@@ -348,6 +377,13 @@ pub mod tcp {
                     receive_handle = tokio::spawn(RUMServer::handle_receive(
                         Arc::clone(&reowned_self.clients),
                         Arc::clone(&reowned_self.tx_in),
+                    ));
+                }
+                if gc_handle.is_finished() {
+                    gc_handle = tokio::spawn(RUMServer::handle_client_gc(
+                        Arc::clone(&reowned_self.clients),
+                        Arc::clone(&reowned_self.tx_in),
+                        Arc::clone(&reowned_self.tx_out),
                     ));
                 }
                 stop = reowned_self.stop;
@@ -429,9 +465,15 @@ pub mod tcp {
                     None => continue,
                 };
                 for msg in messages.iter() {
-                    RUMServer::send(&client, msg).await?;
+                    match RUMServer::send(client, msg).await {
+                        Ok(_) => (),
+                        Err(e) => {
+                            return Err(format_compact!("{}... Dropping client...", e));
+                        }
+                    };
                 }
             }
+
             if client_list.is_empty() {
                 rumtk_async_sleep!(0.1).await;
             }
@@ -448,14 +490,46 @@ pub mod tcp {
         ) -> RUMResult<()> {
             let mut client_list = clients.write().await;
             for (client_id, client) in client_list.iter_mut() {
-                let msg = RUMServer::receive(&client).await?;
+                let msg = RUMServer::receive(client).await?;
                 if !msg.is_empty() {
-                    RUMServer::push_queue(&tx_in, &client_id, msg).await?;
+                    RUMServer::push_queue(&tx_in, client_id, msg).await?;
                 }
             }
             if client_list.is_empty() {
                 rumtk_async_sleep!(0.1).await;
             }
+            Ok(())
+        }
+
+        ///
+        /// Contains the logic for handling removal of clients from the server if they disconnected.
+        ///
+        pub async fn handle_client_gc(
+            clients: SafeClients,
+            tx_in: SafeMappedQueues,
+            tx_out: SafeMappedQueues,
+        ) -> RUMResult<()> {
+            let mut client_list = clients.write().await;
+            let client_keys = client_list.keys().cloned().collect::<Vec<_>>();
+            let mut disconnected_clients = Vec::<RUMString>::with_capacity(client_list.len());
+            for client_id in client_keys {
+                let disconnected = client_list[&client_id].write().await.is_disconnected();
+                let empty_queues = tx_in.lock().await.is_empty() && tx_out.lock().await.is_empty();
+                if disconnected && empty_queues {
+                    client_list.remove(&client_id);
+                    tx_in.lock().await.remove(&client_id);
+                    tx_out.lock().await.remove(&client_id);
+                    disconnected_clients.push(client_id);
+                }
+            }
+
+            if !disconnected_clients.is_empty() {
+                return Err(format_compact!(
+                    "The following clients have disconnected and thus will be removed! {:?}",
+                    disconnected_clients
+                ));
+            }
+
             Ok(())
         }
 
@@ -514,6 +588,11 @@ pub mod tcp {
         pub async fn receive(client: &SafeClient) -> RUMResult<RUMNetMessage> {
             let mut owned_client = lock_client_ex(client).await;
             owned_client.recv().await
+        }
+
+        pub async fn disconnect(client: &SafeClient) {
+            let mut owned_client = lock_client_ex(client).await;
+            owned_client.disconnect()
         }
 
         pub async fn get_client(
