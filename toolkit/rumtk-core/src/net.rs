@@ -101,6 +101,13 @@ pub mod tcp {
         /// Send message to server.
         ///
         pub async fn send(&mut self, msg: &RUMNetMessage) -> RUMResult<()> {
+            if self.is_disconnected() {
+                return Err(format_compact!(
+                    "{} disconnected!",
+                    &self.socket.peer_addr().unwrap().to_compact_string()
+                ));
+            }
+
             match self.socket.write_all(msg.as_slice()).await {
                 Ok(_) => Ok(()),
                 Err(e) => {
@@ -120,6 +127,14 @@ pub mod tcp {
         ///
         pub async fn recv(&mut self) -> RUMResult<RUMNetMessage> {
             let mut msg = RUMNetMessage::new();
+
+            if self.is_disconnected() {
+                return Err(format_compact!(
+                    "{} disconnected!",
+                    &self.socket.peer_addr().unwrap().to_compact_string()
+                ));
+            }
+
             loop {
                 let mut fragment = self.recv_some().await?;
                 msg.append(&mut fragment.0);
@@ -160,6 +175,14 @@ pub mod tcp {
 
         pub async fn wait_incoming(&self) -> RUMResult<bool> {
             let mut buf: [u8; 1] = [0; 1];
+
+            if self.is_disconnected() {
+                return Err(format_compact!(
+                    "{} disconnected!",
+                    &self.socket.peer_addr().unwrap().to_compact_string()
+                ));
+            }
+
             match self.socket.peek(&mut buf).await {
                 Ok(n) => match n {
                     0 => Err(format_compact!(
@@ -178,6 +201,10 @@ pub mod tcp {
 
         /// Check if socket is ready for reading.
         pub async fn read_ready(&self) -> bool {
+            if self.is_disconnected() {
+                return false;
+            }
+
             match self.socket.readable().await {
                 Ok(_) => true,
                 Err(_) => false,
@@ -186,6 +213,10 @@ pub mod tcp {
 
         /// Check if socket is ready for writing.
         pub async fn write_ready(&self) -> bool {
+            if self.is_disconnected() {
+                return false;
+            }
+
             match self.socket.writable().await {
                 Ok(_) => true,
                 Err(_) => false,
