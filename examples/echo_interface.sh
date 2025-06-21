@@ -29,11 +29,17 @@ sleep 1
 echo "Pushing Message through PIPEs!"
 cat examples/sample_hl7.hl7 | ./target/debug/rumtk-v2-interface --outbound --local --port 55556
 
-sleep 20
+sleep 1
 
 echo "Output"
-cat demo/out.log
+DIFF=$( diff <(jq -S . examples/sample_hl7.json) <(jq -S . demo/out.log) )
 
 echo "Clean up"
 pkill -i -e -f rumtk-v2-interface
-#rm -r demo
+rm -r demo
+
+if [ "$DIFF" != "" ]; then
+    echo "Values mismatch!"
+    echo "Diff: $DIFF"
+    exit 69
+fi

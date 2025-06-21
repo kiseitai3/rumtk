@@ -1,0 +1,3089 @@
+{
+  "separators": {
+    "segment_terminator": "\r",
+    "field_separator": "|",
+    "component_separator": "^",
+    "repetition_separator": "~",
+    "escape_character": "\\",
+    "subcomponent_separator": "&",
+    "truncation_character": "#"
+  },
+  "segment_groups": {
+    "124": [
+      {
+        "name": "PID",
+        "description": "Patient Identification",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "PATID14567"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NIST MPI&2.16.840.1.113883.3.72.5.30.2&ISO"
+                },
+                {
+                  "component": "MR"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "Hernandez"
+                },
+                {
+                  "component": "Maria"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "L"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "19880906"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "F"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "2054-5"
+                },
+                {
+                  "component": "Black or   African American"
+                },
+                {
+                  "component": "HL70005"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "3248 E  FlorenceAve"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Huntington Park"
+                },
+                {
+                  "component": "CA"
+                },
+                {
+                  "component": "90255"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "H"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "PH"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "323"
+                },
+                {
+                  "component": "5825421"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "H"
+                },
+                {
+                  "component": "Hispanic or Latino"
+                },
+                {
+                  "component": "HL70189"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "89": [
+      {
+        "name": "MSH",
+        "description": "Message Header",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "^~\\\\&#"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NIST EHR"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.22"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NIST EHR Facility"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.23"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NIST Test Lab APP"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.20"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NIST Lab Facility"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.21"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130211184101-0500"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "OML"
+                },
+                {
+                  "component": "O21"
+                },
+                {
+                  "component": "OML_O21"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NIST-LOI_9.0_1.1-GU_PRU"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "T"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "2.5.1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "AL"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "AL"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "LOI_Common_Component"
+                },
+                {
+                  "component": "LOI BaseProfile"
+                },
+                {
+                  "component": "2.16.840.1.113883.9.66"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            },
+            {
+              "components": [
+                {
+                  "component": "LOI_GU_Component"
+                },
+                {
+                  "component": "LOI GU Profile"
+                },
+                {
+                  "component": "2.16.840.1.113883.9.78"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            },
+            {
+              "components": [
+                {
+                  "component": "LAB_PRU_Component"
+                },
+                {
+                  "component": "LOI PRU Profile"
+                },
+                {
+                  "component": "2.16.840.1.113883.9.82"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "178": [
+      {
+        "name": "SPM",
+        "description": "Specimen",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "S-2312987-1&NIST EHR&2.16.840.1.113883.3.72.5.24&ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "276833005"
+                },
+                {
+                  "component": "24 hour urine sample (specimen)"
+                },
+                {
+                  "component": "SCT"
+                },
+                {
+                  "component": "UR24H"
+                },
+                {
+                  "component": "24hr Urine"
+                },
+                {
+                  "component": "99USL"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "24 hour urine"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301151130-0800"
+                },
+                {
+                  "component": "201301160912-0800"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "SPM",
+        "description": "Specimen",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "S-2312987-2&NIST EHR&2.16.840.1.113883.3.72.5.24&ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "119297000"
+                },
+                {
+                  "component": "Blood Specimen"
+                },
+                {
+                  "component": "SCT"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301160912-0800ORC"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NW"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "ORD231-2"
+                },
+                {
+                  "component": "NIST EHR"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.24"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130115102146-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "134569827"
+                },
+                {
+                  "component": "Feller"
+                },
+                {
+                  "component": "Hans"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI&2.16.840.1.113883.4.6&ISO"
+                },
+                {
+                  "component": "L"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "38": [
+      {
+        "name": "DG1",
+        "description": "Diagnosis",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "I10"
+                },
+                {
+                  "component": "Essential (primary) hypertension"
+                },
+                {
+                  "component": "I10C"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Hypertension, NOS"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "F"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "DG1",
+        "description": "Diagnosis",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "O10.93"
+                },
+                {
+                  "component": "Unspecified pre-existing hypertension complicating the puerperium"
+                },
+                {
+                  "component": "I10C"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Pregnancy with chronic hypertension"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "W"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "DG1",
+        "description": "Diagnosis",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "I10"
+                },
+                {
+                  "component": "Essential (primary) hypertension"
+                },
+                {
+                  "component": "I10C"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Hypertension, NOS"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "F"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "98": [
+      {
+        "name": "OBX",
+        "description": "Observation/Result",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "CWE"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "67471-3"
+                },
+                {
+                  "component": "Pregnancy status"
+                },
+                {
+                  "component": "LN"
+                },
+                {
+                  "component": "1903"
+                },
+                {
+                  "component": "Pregnancy status"
+                },
+                {
+                  "component": "99USL"
+                },
+                {
+                  "component": "2.44"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Isthe patient pregnant?"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "Y"
+                },
+                {
+                  "component": "Yes"
+                },
+                {
+                  "component": "HL70136"
+                },
+                {
+                  "component": "1"
+                },
+                {
+                  "component": "Yes, confirmed less than 12 weeks"
+                },
+                {
+                  "component": "99USL"
+                },
+                {
+                  "component": "2.5.1"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "early pregnancy (pre 12 weeks)"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "O"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130115"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "SCI"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "OBX",
+        "description": "Observation/Result",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NM"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "3167-4"
+                },
+                {
+                  "component": "Volume of   24   hour Urine"
+                },
+                {
+                  "component": "LN"
+                },
+                {
+                  "component": "1904"
+                },
+                {
+                  "component": "Urine Volume of 24 hour collection"
+                },
+                {
+                  "component": "99USL"
+                },
+                {
+                  "component": "2.44"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "Urine Volume 24hour collection"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "1250"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "mL"
+                },
+                {
+                  "component": "milliliter"
+                },
+                {
+                  "component": "UCUM"
+                },
+                {
+                  "component": "ml"
+                },
+                {
+                  "component": "mililiter"
+                },
+                {
+                  "component": "L"
+                },
+                {
+                  "component": "1.7"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "ml"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "O"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130116"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "SCI"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "OBX",
+        "description": "Observation/Result",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "3"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "NM"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "3141-9"
+                },
+                {
+                  "component": "Body weight Measured"
+                },
+                {
+                  "component": "LN"
+                },
+                {
+                  "component": "BWm"
+                },
+                {
+                  "component": "Body weight Measured"
+                },
+                {
+                  "component": "99USL"
+                },
+                {
+                  "component": "2.44"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "patient weight measured in kg"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "59.5"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "kg"
+                },
+                {
+                  "component": "kilogram"
+                },
+                {
+                  "component": "UCUM"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "O"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130116"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "SCI"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "97": [
+      {
+        "name": "OBR",
+        "description": "Observation Request",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "1"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "ORD231-1"
+                },
+                {
+                  "component": "NIST EHR"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.24"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "34555-3"
+                },
+                {
+                  "component": "Creatinine 24H renal clearance panel"
+                },
+                {
+                  "component": "LN"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "CreatinineClearance"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301151130-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301160912-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "134569827"
+                },
+                {
+                  "component": "Feller"
+                },
+                {
+                  "component": "Hans"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI&2.16.840.1.113883.4.6&ISO"
+                },
+                {
+                  "component": "L"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      {
+        "name": "OBR",
+        "description": "Observation Request",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "2"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "ORD231-2"
+                },
+                {
+                  "component": "NIST EHR"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.24"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "21482-5"
+                },
+                {
+                  "component": "Protein [Mass/volume] in 24 hour Urine"
+                },
+                {
+                  "component": "LN"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "24 hour Urine Protein"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301151130-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "201301160912-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "134569827"
+                },
+                {
+                  "component": "Feller"
+                },
+                {
+                  "component": "Hans"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI&2.16.840.1.113883.4.6&ISO"
+                },
+                {
+                  "component": "L"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ],
+    "113": [
+      {
+        "name": "ORC",
+        "description": "Common Order",
+        "fields": [
+          [
+            {
+              "components": [
+                {
+                  "component": "NW"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "ORD231-1"
+                },
+                {
+                  "component": "NIST EHR"
+                },
+                {
+                  "component": "2.16.840.1.113883.3.72.5.24"
+                },
+                {
+                  "component": "ISO"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "20130116090021-0800"
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": ""
+                }
+              ]
+            }
+          ],
+          [
+            {
+              "components": [
+                {
+                  "component": "134569827"
+                },
+                {
+                  "component": "Feller"
+                },
+                {
+                  "component": "Hans"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI&2.16.840.1.113883.4.6&ISO"
+                },
+                {
+                  "component": "L"
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": ""
+                },
+                {
+                  "component": "NPI"
+                }
+              ]
+            }
+          ]
+        ]
+      }
+    ]
+  }
+}
