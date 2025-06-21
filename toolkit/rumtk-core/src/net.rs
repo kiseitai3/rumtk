@@ -545,7 +545,8 @@ pub mod tcp {
             let mut disconnected_clients = Vec::<RUMString>::with_capacity(client_list.len());
             for client_id in client_keys {
                 let disconnected = client_list[&client_id].write().await.is_disconnected();
-                let empty_queues = tx_in.lock().await.is_empty() && tx_out.lock().await.is_empty();
+                let empty_queues = RUMServer::is_queue_empty(&tx_in, &client_id).await
+                    && RUMServer::is_queue_empty(&tx_out, &client_id).await;
                 if disconnected && empty_queues {
                     client_list.remove(&client_id);
                     tx_in.lock().await.remove(&client_id);
@@ -609,6 +610,16 @@ pub mod tcp {
             }
             locked_queue.clear();
             Some(messages)
+        }
+
+        pub async fn is_queue_empty(tx_queues: &SafeMappedQueues, client: &RUMString) -> bool {
+            let queues = tx_queues.lock().await;
+            let queue = match queues.get(client) {
+                Some(queue) => queue,
+                None => return true,
+            };
+            let empty = queue.lock().await.is_empty();
+            empty
         }
 
         pub async fn send(client: &SafeClient, msg: &RUMNetMessage) -> RUMResult<()> {
@@ -722,6 +733,18 @@ pub mod tcp {
         ///
         pub async fn get_address_info(&self) -> Option<RUMString> {
             self.address.clone()
+        }
+
+        ///
+        /// Attempts to clear clients that have been marked as disconnected.
+        ///
+        pub async fn gc_clients(&mut self) -> RUMResult<()> {
+            RUMServer::handle_client_gc(
+                self.clients.clone(),
+                self.tx_in.clone(),
+                self.tx_out.clone(),
+            )
+            .await
         }
     }
 
@@ -947,6 +970,15 @@ pub mod tcp {
         }
 
         ///
+        /// Garbage Collection API method for dropping clients flagged as disconnected.
+        ///
+        pub fn gc_clients(&self) -> RUMResult<()> {
+            let args = rumtk_create_task_args!((Arc::clone(&self.server)));
+            let task = rumtk_create_task!(RUMServerHandle::gc_clients_helper, args);
+            rumtk_resolve_task!(&self.runtime, rumtk_spawn_task!(&self.runtime, task))?
+        }
+
+        ///
         /// Get the Address:Port info for this socket.
         ///
         pub fn get_address_info(&self) -> Option<RUMString> {
@@ -1036,6 +1068,14 @@ pub mod tcp {
             let server_ref = locked_args.get(0).unwrap();
             let mut server = server_ref.read().await;
             server.get_address_info().await
+        }
+
+        async fn gc_clients_helper(args: &SafeTaskArgs<Self::SelfArgs>) -> RUMResult<()> {
+            let owned_args = Arc::clone(args).clone();
+            let locked_args = owned_args.read().await;
+            let server_ref = locked_args.get(0).unwrap();
+            let mut server = server_ref.write().await;
+            server.gc_clients().await
         }
     }
 }
