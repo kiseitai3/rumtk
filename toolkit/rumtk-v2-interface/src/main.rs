@@ -120,17 +120,12 @@ pub struct RUMTKInterfaceArgs {
 
 fn outbound_send(channel: &SafeMLLPChannel) -> RUMResult<()> {
     let stdin_msg = rumtk_read_stdin!()?;
-    println!("{:?}", &stdin_msg);
     if !stdin_msg.is_empty() {
         let msg: V2Message = match rumtk_deserialize!(&stdin_msg) {
             Ok(msg) => msg,
-            Err(e) => {
-                println!("{}", e);
-                V2Message::try_from_str(&stdin_msg)?
-            }
+            Err(e) => V2Message::try_from_str(&stdin_msg)?,
         };
         let raw_message = rumtk_v2_generate_message!(&msg);
-        println!("{:?}", &raw_message);
         let mut owned_channel = channel.lock().expect("Failed to lock channel");
         return owned_channel.send_message(&raw_message);
     }

@@ -216,7 +216,7 @@ pub mod mllp_v2 {
     /// Acknowledgement.
     ///
     /// Defaults to 30
-    pub const TIMEOUT_SOURCE: u8 = 1;
+    pub const TIMEOUT_SOURCE: u8 = 30;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
     pub const TIMEOUT_STEP_SOURCE: u8 = 1;
@@ -225,7 +225,7 @@ pub mod mllp_v2 {
     /// buffer.
     ///
     /// Defaults to 60
-    pub const TIMEOUT_DESTINATION: u8 = 1;
+    pub const TIMEOUT_DESTINATION: u8 = 60;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
