@@ -216,7 +216,7 @@ pub mod mllp_v2 {
     /// Acknowledgement.
     ///
     /// Defaults to 30
-    pub const TIMEOUT_SOURCE: u8 = 30;
+    pub const TIMEOUT_SOURCE: u8 = 1;
     /// Timout step interval between checks for ACK. If we reach [TIMEOUT_SOURCE], give up and mark
     /// no ACK received.
     pub const TIMEOUT_STEP_SOURCE: u8 = 1;
@@ -225,7 +225,7 @@ pub mod mllp_v2 {
     /// buffer.
     ///
     /// Defaults to 60
-    pub const TIMEOUT_DESTINATION: u8 = 60;
+    pub const TIMEOUT_DESTINATION: u8 = 1;
     /// Same as [TIMEOUT_STEP_SOURCE], but with a cut off relative to [TIMEOUT_DESTINATION].
     pub const TIMEOUT_STEP_DESTINATION: u8 = 1;
     /// Start Block character (1 byte). ASCII <VT>, i.e., <0x0B>.
@@ -550,8 +550,8 @@ pub mod mllp_v2 {
         pub async fn send_message(&mut self, message: &str, endpoint: &RUMString) -> RUMResult<()> {
             let mut last_error = RUMString::new("");
             for i in 0..RETRY_SOURCE {
-                self.send(&message, &endpoint).await?;
-                match self.wait_for_send_ack(&endpoint).await {
+                self.send(message, endpoint).await?;
+                match self.wait_for_send_ack(endpoint).await {
                     Ok(_) => return Ok(()),
                     Err(e) => {
                         last_error = e;
@@ -581,7 +581,7 @@ pub mod mllp_v2 {
         ///
         pub async fn wait_for_send_ack(&mut self, endpoint: &RUMString) -> RUMResult<bool> {
             for i in 0..TIMEOUT_SOURCE {
-                let response = self.receive_message(&endpoint).await?;
+                let response = self.receive_message(endpoint).await?;
                 let acked = is_ack(&response);
                 if acked {
                     return Ok(true);
@@ -637,7 +637,7 @@ pub mod mllp_v2 {
         /// message.
         ///
         pub async fn receive_message(&mut self, endpoint: &RUMString) -> RUMResult<RUMString> {
-            self.wait_on_message(&endpoint, TIMEOUT_DESTINATION).await
+            self.wait_on_message(endpoint, TIMEOUT_DESTINATION).await
         }
 
         ///
@@ -657,7 +657,7 @@ pub mod mllp_v2 {
         ) -> RUMResult<RUMString> {
             for i in 0..timeout {
                 let message = self.receive(endpoint).await?;
-                if !(is_ack(&message) || is_nack(&message) || message.is_empty()) {
+                if !(is_ack(&message) || is_nack(&message)) || message.is_empty() {
                     return Ok(message);
                 }
                 rumtk_async_sleep!(TIMEOUT_STEP_DESTINATION).await
@@ -1093,6 +1093,7 @@ pub mod mllp_v2_api {
     /// peer endpoint(s).
     ///
     /// # Example Usage
+    /// ## Basic Usage
     /// ```
     ///     use rumtk_hl7_v2::hl7_v2_mllp::mllp_v2::{MLLP_FILTER_POLICY};
     ///     use rumtk_hl7_v2::{rumtk_v2_mllp_iter_channels, rumtk_v2_mllp_listen};
