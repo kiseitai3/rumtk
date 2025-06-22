@@ -267,7 +267,7 @@ pub mod v2_parser {
 
     impl Index<isize> for V2Field {
         type Output = V2Component;
-        fn index(&self, indx: isize) -> &Self::Output {
+        fn index(&self, indx: isize) -> &V2Component {
             self.get(indx).unwrap()
         }
     }
@@ -324,21 +324,21 @@ pub mod v2_parser {
 
             if raw_field_count > 1 {
                 if field_name == "MSH" {
-                    field_list.push(vec![V2Field::with_raw_str(&raw_fields[1])]);
+                    field_list.push(vec![V2Field::with_raw_str(raw_fields[1])]);
                     for i in 2..raw_field_count {
                         let raw_field = raw_fields[i];
-                        field_list.push(Self::generate_subfields(&raw_field, &parser_chars));
+                        field_list.push(Self::generate_subfields(raw_field, parser_chars));
                     }
                 } else {
                     for i in 1..raw_field_count {
                         let raw_field = raw_fields[i];
-                        field_list.push(Self::generate_subfields(&raw_field, &parser_chars));
+                        field_list.push(Self::generate_subfields(raw_field, parser_chars));
                     }
                 }
             }
 
             let field_description = RUMString::from(match V2_SEGMENT_DESC.get(&field_name) {
-                Some(description) => &description,
+                Some(description) => description,
                 None => V2_EMPTY_STRING,
             });
 
@@ -391,7 +391,7 @@ pub mod v2_parser {
             let subfields: Vec<&str> = field.split(&repetition_char).collect();
             let mut field_group = V2FieldGroup::with_capacity(subfields.len());
             for subfield in subfields {
-                field_group.push(V2Field::from_str(&subfield, &parser_chars))
+                field_group.push(V2Field::from_str(subfield, parser_chars))
             }
             field_group
         }
@@ -399,7 +399,7 @@ pub mod v2_parser {
 
     impl Index<isize> for V2Segment {
         type Output = V2FieldGroup;
-        fn index(&self, indx: isize) -> &Self::Output {
+        fn index(&self, indx: isize) -> &V2FieldGroup {
             self.get(indx).unwrap()
         }
     }
@@ -598,7 +598,7 @@ pub mod v2_parser {
 
     impl Index<&'_ u8> for V2Message {
         type Output = V2SegmentGroup;
-        fn index(&self, segment_index: &u8) -> &Self::Output {
+        fn index(&self, segment_index: &u8) -> &V2SegmentGroup {
             self.get_group(segment_index).unwrap()
         }
     }
