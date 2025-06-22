@@ -2,7 +2,7 @@ name: Check
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -17,8 +17,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose -- --test-threads 1
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose -- --test-threads 1
+      - name: Run integration tests
+        run: ./examples/stdin_interface.sh && ./examples/echo_interface.sh
