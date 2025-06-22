@@ -19,25 +19,23 @@
 #
 
 mkdir demo
-mkdir demo/echo_interface
+mkdir demo/stdin_interface
 
 echo "Setting up Interface Chain"
-./target/debug/rumtk-v2-interface --port 55555 --local > demo/echo_interface/out.log &
-sleep 1
-./target/debug/rumtk-v2-interface --port 55556 --local | ./target/debug/rumtk-v2-interface --outbound --port 55555 --local &
+./target/debug/rumtk-v2-interface --port 55555 --local > demo/stdin_interface/out.log &
 sleep 1
 
 echo "Pushing Message through PIPEs!"
-cat examples/sample_hl7.hl7 | ./target/debug/rumtk-v2-interface --outbound --local --port 55556
+cat examples/sample_hl7.hl7 | ./target/debug/rumtk-v2-interface --outbound --local --port 55555
 
 sleep 1
 
 echo "Output"
-DIFF=$( diff <(jq -S . examples/sample_hl7.json) <(jq -S . demo/echo_interface/out.log) )
+DIFF=$( diff <(jq -S . examples/sample_hl7.json) <(jq -S . demo/stdin_interface/out.log) )
 
 echo "Clean up"
 pkill -i -e -f rumtk-v2-interface
-rm -r demo/echo_interface
+rm -r demo/stdin_interface
 
 if [ "$DIFF" != "" ]; then
     echo "Values mismatch!"
