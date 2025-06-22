@@ -71,6 +71,7 @@ pub mod serialization {
     macro_rules! rumtk_serialize {
         ( $object:expr ) => {{
             use $crate::json::serialization::{to_string, to_string_pretty};
+            use $crate::json::serialization::{Deserialize, Serialize};
             use $crate::strings::format_compact;
             match to_string(&$object) {
                 Ok(s) => Ok(s),
@@ -82,6 +83,7 @@ pub mod serialization {
         }};
         ( $object:expr, $pretty:expr ) => {{
             use $crate::json::serialization::{to_string, to_string_pretty};
+            use $crate::json::serialization::{Deserialize, Serialize};
             use $crate::strings::format_compact;
             match $pretty {
                 true => match to_string_pretty(&$object) {
@@ -136,6 +138,7 @@ pub mod serialization {
     macro_rules! rumtk_deserialize {
         ( $string:expr ) => {{
             use $crate::json::serialization::from_str;
+            use $crate::json::serialization::{Deserialize, Serialize};
             from_str(&$string)
         }};
     }

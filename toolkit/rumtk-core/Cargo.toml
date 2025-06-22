@@ -1,7 +1,7 @@
 [package]
 name = "rumtk-core"
 description = "Core library for providing general functionality to support the other RUMTK crates. See rumtk-hl7-v2 crate as example"
-version = "0.8.0"
+version = "0.8.1"
 license = "LGPL-2.1"
 homepage = "https://github.com/kiseitai3/rumtk/tree/main/toolkit/rumtk-core"
 documentation = "https://docs.rs/rumtk-core"
@@ -23,7 +23,7 @@ once_cell = "1.20.2"
 tokio = { version = "1.43.0", features = ["full"] }
 smallvec = "1.13.2"
 num_cpus = "1.16.0"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive", "std"] }
 serde_json = "1.0.140"
 clap = { version = "4.5.38", features = ["derive"] }
 uuid = { version = "1.12.0", features = [

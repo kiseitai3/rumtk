@@ -42,12 +42,12 @@ pub mod v2_parser {
     };
     pub use rumtk_core::cache::{get_or_set_from_cache, new_cache, AHashMap, LazyRUMCache};
     use rumtk_core::core::clamp_index;
+    use rumtk_core::json::serialization::{Deserialize, Serialize};
     use rumtk_core::rumtk_cache_fetch;
     use rumtk_core::strings::CompactStringExt;
     pub use rumtk_core::strings::{
         format_compact, try_decode_with, unescape_string, AsStr, RUMString, RUMStringConversions,
     };
-    use serde::{Deserialize, Serialize};
     use std::ops::{Index, IndexMut};
     /**************************** Globals ***************************************/
 
