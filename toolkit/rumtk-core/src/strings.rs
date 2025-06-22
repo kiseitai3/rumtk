@@ -346,10 +346,10 @@ pub fn get_grapheme_collection<'a>(
     let mut result: Vec<&'a str> = Vec::new();
     for grapheme in graphemes.iter().skip(start_index) {
         let item = *grapheme;
-        result.push(item);
         if item == end_grapheme {
             break;
         }
+        result.push(item);
     }
     result
 }
@@ -619,7 +619,7 @@ pub fn is_escaped_str(unescaped_str: &str) -> bool {
 /// Returns whether a character is in the ASCII printable range.
 ///
 pub fn is_printable_char(c: &char) -> bool {
-    &' ' <= c || c <= &'~'
+    &MIN_ASCII_READABLE <= c && c <= &MAX_ASCII_READABLE
 }
 
 ///
