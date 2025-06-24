@@ -100,6 +100,12 @@ communication and automation in medicine.
     - [ ] Arch
     - [ ] Docker
 
+# Awards
+
+- Best Open Source and Best Security
+
+[![Best Open Source and Best Security](awards/siim-hackathon-2025-spotlight-award-winner222x222.png)](https://siim.org/award/hackathon-awards/)
+
 # Contributing
 
 - [ ] Create an issue ticket if it has not been done.
