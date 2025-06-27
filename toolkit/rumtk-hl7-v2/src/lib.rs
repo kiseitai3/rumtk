@@ -29,6 +29,7 @@ pub mod hl7_v2_interpreter;
 pub mod hl7_v2_mllp;
 mod hl7_v2_optionality_rules;
 pub mod hl7_v2_parser;
+mod hl7_v2_scripting;
 pub mod hl7_v2_search;
 pub mod hl7_v2_types;
 /*****************************************Tests****************************************/

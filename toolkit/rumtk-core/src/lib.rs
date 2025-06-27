@@ -32,6 +32,7 @@ pub mod log;
 pub mod maths;
 pub mod net;
 pub mod queue;
+mod scripting;
 pub mod search;
 pub mod strings;
 pub mod threading;
