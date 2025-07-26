@@ -19,12 +19,40 @@
  */
 
 pub mod python_utils {
+    use std::ffi::{CString, OsStr};
+    use std::fs::read_to_string;
+    use std::path::Path;
+
     use crate::core::RUMResult;
     use compact_str::format_compact;
     use pyo3::prelude::*;
     use pyo3::types::PyList;
 
-    type RUMPyArgs = Py<PyList>;
+    pub type RUMPyArgs = Py<PyList>;
+    pub type RUMPyModule = Py<PyModule>;
+
+    fn string_to_cstring(data: &str) -> RUMResult<CString> {
+        match CString::new(data) {
+            Ok(code) => Ok(code),
+            Err(e) => Err(format_compact!(
+                "Could not cast Python code string to a C string!"
+            )),
+        }
+    }
+
+    fn ostring_to_cstring(data: &OsStr) -> RUMResult<CString> {
+        let data_str = match data.to_str() {
+            Some(s) => s,
+            None => return Err(format_compact!("Could not cast OsStr to a str!")),
+        };
+        match CString::new(data_str) {
+            Ok(code) => Ok(code),
+            Err(e) => Err(format_compact!(
+                "Could not cast Python code string to a C string because {}!",
+                e
+            )),
+        }
+    }
 
     ///
     /// Convert a vector of strings to a Python List of strings.
@@ -33,16 +61,16 @@ pub mod python_utils {
     ///
     /// ```
     ///     use compact_str::format_compact;
-    ///     use crate::rumtk_core::scripting::python_utils::{py_args, py_extract};
+    ///     use crate::rumtk_core::scripting::python_utils::{py_buildargs, py_extract};
     ///
     ///     let expect: Vec<&str> = vec!["a", "1", "2"];
     ///
-    ///     let py_obj = py_args(&expect).unwrap();
-    ///     let result = py_extract(&py_obj);
-    ///     assert_eq!(&result, &expect, format_compact!("Python list does not match the input list!\nGot: {:?}\nExpected: {:?}", &result, &expect));
+    ///     let py_obj = py_buildargs(&expect).unwrap();
+    ///     let result = py_extract(&py_obj).unwrap();
+    ///     assert_eq!(&result, &expect, "{}", format_compact!("Python list does not match the input list!\nGot: {:?}\nExpected: {:?}", &result, &expect));
     /// ```
     ///
-    pub fn py_args(arg_list: &Vec<&str>) -> RUMResult<RUMPyArgs> {
+    pub fn py_buildargs(arg_list: &Vec<&str>) -> RUMResult<RUMPyArgs> {
         Python::with_gil(|py| -> RUMResult<RUMPyArgs> {
             match PyList::new(py, arg_list){
                 Ok(pylist) => Ok(pylist.into()),
@@ -69,6 +97,53 @@ pub mod python_utils {
                 }
             };
             Ok(py_list)
+        })
+    }
+
+    ///
+    /// Load a python module from a given file path!
+    ///
+    /// ## Example Usage
+    ///
+    /// ```
+    ///
+    /// ```
+    ///
+    pub fn py_load(fpath: &str) -> RUMResult<RUMPyModule> {
+        let pypath = Path::new(fpath);
+        let pycode = match read_to_string(fpath) {
+            Ok(code) => string_to_cstring(&code)?,
+            Err(e) => {
+                return Err(format_compact!(
+                    "Unable to read Python file {}. Is it valid?",
+                    &fpath
+                ));
+            }
+        };
+        Python::with_gil(|py| -> RUMResult<RUMPyModule> {
+            let filename = match pypath.file_name() {
+                Some(name) => ostring_to_cstring(name)?,
+                None => {
+                    return Err(format_compact!("Invalid Python module path {}!", &fpath));
+                }
+            };
+            let modname = match pypath.file_stem() {
+                Some(name) => ostring_to_cstring(name)?,
+                None => {
+                    return Err(format_compact!("Invalid Python module path {}!", &fpath));
+                }
+            };
+            let pymod = match PyModule::from_code(py, pycode.as_c_str(), &filename, &modname) {
+                Ok(pymod) => pymod,
+                Err(e) => {
+                    return Err(format_compact!(
+                        "Failed to load Python module {} because of {:#?}!",
+                        &fpath,
+                        e
+                    ));
+                }
+            };
+            Ok(pymod.into())
         })
     }
 }
