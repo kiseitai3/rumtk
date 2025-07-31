@@ -106,7 +106,18 @@ pub mod python_utils {
     /// ## Example Usage
     ///
     /// ```
+    ///     use compact_str::format_compact;
+    ///     use pyo3::types::PyModule;
+    ///     use rumtk_core::scripting::python_utils::RUMPyModule;
+    ///     use crate::rumtk_core::scripting::python_utils::{py_load};
     ///
+    ///     let expected: &str = "print('Hello World!')";
+    ///     let fpath: &str = "/tmp/example.py";
+    ///     std::fs::write(&fpath, expected.as_bytes()).expect("Failure to write test module.");
+    ///
+    ///     let py_obj: RUMPyModule = py_load(&fpath).expect("Failure to load module!");
+    ///
+    ///     std::fs::remove_file(&fpath).unwrap()
     /// ```
     ///
     pub fn py_load(fpath: &str) -> RUMResult<RUMPyModule> {
