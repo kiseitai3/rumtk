@@ -63,6 +63,8 @@ pub mod v2_parser {
 
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
     const MAX_FIELD_COMPONENT_COUNT: usize = 16;
+    const MAX_FIELD_REPETITION_COUNT: usize = 5;
+    const MAX_FIELD_COUNT: usize = 32;
 
     /**************************** Helpers ***************************************/
     fn compile_search_index(search_pattern: &str) -> RUMResult<V2SearchIndex> {
@@ -196,7 +198,7 @@ pub mod v2_parser {
 
     impl V2PrimitiveCasting for V2Component {}
 
-    pub type ComponentList = [V2Component; MAX_FIELD_COMPONENT_COUNT];
+    pub type ComponentList = Box<[V2Component]>;
 
     static mut EMPTY_FIELD: LazyLock<V2Field> = LazyLock::new(|| V2Field::new());
 
@@ -219,17 +221,13 @@ pub mod v2_parser {
     #[derive(Default, Debug, RUMSerJson, RUMDeJson, PartialEq, Clone)]
     pub struct V2Field {
         cs: ComponentList,
-        s: usize,
     }
 
     impl V2Field {
         #[inline(always)]
         pub fn new() -> Self {
-            let mut component_list = rumtk_mem_quick_array_init!(V2Component, MAX_FIELD_COMPONENT_COUNT);
-            component_list[0] = V2Component::new();
             Self {
-                cs: component_list,
-                s: 1,
+                cs: Box::new([V2Component::new()])
             }
         }
 
@@ -248,18 +246,14 @@ pub mod v2_parser {
             indx += 1;
 
             Self {
-                cs: component_list,
-                s: indx,
+                cs: Box::from(&component_list[..indx])
             }
         }
 
         #[inline(always)]
         pub fn from_single_field(field: RUMBuffer, parser_chars: &V2ParserCharacters) -> Self {
-            let mut component_list = rumtk_mem_quick_array_init!(V2Component, MAX_FIELD_COMPONENT_COUNT);
-            component_list[0] = V2Component::from(field);
             Self {
-                cs: component_list,
-                s: 1,
+                cs: Box::new([V2Component::from(field)])
             }
         }
 
@@ -267,7 +261,7 @@ pub mod v2_parser {
         pub fn to_string(&self, parser_chars: &V2ParserCharacters) -> V2String {
             let mut components = rumtk_mem_quick_array_init!(&str, MAX_FIELD_COMPONENT_COUNT);
             let mut next = 0;
-            for component in self.cs[..self.s].iter() {
+            for component in self.cs.iter() {
                 components[0] = component.as_str();
                 next += 1;
             }
@@ -279,7 +273,7 @@ pub mod v2_parser {
         }
 
         pub fn get(&self, indx: isize) -> V2Result<&V2Component> {
-            let component_indx = clamp_index(&indx, &(self.s as isize))? - 1;
+            let component_indx = clamp_index(&indx, &(self.cs.len() as isize))? - 1;
             match self.cs.get(component_indx) {
                 Some(component) => Ok(component),
                 None => Err(rumtk_format!("Component at index {} not found!", indx)),
@@ -287,7 +281,7 @@ pub mod v2_parser {
         }
 
         pub fn get_mut(&mut self, indx: isize) -> V2Result<&mut V2Component> {
-            let component_indx = clamp_index(&indx, &(self.s as isize))? - 1;
+            let component_indx = clamp_index(&indx, &(self.cs.len() as isize))? - 1;
             match self.cs.get_mut(component_indx) {
                 Some(component) => Ok(component),
                 None => Err(rumtk_format!("Component at index {} not found!", indx)),
@@ -318,12 +312,12 @@ pub mod v2_parser {
         }
     }
 
-    pub type V2FieldGroup = RUMVec<V2Field>;
-    pub type V2OptionalFieldGroup = Option<RUMVec<V2Field>>;
-    pub type V2FieldList = RUMVec<V2OptionalFieldGroup>;
+    pub type V2FieldGroup = Box<[V2Field]>;
+    pub type V2OptionalFieldGroup = Option<Box<[V2Field]>>;
+    pub type V2FieldList = Box<[V2OptionalFieldGroup]>;
 
     static mut EMPTY_SEGMENT: LazyLock<V2Segment> = LazyLock::new(|| V2Segment::new());
-    static mut EMPTY_FIELDGROUP: LazyLock<V2FieldGroup> = LazyLock::new(|| vec![V2Field::new()]);
+    static mut EMPTY_FIELDGROUP: LazyLock<V2FieldGroup> = LazyLock::new(|| Box::new([V2Field::new()]));
     ///
     /// A segment comprises of a collection of items separated by the segment separator character.
     /// A segment is one line.
@@ -348,7 +342,7 @@ pub mod v2_parser {
     impl V2Segment {
         pub fn new() -> Self {
             Self {
-                f: vec![]
+                f: Box::new([])
             }
         }
 
@@ -371,7 +365,8 @@ pub mod v2_parser {
 
             // Fun thing, profiling shows that precounting the number of fields to allocate is faster than paying the malloc/realloc tax.
             // It's fascinating because we are doing extra work here that you would think is a lot more than allocation bookkeeping, but no... SIMD rocks!
-            let mut field_list = V2FieldList::with_capacity(32);
+            let mut field_list = rumtk_mem_quick_array_init!(V2OptionalFieldGroup, MAX_FIELD_COUNT);
+            let mut field_count = 0;
 
             let segment_id_field = match raw_fields.next() {
                 Some(raw_field) => raw_field,
@@ -380,12 +375,14 @@ pub mod v2_parser {
             let segment_id = V2_SEGMENT_IDS(&segment_id_field);
 
             for raw_field in &mut raw_fields {
-                field_list.push(Self::generate_subfields(raw_field, parser_chars));
+                field_list[field_count] = Self::generate_subfields(raw_field, parser_chars);
+                field_count += 1;
             }
-            field_list.push(Self::generate_subfields(raw_fields.remainder, parser_chars));
+            field_list[field_count] = Self::generate_subfields(raw_fields.remainder, parser_chars);
+            field_count += 1;
 
             let segment = V2Segment {
-                f: field_list,
+                f: Box::from(&field_list[..field_count]),
             };
 
             Ok((segment_id, segment))
@@ -399,18 +396,22 @@ pub mod v2_parser {
 
             // Minor (~0.7ms) optimization for the more common case of no repeat fields.
             if cpu_unlikely_branch(buffer_contains(&field, parser_chars.repetition_separator)) {
-                let mut field_group = V2FieldGroup::new();
+                let mut field_group = rumtk_mem_quick_array_init!(V2Field, MAX_FIELD_REPETITION_COUNT);
                 let mut splitter = field.split_fast(parser_chars.repetition_separator);
-                for subfield in &mut splitter {
-                    field_group.push(V2Field::from(subfield, parser_chars))
-                }
-                field_group.push(V2Field::from(splitter.remainder, parser_chars));
+                let mut field_count = 0;
 
-                Some(field_group)
+                for subfield in &mut splitter {
+                    field_group[field_count] = V2Field::from(subfield, parser_chars);
+                    field_count += 1;
+                }
+                field_group[field_count] = V2Field::from(splitter.remainder, parser_chars);
+                field_count += 1;
+
+                Some(Box::from(&field_group[..field_count]))
             } else {
-                vec![
+                Some(Box::new([
                     V2Field::from(field, parser_chars),
-                ].into()
+                ]))
             }
         }
 
@@ -462,7 +463,7 @@ pub mod v2_parser {
 
         #[inline]
         pub fn init_deffered_slot(&mut self, indx: usize) -> &mut V2FieldGroup {
-            let new_field = vec![V2Field::new()];
+            let new_field = Box::new([V2Field::new()]);
             self.f[indx] = Some(new_field);
             self.f[indx].as_mut().unwrap()
         }
@@ -482,28 +483,6 @@ pub mod v2_parser {
     impl<'a> IndexMut<isize> for V2Segment {
         fn index_mut(&mut self, indx: isize) -> &mut V2FieldGroup {
             self.get_mut(indx).unwrap()
-        }
-    }
-
-    ///
-    /// We manually trigger the dropping of a field if available. [V2Field] itself has [Drop](std::ops::drop) optimized
-    /// to zero its internal component list. Why? [RUMBuffer] is optimized as both an owned object and
-    /// a slice view. Meaning, outside of its usage in [V2Message], we are only dealing with the
-    /// view pointers for which we can try to skip the inefficient and stack deep drop_glue
-    /// implemented by default and simply let the lists deallocate the memory slice they allocated.
-    ///
-    impl Drop for V2Segment {
-        #[inline(always)]
-        fn drop(&mut self) {
-            for v in self.f.iter() {
-                match v {
-                    Some(field) => {
-                        drop(field);
-                    },
-                    None => (),
-                }
-            }
-            unsafe { self.f.set_len(0); }
         }
     }
 
