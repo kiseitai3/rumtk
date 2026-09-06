@@ -20,6 +20,7 @@
 use crate::base::RUMVec;
 pub use branches::{likely as cpu_likely_branch, prefetch_read_data, unlikely as cpu_unlikely_branch};
 pub use std::simd::prelude::*;
+use crate::rumtk_mem_quick_array_init;
 
 pub const CPU_L1_PREFETCH: i32 = 0;
 pub const CPU_L2_PREFETCH: i32 = 1;
@@ -32,6 +33,7 @@ pub const CPU_SIMD_64_SIZE: usize = 64;
 pub const CPU_SIMD_32_SIZE: usize = 32;
 pub const CPU_SIMD_16_SIZE: usize = 16;
 pub const CPU_SIMD_8_SIZE: usize = 8;
+pub const CPU_SIMD_AVERAGE_ALU_COUNT: usize = 4;
 pub const CPU_SEARCH_WINDOW_1024_SIZE: usize = 1024;
 pub const CPU_SEARCH_WINDOW_512_SIZE: usize = 512;
 pub const CPU_SEARCH_WINDOW_256_SIZE: usize = 256;
@@ -134,6 +136,18 @@ fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u
     None
 }
 
+///
+/// Use SIMD to find the index of a byte in a byte slice.
+///
+/// ## Note
+///
+/// We try saturating the CPU SIMD ports with ops. If we had to do all [CPU_SIMD_AVERAGE_ALU_COUNT]
+/// passes to find the needle, we essentially speculatively precomputed the index. Our worst case
+/// is if we only had to do one pass to find the needle, but we are relying on out-of-order execution
+/// and the cheapness of SIMD to hide the latency. This also serves as a form of prefetching the
+/// byte slice into the cache lines, so beware of thrashing it.
+///
+///
 #[cfg(feature = "simd")]
 #[inline]
 pub fn cpu_find_simd_n<const LANE_SIZE: usize>
@@ -143,21 +157,40 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 ) -> Option<usize>
 {
     let mask = u8xN::<LANE_SIZE>::splat(byte);
+    let mut iter = chunk.chunks(LANE_SIZE);
+    let max_iter = iter.len();
+    let large_steps = max_iter / CPU_SIMD_AVERAGE_ALU_COUNT; // div here so consider changing to shifts for extra ns perf
     let mut indx = 0;
 
-    for window in chunk.chunks(LANE_SIZE) {
-        match cpu_find_simd_avx2_n::<LANE_SIZE>(window, mask) {
-            Some(lane_i) => {
-                return Some(indx + lane_i)
-            },
-            None => {
-                indx += LANE_SIZE;
-                continue
-            },
+    // Try saturating the CPU SIMD ports with ops. If we had to do all 4 passes to find the needle,
+    // we essentially speculatively precomputed the index. Our worst case is if we only had to do
+    // one pass to find the needle but we are relying on out of order execution and the cheapness of
+    // SIMD to hide the latency. This also serves as a form of prefetching byte slice.
+    for _ in 0..large_steps {
+        let mut indices = rumtk_mem_quick_array_init!(Option<usize>, CPU_SIMD_AVERAGE_ALU_COUNT);
+        indices[0] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[1] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[2] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[3] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+
+        for i in indices {
+            match i {
+                Some(idx) => {
+                    return Some(indx + idx);
+                }
+                None => {
+                    indx += LANE_SIZE;
+                }
+            }
         }
     }
 
-    None
+    match iter.next() {
+        Some(window) => {
+            cpu_find_simd_avx2_n::<LANE_SIZE>(window, mask).map(|idx| indx + idx)
+        }
+        None => Some(indx + LANE_SIZE),
+    }
 }
 
 #[cfg(feature = "simd")]
