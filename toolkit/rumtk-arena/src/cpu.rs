@@ -270,7 +270,7 @@ pub fn cpu_collect_fallback(chunk: &[u8], byte: u8, offset: usize) -> CPUTokenIn
 
     for i in 0..chunk.len() {
         if chunk[i]==byte {
-            let pos = (offset + i) as usize;
+            let pos = offset + i;
             results[length] = pos as u32;
             length += 1;
         }
@@ -287,12 +287,12 @@ fn cpu_collect_simd_avx2_n<const LANE_SIZE: usize>(data_vec: &u8xN<LANE_SIZE>, t
 
     let mask = data_vec.simd_eq(target);
 
-    if cpu_unlikely_branch(mask.any()) {
+    if mask.any() {
         let items = mask.to_array();
 
         for i in 0..items.len() {
-            if cpu_unlikely_branch(items[i]) {
-                let pos = (offset + i) as usize;
+            if items[i] {
+                let pos = offset + i;
                 results[length] = pos as u32;
                 length += 1;
             }
