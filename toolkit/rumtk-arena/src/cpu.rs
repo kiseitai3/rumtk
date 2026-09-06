@@ -211,6 +211,103 @@ pub fn cpu_find(window: &[u8], byte: u8) -> Option<usize> {
     )
 }
 
+////////////////////////////////////////SEARCH FOR CONTINUOUS SLICE OF NEEDLES///////////////////////////////
+#[inline(always)]
+pub fn cpu_continuous_count_fallback(chunk: &[u8], byte: u8) -> Option<usize> {
+    let mut count = 0;
+    for i in 0..chunk.len() {
+        if cpu_unlikely_branch(chunk[i] != byte) {
+            return Some(count);
+        }
+        count += 1;
+    }
+    Some(count)
+}
+
+
+#[cfg(feature = "simd")]
+#[inline]
+fn cpu_continuous_count_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> usize {
+    let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE, 0>(chunk);
+    let mask = data_vec.simd_eq(target);
+
+    let bitmask = mask.to_bitmask();
+    bitmask.trailing_zeros() as usize
+}
+
+///
+/// Use SIMD to find the index of a byte in a byte slice.
+///
+/// ## Note
+///
+/// We try saturating the CPU SIMD ports with ops. If we had to do all [CPU_SIMD_AVERAGE_ALU_COUNT]
+/// passes to find the needle, we essentially speculatively precomputed the index. Our worst case
+/// is if we only had to do one pass to find the needle, but we are relying on out-of-order execution
+/// and the cheapness of SIMD to hide the latency. This also serves as a form of prefetching the
+/// byte slice into the cache lines, so beware of thrashing it.
+///
+///
+#[cfg(feature = "simd")]
+#[inline]
+pub fn cpu_continuous_count_simd_n<const LANE_SIZE: usize>
+(
+    chunk: &[u8],
+    byte: u8,
+) -> Option<usize>
+{
+    let mask = u8xN::<LANE_SIZE>::splat(byte);
+    let mut iter = chunk.chunks(LANE_SIZE);
+    let max_iter = iter.len();
+    let large_steps = max_iter / CPU_SIMD_AVERAGE_ALU_COUNT; // div here so consider changing to shifts for extra ns perf
+    let mut indx = 0;
+
+    // Try saturating the CPU SIMD ports with ops. If we had to do all 4 passes to find the needle,
+    // we essentially speculatively precomputed the index. Our worst case is if we only had to do
+    // one pass to find the needle but we are relying on out of order execution and the cheapness of
+    // SIMD to hide the latency. This also serves as a form of prefetching byte slice.
+    for _ in 0..large_steps {
+        let mut sizes = rumtk_mem_quick_array_init!(usize, CPU_SIMD_AVERAGE_ALU_COUNT);
+        sizes[0] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[1] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[2] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[3] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+
+        for s in sizes {
+            if s < LANE_SIZE {
+                return Some(indx + s);
+            }
+            indx += LANE_SIZE;
+        }
+    }
+
+    match iter.next() {
+        Some(window) => {
+            Some(indx + cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(window, mask))
+        },
+        None => Some(indx),
+    }
+}
+
+#[cfg(feature = "simd")]
+#[inline]
+pub fn cpu_continuous_count(window: &[u8], byte: u8) -> Option<usize> {
+    let start = cpu_find(window, byte)?;
+    cpu_continuous_count_simd_n::<CPU_SIMD_64_SIZE>(
+        &window[start..],
+        byte,
+    )
+}
+
+#[cfg(not(feature = "simd"))]
+#[inline]
+pub fn cpu_continuous_count(window: &[u8], byte: u8) -> Option<usize> {
+    let start = cpu_find(window, byte)?;
+    cpu_continuous_count_fallback(
+        &window[start..],
+        byte,
+    )
+}
+
 /////////////////////////////Replacement Helpers///////////////////////////////
 #[inline(always)]
 pub fn cpu_replace_fallback(data: &mut [u8], pattern: u8, replacement: u8) {
