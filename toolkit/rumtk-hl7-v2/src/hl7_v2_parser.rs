@@ -64,7 +64,7 @@ pub mod v2_parser {
     static mut search_cache: LazyRUMCache<RUMString, V2SearchIndex> = new_cache();
     const MAX_FIELD_COMPONENT_COUNT: usize = 16;
     const MAX_FIELD_REPETITION_COUNT: usize = 5;
-    const MAX_FIELD_COUNT: usize = 32;
+    const MAX_FIELD_COUNT: usize = 64;
 
     /**************************** Helpers ***************************************/
     fn compile_search_index(search_pattern: &str) -> RUMResult<V2SearchIndex> {
@@ -259,13 +259,14 @@ pub mod v2_parser {
 
         #[inline(always)]
         pub fn to_string(&self, parser_chars: &V2ParserCharacters) -> V2String {
+            debug_assert!(self.cs.len() <= MAX_FIELD_COMPONENT_COUNT, "Message segment is larger than expected.");
             let mut components = rumtk_mem_quick_array_init!(&str, MAX_FIELD_COMPONENT_COUNT);
             let mut next = 0;
             for component in self.cs.iter() {
-                components[0] = component.as_str();
+                components[next] = component.as_str();
                 next += 1;
             }
-            components.join(&parser_chars.component_separator.as_string())
+            components[0..next].join(&parser_chars.component_separator.as_string())
         }
 
         pub fn len(&self) -> usize {
@@ -373,6 +374,7 @@ pub mod v2_parser {
                 None => return Err(rumtk_format!("Failed to get first field in segment! The segment is empty? => {:?}", &raw_segment)),
             };
             let segment_id = V2_SEGMENT_IDS(&segment_id_field);
+            println!("segment_id => {:?}", buffer_to_str(&segment_id_field));
 
             for raw_field in &mut raw_fields {
                 field_list[field_count] = Self::generate_subfields(raw_field, parser_chars);
