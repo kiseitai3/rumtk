@@ -21,7 +21,7 @@ pub use mem::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::buffers::RUMBuffer;
+    use crate::buffers::{buffer_find, RUMBuffer, RUMBufferIteratorExt};
     use crate::cpu::{cpu_find, cpu_slice_to_array_padded};
     use crate::mem::constants::*;
     use crate::{as_slice_mut, direct_alloc, rumtk_arena_new, Arena};
@@ -79,6 +79,37 @@ mod tests {
         let expected = 6;
         let result = cpu_find(input, b'\0');
         assert!(result.is_none() || (result.unwrap() -1) < input.len(), "Succeeded to find needle in haystack when the search character is not part of the haystack!");
+    }
+
+    #[test]
+    fn test_buffer_find() {
+        let input = b"Hello World\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+        let expected = 9;
+        let result = buffer_find(input, b"ld\n");
+
+        assert_eq!(result, expected, "Succeeded to find needle in haystack when the search character is not part of the haystack!");
+    }
+
+    #[test]
+    fn test_buffer_find2() {
+        let input = b"Hello World\n\n\n\n\n\n\nasdjklfkasjwaoia poaw ml;,\n\n\n\n\n\n\n\n\n\n\n\n\n";
+        let expected = 40;
+        let result = buffer_find(input, b"ml;");
+
+        assert_eq!(result, expected, "Succeeded to find needle in haystack when the search character is not part of the haystack!");
+    }
+
+    #[test]
+    fn test_buffer_split() {
+        let input = RUMBuffer::from(b"Hello World\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+        let expected = 20;
+        let mut result = 0;
+
+        for _ in input.split_fast(b'\n') {
+            result += 1;
+        }
+
+        assert_eq!(result, expected, "Succeeded to find needle in haystack when the search character is not part of the haystack!");
     }
 
     #[test]
