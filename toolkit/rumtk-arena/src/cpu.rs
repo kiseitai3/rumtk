@@ -176,54 +176,15 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 ) -> Option<usize>
 {
     let mask = u8xN::<LANE_SIZE>::splat(byte);
-    let mut iter = chunk.chunks(LANE_SIZE);
-    let iter_steps = chunk.len() / LANE_SIZE;
-    let large_iter_steps = iter_steps / CPU_SIMD_AVERAGE_ALU_COUNT;
-    let remaining_steps = (iter_steps - large_iter_steps * CPU_SIMD_AVERAGE_ALU_COUNT);
-    let mut indx = 0;
+    let unpadded = chunk.len() - (chunk.len() % LANE_SIZE);
 
-    // Try saturating the CPU SIMD ports with ops. If we had to do all 4 passes to find the needle,
-    // we essentially speculatively precomputed the index. Our worst case is if we only had to do
-    // one pass to find the needle but we are relying on out of order execution and the cheapness of
-    // SIMD to hide the latency. This also serves as a form of prefetching byte slice.
-    let mut indices = rumtk_mem_quick_array_init!(Option<usize>, CPU_SIMD_AVERAGE_ALU_COUNT);
-    for _ in 0..large_iter_steps {
-        indices[0] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[1] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[2] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[3] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-
-        for i in indices {
-            match i {
-                Some(idx) => {
-                    return Some(indx + idx);
-                }
-                None => {
-                    indx += LANE_SIZE;
-                }
+    for (i,window) in chunk[..unpadded].chunks(LANE_SIZE).enumerate() {
+            if let Some(lane_i) = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask) {
+                return Some(i * LANE_SIZE + lane_i);
             }
-        }
     }
 
-    // Try avoiding the copies from the padded function
-    for _ in 0..remaining_steps {
-        match cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask) {
-            Some(idx) => {
-                return Some(indx + idx);
-            }
-            None => {
-                indx += LANE_SIZE;
-            }
-        }
-    }
-
-    // Last remaining chunk that is guaranteed to need padding.
-    match iter.next() {
-        Some(window) => {
-            cpu_find_simd_avx2_padded::<LANE_SIZE>(window, mask).map(|idx| indx + idx)
-        }
-        None => Some(indx + LANE_SIZE),
-    }
+    cpu_find_simd_avx2_padded::<LANE_SIZE>(&chunk[unpadded..], mask).map(|idx| unpadded + idx)
 }
 
 #[cfg(feature = "simd")]
