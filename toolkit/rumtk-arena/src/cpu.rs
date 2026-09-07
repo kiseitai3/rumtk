@@ -176,7 +176,8 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 ) -> Option<usize>
 {
     let mask = u8xN::<LANE_SIZE>::splat(byte);
-    let unpadded = chunk.len() - (chunk.len() % LANE_SIZE);
+    let unpadded = chunk.len() - (chunk.len() % LANE_SIZE); // The compiler will optimize this with a constant per my compiler explorer experiment
+                                                                  // https://godbolt.org/z/fhh5nG34f
 
     for (i,window) in chunk[..unpadded].chunks(LANE_SIZE).enumerate() {
             if let Some(lane_i) = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask) {
