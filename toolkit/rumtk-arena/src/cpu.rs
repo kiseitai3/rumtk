@@ -63,7 +63,7 @@ pub fn cpu_l1_prefetch(data: *const u8) {
 }
 
 #[inline(always)]
-pub fn cpu_slice_to_array<const SLICE_SIZE: usize>(chunk: &[u8]) -> &[u8; SLICE_SIZE] {
+pub fn cpu_slice_to_array<const SLICE_SIZE: usize>(chunk: &[u8]) -> [u8; SLICE_SIZE] {
     chunk.try_into().expect("length mismatch")
 }
 
@@ -76,8 +76,14 @@ pub fn cpu_slice_to_array_padded<const SLICE_SIZE: usize, const PAD: u8>(chunk: 
 
 #[cfg(feature = "simd")]
 #[inline(always)]
-pub fn cpu_slice_to_simd<const SLICE_SIZE: usize, const PAD: u8>(chunk: &[u8]) -> u8xN<SLICE_SIZE> {
-    u8xN::from_array(cpu_slice_to_array_padded::<SLICE_SIZE, PAD>(chunk))
+pub fn cpu_slice_to_simd<const SLICE_SIZE: usize>(chunk: &[u8]) -> u8xN<SLICE_SIZE> {
+    u8xN::from_slice(chunk)
+}
+
+#[cfg(feature = "simd")]
+#[inline(always)]
+pub fn cpu_slice_to_simd_padded<const SLICE_SIZE: usize, const PAD: u8>(chunk: &[u8]) -> u8xN<SLICE_SIZE> {
+    u8xN::from_array(cpu_slice_to_array_padded::<SLICE_SIZE, 0>(chunk))
 }
 
 #[inline(always)]
@@ -123,8 +129,7 @@ pub fn cpu_find_fallback(chunk: &[u8], byte: u8) -> Option<usize> {
 
 #[cfg(feature = "simd")]
 #[inline]
-fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
-    let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE, 0>(chunk);
+fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(data_vec: u8xN<SEARCH_WINDOW_SIZE>, target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
     let mask = data_vec.simd_eq(target);
 
     if mask.any() {
@@ -134,6 +139,20 @@ fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u
     }
 
     None
+}
+
+#[cfg(feature = "simd")]
+#[inline]
+fn cpu_find_simd_avx2_unpadded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
+    let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE>(chunk);
+    cpu_find_simd_avx2_n(data_vec, target)
+}
+
+#[cfg(feature = "simd")]
+#[inline]
+fn cpu_find_simd_avx2_padded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
+    let data_vec = cpu_slice_to_simd_padded::<SEARCH_WINDOW_SIZE, 0>(chunk);
+    cpu_find_simd_avx2_n(data_vec, target)
 }
 
 ///
@@ -158,20 +177,21 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 {
     let mask = u8xN::<LANE_SIZE>::splat(byte);
     let mut iter = chunk.chunks(LANE_SIZE);
-    let max_iter = iter.len();
-    let large_steps = max_iter / CPU_SIMD_AVERAGE_ALU_COUNT; // div here so consider changing to shifts for extra ns perf
+    let iter_steps = chunk.len() / LANE_SIZE;
+    let large_iter_steps = iter_steps / CPU_SIMD_AVERAGE_ALU_COUNT;
+    let remaining_steps = (iter_steps - large_iter_steps * CPU_SIMD_AVERAGE_ALU_COUNT);
     let mut indx = 0;
 
     // Try saturating the CPU SIMD ports with ops. If we had to do all 4 passes to find the needle,
     // we essentially speculatively precomputed the index. Our worst case is if we only had to do
     // one pass to find the needle but we are relying on out of order execution and the cheapness of
     // SIMD to hide the latency. This also serves as a form of prefetching byte slice.
-    for _ in 0..large_steps {
-        let mut indices = rumtk_mem_quick_array_init!(Option<usize>, CPU_SIMD_AVERAGE_ALU_COUNT);
-        indices[0] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[1] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[2] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        indices[3] = cpu_find_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+    let mut indices = rumtk_mem_quick_array_init!(Option<usize>, CPU_SIMD_AVERAGE_ALU_COUNT);
+    for _ in 0..large_iter_steps {
+        indices[0] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[1] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[2] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        indices[3] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
 
         for i in indices {
             match i {
@@ -185,9 +205,22 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
         }
     }
 
+    // Try avoiding the copies from the padded function
+    for _ in 0..remaining_steps {
+        match cpu_find_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask) {
+            Some(idx) => {
+                return Some(indx + idx);
+            }
+            None => {
+                indx += LANE_SIZE;
+            }
+        }
+    }
+
+    // Last remaining chunk that is guaranteed to need padding.
     match iter.next() {
         Some(window) => {
-            cpu_find_simd_avx2_n::<LANE_SIZE>(window, mask).map(|idx| indx + idx)
+            cpu_find_simd_avx2_padded::<LANE_SIZE>(window, mask).map(|idx| indx + idx)
         }
         None => Some(indx + LANE_SIZE),
     }
@@ -224,15 +257,27 @@ pub fn cpu_continuous_count_fallback(chunk: &[u8], byte: u8) -> Option<usize> {
     Some(count)
 }
 
-
 #[cfg(feature = "simd")]
 #[inline]
-fn cpu_continuous_count_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> usize {
-    let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE, 0>(chunk);
+fn cpu_continuous_count_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(data_vec: u8xN<SEARCH_WINDOW_SIZE>, target: u8xN<SEARCH_WINDOW_SIZE>) -> usize {
     let mask = data_vec.simd_eq(target);
 
     let bitmask = mask.to_bitmask();
     bitmask.trailing_zeros() as usize
+}
+
+#[cfg(feature = "simd")]
+#[inline]
+fn cpu_continuous_count_simd_avx2_unpadded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> usize {
+    let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE>(chunk);
+    cpu_continuous_count_simd_avx2_n(data_vec, target)
+}
+
+#[cfg(feature = "simd")]
+#[inline]
+fn cpu_continuous_count_simd_avx2_padded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> usize {
+    let data_vec = cpu_slice_to_simd_padded::<SEARCH_WINDOW_SIZE, 0>(chunk);
+    cpu_continuous_count_simd_avx2_n(data_vec, target)
 }
 
 ///
@@ -267,10 +312,10 @@ pub fn cpu_continuous_count_simd_n<const LANE_SIZE: usize>
     // SIMD to hide the latency. This also serves as a form of prefetching byte slice.
     for _ in 0..large_steps {
         let mut sizes = rumtk_mem_quick_array_init!(usize, CPU_SIMD_AVERAGE_ALU_COUNT);
-        sizes[0] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        sizes[1] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        sizes[2] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
-        sizes[3] = cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[0] = cpu_continuous_count_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[1] = cpu_continuous_count_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[2] = cpu_continuous_count_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
+        sizes[3] = cpu_continuous_count_simd_avx2_unpadded::<LANE_SIZE>(iter.next().unwrap_or_default(), mask);
 
         for s in sizes {
             if s < LANE_SIZE {
@@ -282,7 +327,7 @@ pub fn cpu_continuous_count_simd_n<const LANE_SIZE: usize>
 
     match iter.next() {
         Some(window) => {
-            Some(indx + cpu_continuous_count_simd_avx2_n::<LANE_SIZE>(window, mask))
+            Some(indx + cpu_continuous_count_simd_avx2_padded::<LANE_SIZE>(window, mask))
         },
         None => Some(indx),
     }
