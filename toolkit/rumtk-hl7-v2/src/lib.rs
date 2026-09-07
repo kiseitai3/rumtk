@@ -357,7 +357,7 @@ mod tests {
         );
         assert!(
             message.segment_exists(V2_SEGMENT_IDS(b"RXA")),
-            "Missing EVN segment!"
+            "Missing RXA segment!"
         );
     }
 
