@@ -18,9 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-use crate::utils::defaults::{DEFAULT_TEXT_ITEM, PARAMS_CSS_CLASS};
-use crate::utils::types::{SharedAppState, URLParams};
-use crate::{rumtk_web_get_config, rumtk_web_get_text_item, sanitize_html, ComponentResult, RUMWebTemplate, RUMWebTemplateSafe};
+use crate::utils::types::SharedAppState;
+use crate::{rumtk_web_get_config, sanitize_html, ComponentResult, RUMWebTemplate, RUMWebTemplateSafe};
 use rumtk_core::strings::RUMString;
 
 #[derive(RUMWebTemplate, Debug)]
@@ -29,11 +28,17 @@ use rumtk_core::strings::RUMString;
         {% if custom_css_enabled %}
             <link href='/static/components/div.css' rel='stylesheet'>
         {% endif %}
-        <div class='div-{{css_class}}'>{{contents|safe}}</div>
+
+        {% if id.is_empty() %}
+            <div class='{{css_class}}'>{{contents|safe}}</div>
+        {% else %}
+            <div id={{id}} class='{{css_class}}'>{{contents|safe}}</div>
+        {% endif %}
     ",
     ext = "html"
 )]
 pub struct Div {
+    id: RUMString,
     contents: RUMString,
     css_class: RUMString,
     custom_css_enabled: bool,
@@ -41,17 +46,16 @@ pub struct Div {
 
 impl RUMWebTemplateSafe for Div {}
 
-pub fn div<T: ToString>(contents: T, params: URLParams, state: SharedAppState) -> ComponentResult<Div> {
-    let css_class = rumtk_web_get_text_item!(params, PARAMS_CSS_CLASS, DEFAULT_TEXT_ITEM).to_string();
-
+pub fn div<T: ToString>(id: &str, contents: T, css_class: &str, state: SharedAppState) -> ComponentResult<Div> {
     let custom_css_enabled = rumtk_web_get_config!(state).flags.custom_css;
 
     let inner = contents.to_string();
     let contents = sanitize_html(&inner, false);
 
     Ok(Div {
+        id: id.to_string(),
         contents,
-        css_class,
+        css_class: css_class.to_string(),
         custom_css_enabled
     })
 }

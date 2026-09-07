@@ -30,7 +30,6 @@ pub mod label;
 pub mod list;
 pub mod portrait_card;
 pub mod socials;
-pub mod spacer;
 pub mod text_card;
 pub mod title;
 pub mod select;

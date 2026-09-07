@@ -24,7 +24,7 @@ use rumtk_core::base::RUMVec;
 #[derive(RUMWebTemplate, Debug, Clone)]
 #[template(
     source = "
-        <div id='card-{{id}}' class='card-{{ css_class }}'>
+        <div {% if !id.is_empty() %}id='card-{{id}}'{% endif %} class='card-{{ css_class }}'>
             {% for e in contents %}
                 {{ e|safe }}
             {% endfor %}
@@ -38,11 +38,11 @@ pub struct Card {
     css_class: RUMString,
 }
 
-pub fn card<'a>(id: &str, contents: RUMVec<RUMString>, css_class: RUMString) -> ComponentResult<Card> {
+pub fn card(id: &str, contents: RUMVec<RUMString>, css_class: &str) -> ComponentResult<Card> {
     Ok(Card {
         id: id.to_string(),
         contents,
-        css_class,
+        css_class: css_class.to_string(),
     })
 }
 
