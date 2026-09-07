@@ -374,7 +374,6 @@ pub mod v2_parser {
                 None => return Err(rumtk_format!("Failed to get first field in segment! The segment is empty? => {:?}", &raw_segment)),
             };
             let segment_id = V2_SEGMENT_IDS(&segment_id_field);
-            println!("segment_id => {:?}", buffer_to_str(&segment_id_field));
 
             for raw_field in &mut raw_fields {
                 field_list[field_count] = Self::generate_subfields(raw_field, parser_chars);
