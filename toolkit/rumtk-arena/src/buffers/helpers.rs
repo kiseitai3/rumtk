@@ -21,7 +21,6 @@ use crate::as_slice_mut;
 use crate::base::*;
 use crate::buffers::RUMBuffer;
 use crate::cpu::*;
-use crate::mem::AsPtr;
 use rand::{distr::Alphanumeric, RngExt};
 use std::alloc::{alloc, Layout};
 
@@ -204,25 +203,26 @@ pub fn buffer_find(buffer: &[u8], pattern: &[u8]) -> usize {
 
     let start_pattern_byte = pattern[0];
     let pattern_length = pattern.len();
-    let mut working_buffer = buffer;
-    let mut cumulative = 0;
-    let mut end = 0;
+    let buffer_len = buffer.len();
+    let end = buffer_len - pattern_length;
+    let mut cursor = 0;
 
-    while (end + pattern_length) < working_buffer.len() {
-        working_buffer = &working_buffer[end..];
+    loop {
+        match buffer_find_byte(&buffer[cursor..], start_pattern_byte) {
+            Some(indx) => {
+                cursor += indx;
+                if cursor > end { return buffer_len; }
 
-        if working_buffer[..pattern_length] == *pattern {
-            return cumulative;
-        } else {
-            working_buffer = &working_buffer[pattern_length..];
-            cumulative += pattern_length;
+                let slice = &buffer[cursor..cursor + pattern_length];
+                if  slice == pattern {
+                    return cursor;
+                }
+
+                cursor += 1;
+            },
+            None => return buffer_len,
         }
-
-        end = buffer_find_byte(&working_buffer, start_pattern_byte).unwrap_or(working_buffer.len());
-        cumulative += end;
     }
-
-    buffer.len()
 }
 
 #[inline(always)]
