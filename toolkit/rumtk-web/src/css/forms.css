@@ -67,11 +67,11 @@
     background-color: var(--color-card-bg);
 }
 
-.form-default-contents > input:focus, textarea:focus {
+.form-default-contents > input:focus, textarea:focus, select:focus {
     border-color: var(--color-general-content-bg);
 }
 
-.form-default-contents > input:hover, textarea:hover {
+.form-default-contents > input:hover, textarea:hover, select:hover {
     border-color: var(--color-general-content-accent-bg);
 }
 
