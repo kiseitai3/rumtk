@@ -56,31 +56,31 @@ impl MiMallocOpts {
     }
 
     #[inline(always)]
-    pub const fn set_os_alloc(&mut self, mem_alloc: usize) -> &Self {
+    pub const fn set_os_alloc(&mut self, mem_alloc: usize) -> &mut Self {
         self.mem_os_alloc = mem_alloc;
         self
     }
 
     #[inline(always)]
-    pub const fn set_huge_alloc(&mut self, mem_alloc: usize) -> &Self {
+    pub const fn set_huge_alloc(&mut self, mem_alloc: usize) -> &mut Self {
         self.mem_huge_alloc = mem_alloc;
         self
     }
 
     #[inline(always)]
-    pub const fn set_arena_alloc(&mut self, mem_alloc: usize) -> &Self {
+    pub const fn set_arena_alloc(&mut self, mem_alloc: usize) -> &mut Self {
         self.mem_arena_alloc = mem_alloc;
         self
     }
 
     #[inline(always)]
-    pub const fn enable_huge_pages(&mut self) -> &Self {
+    pub const fn enable_huge_pages(&mut self) -> &mut Self {
         self.huge_pages = true;
         self
     }
 
     #[inline(always)]
-    pub const fn enable_large_pages(&mut self) -> &Self {
+    pub const fn enable_large_pages(&mut self) -> &mut Self {
         self.large_pages = true;
         self
     }

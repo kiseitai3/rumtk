@@ -35,11 +35,13 @@ use crate::mem::alloc_opts::MiMallocOpts;
 
 #[cfg(feature = "fast_allocator_options")]
 static mut GLOBAL_ALLOC_OPTS: LazyLock<()> = LazyLock::new(|| {
-    MiMallocOpts::builder().apply();
+    MiMallocOpts::builder()
+        .apply();
 });
 
 #[cfg(not(feature = "fast_allocator"))]
 use std::alloc::System;
+
 
 #[cfg(not(feature = "fast_allocator"))]
 static mut SAND: System = System;
