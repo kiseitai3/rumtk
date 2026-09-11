@@ -345,19 +345,15 @@ impl IndexMut<RangeFull> for RUMBuffer {
 impl From<String> for RUMBuffer {
     #[inline]
     fn from(mut data: String) -> Self {
-        data.shrink_to_fit();
         let (s, l, c) = data.into_raw_parts();
-        let instance = Self::from_parts(s, l, true);
-        instance
+        Self::from_parts(s, l, true)
     }
 }
 impl From<Vec<u8>> for RUMBuffer {
     #[inline]
     fn from(mut data: Vec<u8>) -> Self {
-        data.shrink_to_fit();
         let (s, l, c) = data.into_raw_parts();
-        let instance = Self::from_parts(s, l, true);
-        instance
+        Self::from_parts(s, l, true)
     }
 }
 

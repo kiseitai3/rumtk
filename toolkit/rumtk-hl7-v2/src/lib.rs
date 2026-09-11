@@ -341,6 +341,27 @@ mod tests {
         );
     }
     #[test]
+    fn test_load_hl7_v2_message_scrambled_vec() {
+        let input = Vec::from(HL7_V2_SCRAMBLED);
+        let message = V2Message::try_from(input).unwrap();
+        assert!(
+            message.segment_exists(V2_SEGMENT_IDS(b"MSH")),
+            "Missing MSH segment!"
+        );
+        assert!(
+            message.segment_exists(V2_SEGMENT_IDS(b"PID")),
+            "Missing PID segment!"
+        );
+        assert!(
+            message.segment_exists(V2_SEGMENT_IDS(b"PD1")),
+            "Missing PV1 segment!"
+        );
+        assert!(
+            message.segment_exists(V2_SEGMENT_IDS(b"RXA")),
+            "Missing RXA segment!"
+        );
+    }
+    #[test]
     fn test_load_hl7_v2_message_scrambled() {
         let message = V2Message::try_from(HL7_V2_SCRAMBLED).unwrap();
         assert!(
