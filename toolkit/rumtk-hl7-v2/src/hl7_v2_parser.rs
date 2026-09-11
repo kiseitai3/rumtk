@@ -376,7 +376,8 @@ pub mod v2_parser {
             let segment_id = V2_SEGMENT_IDS(&segment_id_field);
 
             for raw_field in &mut raw_fields {
-                field_list[field_count] = Self::generate_subfields(raw_field, parser_chars);
+                let subfields = Self::generate_subfields(raw_field, parser_chars);
+                field_list[field_count] = subfields;
                 field_count += 1;
             }
             field_list[field_count] = Self::generate_subfields(raw_fields.remainder, parser_chars);

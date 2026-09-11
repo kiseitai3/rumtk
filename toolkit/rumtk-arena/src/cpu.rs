@@ -180,10 +180,30 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
     let unpadded = chunk.len() - needs_padding; // The compiler will optimize this with a constant per my compiler explorer experiment
                                                       // https://godbolt.org/z/fhh5nG34f
 
-    for (i,window) in chunk[..unpadded].chunks(LANE_SIZE).enumerate() {
-            if let Some(lane_i) = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask) {
-                return Some(i * LANE_SIZE + lane_i);
+    let mut slices = rumtk_mem_quick_array_init!(Option<usize>, 4);
+    let mut iter = chunk[..unpadded].chunks_exact(LANE_SIZE);
+    let max_iter = iter.len();
+    let max_iter_set = max_iter - (max_iter % 4);
+    let mut i = 0;
+    while i < max_iter {
+        let slots = match i < max_iter_set {
+            true => 4,
+            false => max_iter - i,
+        };
+
+        for j in 0..slots {
+            let window = iter.next().unwrap();
+            slices[j] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask);
+        }
+
+        if slots > 0 {
+            for j in 0..slots {
+                if let Some(lane_i) = slices[j] {
+                    return Some((i * LANE_SIZE) + (j * LANE_SIZE) + lane_i);
+                }
             }
+            i += slots;
+        }
     }
 
     cpu_find_simd_avx2_padded::<LANE_SIZE>(&chunk[unpadded..], mask).map(|idx| unpadded + idx)
