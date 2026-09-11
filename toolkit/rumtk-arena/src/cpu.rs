@@ -128,7 +128,7 @@ pub fn cpu_find_fallback(chunk: &[u8], byte: u8) -> Option<usize> {
 }
 
 #[cfg(feature = "simd")]
-#[inline]
+#[inline(always)]
 fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(data_vec: u8xN<SEARCH_WINDOW_SIZE>, target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
     let mask = data_vec.simd_eq(target);
 
@@ -142,14 +142,14 @@ fn cpu_find_simd_avx2_n<const SEARCH_WINDOW_SIZE: usize>(data_vec: u8xN<SEARCH_W
 }
 
 #[cfg(feature = "simd")]
-#[inline]
+#[inline(always)]
 fn cpu_find_simd_avx2_unpadded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
     let data_vec = cpu_slice_to_simd::<SEARCH_WINDOW_SIZE>(chunk);
     cpu_find_simd_avx2_n(data_vec, target)
 }
 
 #[cfg(feature = "simd")]
-#[inline]
+#[inline(always)]
 fn cpu_find_simd_avx2_padded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], target: u8xN<SEARCH_WINDOW_SIZE>) -> Option<usize> {
     let data_vec = cpu_slice_to_simd_padded::<SEARCH_WINDOW_SIZE, 0>(chunk);
     cpu_find_simd_avx2_n(data_vec, target)
@@ -168,7 +168,7 @@ fn cpu_find_simd_avx2_padded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], targ
 ///
 ///
 #[cfg(feature = "simd")]
-#[inline]
+#[inline(always)]
 pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 (
     chunk: &[u8],
@@ -193,6 +193,7 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 
         for j in 0..slots {
             let window = iter.next().unwrap();
+            cpu_l1_prefetch(window.as_ptr());
             slices[j] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask);
         }
 
@@ -210,7 +211,7 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
 }
 
 #[cfg(feature = "simd")]
-#[inline]
+#[inline(always)]
 pub fn cpu_find(window: &[u8], byte: u8) -> Option<usize> {
     cpu_find_simd_n::<CPU_SIMD_64_SIZE>(
         window,
