@@ -158,14 +158,6 @@ fn cpu_find_simd_avx2_padded<const SEARCH_WINDOW_SIZE: usize>(chunk: &[u8], targ
 ///
 /// Use SIMD to find the index of a byte in a byte slice.
 ///
-/// ## Note
-///
-/// We try saturating the CPU SIMD ports with ops. If we had to do all [CPU_SIMD_AVERAGE_ALU_COUNT]
-/// passes to find the needle, we essentially speculatively precomputed the index. Our worst case
-/// is if we only had to do one pass to find the needle, but we are relying on out-of-order execution
-/// and the cheapness of SIMD to hide the latency. This also serves as a form of prefetching the
-/// byte slice into the cache lines, so beware of thrashing it.
-///
 ///
 #[cfg(feature = "simd")]
 #[inline(always)]
@@ -178,32 +170,11 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
     let mask = u8xN::<LANE_SIZE>::splat(byte);
     let needs_padding = chunk.len() % LANE_SIZE;
     let unpadded = chunk.len() - needs_padding; // The compiler will optimize this with a constant per my compiler explorer experiment
-                                                      // https://godbolt.org/z/fhh5nG34f
+    // https://godbolt.org/z/fhh5nG34f
 
-    let mut slices = rumtk_mem_quick_array_init!(Option<usize>, 4);
-    let mut iter = chunk[..unpadded].chunks_exact(LANE_SIZE);
-    let max_iter = iter.len();
-    let max_iter_set = max_iter - (max_iter % 4);
-    let mut i = 0;
-    while i < max_iter {
-        let slots = match i < max_iter_set {
-            true => 4,
-            false => max_iter - i,
-        };
-
-        for j in 0..slots {
-            let window = iter.next().unwrap();
-            cpu_l1_prefetch(window.as_ptr());
-            slices[j] = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask);
-        }
-
-        if slots > 0 {
-            for j in 0..slots {
-                if let Some(lane_i) = slices[j] {
-                    return Some((i * LANE_SIZE) + (j * LANE_SIZE) + lane_i);
-                }
-            }
-            i += slots;
+    for (i,window) in chunk[..unpadded].chunks(LANE_SIZE).enumerate() {
+        if let Some(lane_i) = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask) {
+            return Some(i * LANE_SIZE + lane_i);
         }
     }
 
