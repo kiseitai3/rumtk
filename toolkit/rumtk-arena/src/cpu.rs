@@ -173,6 +173,7 @@ pub fn cpu_find_simd_n<const LANE_SIZE: usize>
     // https://godbolt.org/z/fhh5nG34f
 
     for (i,window) in chunk[..unpadded].chunks(LANE_SIZE).enumerate() {
+        cpu_l1_prefetch(window.as_ptr());
         if let Some(lane_i) = cpu_find_simd_avx2_unpadded::<LANE_SIZE>(window, mask) {
             return Some(i * LANE_SIZE + lane_i);
         }
