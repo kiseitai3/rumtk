@@ -252,7 +252,7 @@ pub mod v2_parser {
         #[inline(always)]
         pub fn from_single_field(field: RUMBuffer, parser_chars: &V2ParserCharacters) -> Self {
             Self {
-                cs: [V2Component::from(field)].into()
+                cs: Box::new([V2Component::from(field)])
             }
         }
 
@@ -342,7 +342,7 @@ pub mod v2_parser {
     impl V2Segment {
         pub fn new() -> Self {
             Self {
-                f: [].into()
+                f: Box::new([])
             }
         }
 
