@@ -54,7 +54,6 @@ pub mod v2_parser {
     };
     use rumtk_core::serde::{RUMJsonDeserializer, RUMJsonSerializer, RUMSerJsonSerializeSequence};
     use rumtk_core::strings::{string_to_buffer, AsString};
-    use rumtk_core::types::RUMBigArray;
     use rumtk_core::{rumtk_cache_fetch, rumtk_mem_quick_array_init};
 
     use std::ops::{Index, IndexMut};
@@ -409,7 +408,7 @@ pub mod v2_parser {
                 field_group[field_count] = V2Field::from(splitter.remainder, parser_chars);
                 field_count += 1;
 
-                Some(Box::from(&field_group[..field_count]))
+                Some(field_group[..field_count].into())
             } else {
                 Some(Box::new([
                     V2Field::from(field, parser_chars),
@@ -513,8 +512,7 @@ pub mod v2_parser {
         #[serde(skip)]
         data: RUMBuffer,
         sep: V2ParserCharacters,
-        #[serde(with = "RUMBigArray")]
-        sg: [Option<V2SegmentGroup>; V2_TOTAL_VALID_SEGMENTS as usize],
+        sg: Box<[Option<V2SegmentGroup>]>,
     }
 
     impl V2Message {
@@ -522,7 +520,7 @@ pub mod v2_parser {
             Self {
                 data: RUMBuffer::new(),
                 sep: V2ParserCharacters::new(),
-                sg: rumtk_mem_quick_array_init!(Option<V2SegmentGroup>, V2_TOTAL_VALID_SEGMENTS as usize, None)
+                sg: rumtk_mem_quick_array_init!(Option<V2SegmentGroup>, V2_TOTAL_VALID_SEGMENTS as usize, None).into()
             }
         }
         ///
@@ -542,7 +540,7 @@ pub mod v2_parser {
             let mut message = Self {
                 data: raw_msg,
                 sep: parse_characters.clone(),
-                sg: segments,
+                sg: segments.into(),
             };
 
             Self::patch_msh_pattern(&mut message, &parse_characters)?;
