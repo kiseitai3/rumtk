@@ -246,14 +246,14 @@ pub mod v2_parser {
             indx += 1;
 
             Self {
-                cs: Box::from(&component_list[..indx])
+                cs: component_list[..indx].into()
             }
         }
 
         #[inline(always)]
         pub fn from_single_field(field: RUMBuffer, parser_chars: &V2ParserCharacters) -> Self {
             Self {
-                cs: Box::new([V2Component::from(field)])
+                cs: [V2Component::from(field)].into()
             }
         }
 
@@ -343,7 +343,7 @@ pub mod v2_parser {
     impl V2Segment {
         pub fn new() -> Self {
             Self {
-                f: Box::new([])
+                f: [].into()
             }
         }
 
@@ -384,7 +384,7 @@ pub mod v2_parser {
             field_count += 1;
 
             let segment = V2Segment {
-                f: Box::from(&field_list[..field_count]),
+                f: field_list[..field_count].into(),
             };
 
             Ok((segment_id, segment))
